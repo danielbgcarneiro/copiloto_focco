@@ -5,7 +5,6 @@ import { ArrowLeft, Search, BarChart3, User, LogOut, MapPin, Building } from 'lu
 const Cidades: React.FC = () => {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
-
   const cidades = [
     {
       id: 1,
