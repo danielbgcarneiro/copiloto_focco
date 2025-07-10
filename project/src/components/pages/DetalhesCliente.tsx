@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BarChart3, User, LogOut, Phone, MessageCircle, Mic } from 'lucide-react'
+import { ArrowLeft, User, LogOut, Phone, MessageCircle, Mic } from 'lucide-react'
 
 const DetalhesCliente: React.FC = () => {
   const navigate = useNavigate()
@@ -15,16 +15,16 @@ const DetalhesCliente: React.FC = () => {
     status: 'Liberado',
     statusInativo: 'Inativo',
     dados2025: {
-      valor: 'R$ 5.250,00',
-      qnt: 'QNT 2'
+      valor: 'R$ 5.550,20',
+      qnt: 'Qnt: 2'
     },
     dados2024: {
-      valor: 'R$ 12.523,00',
-      qnt: 'QNT 5'
+      valor: 'R$ 12.000,00',
+      qnt: 'Qnt: 5'
     },
-    oportunidade: 'R$ 7.500,00',
+    oportunidade: 'R$ 7.000,00',
     meta: 'R$ 13.500,00',
-    atingimento: 'Ating 39%',
+    atingimento: 'Ating: 39%',
     mixProdutos: [
       { produto: 'RX FEM', ob: '35%', pw: '10%' },
       { produto: 'RX MAS', ob: '12%', pw: '10%' },
@@ -38,29 +38,29 @@ const DetalhesCliente: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-primary text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 relative">
             <div className="flex items-center">
               <button 
                 onClick={() => navigate('/clientes')}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors mr-3"
+                className="p-1.5 hover:bg-white/10 rounded-full transition-colors mr-2"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4 w-4" />
               </button>
-              <BarChart3 className="h-8 w-8 mr-3" />
-              <h1 className="text-xl font-bold">Copiloto</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="bg-white/20 px-3 py-1 rounded-full text-sm">Representante</span>
-              <div className="flex items-center space-x-2">
-                <User className="h-5 w-5" />
-                <span>Charles</span>
+            <div className="flex items-center absolute left-1/2 transform -translate-x-1/2">
+              <h1 className="text-lg font-bold">Copiloto</h1>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5">
+                <User className="h-4 w-4" />
+                <span className="text-sm">Charles</span>
               </div>
               <button 
                 onClick={() => navigate('/')}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -68,74 +68,81 @@ const DetalhesCliente: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg shadow-sm p-6">
+      <main className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4">
+        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
           {/* Cliente Info */}
-          <div className="mb-6">
-            <div className="flex items-center space-x-3 mb-2">
-              <h2 className="text-2xl font-bold text-gray-900">{cliente.nome}</h2>
-              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
+          <div className="mb-4 pb-4 border-b border-gray-200">
+            <div className="flex items-center space-x-2 mb-1.5">
+              <h2 className="text-base font-bold text-gray-900">{cliente.nome}</h2>
+              <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-medium">
                 {cliente.status}
               </span>
-              <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm">
+              <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
                 {cliente.statusInativo}
               </span>
             </div>
-            <p className="text-gray-600">{cliente.endereco}</p>
+            <p className="text-xs text-gray-600 mb-2 leading-tight">{cliente.endereco}</p>
           </div>
 
           {/* Dados Financeiros */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">2025:</span>
-                <div className="text-right">
-                  <span className="font-semibold">{cliente.dados2025.valor}</span>
-                  <span className="ml-2 text-blue-600 text-sm">{cliente.dados2025.qnt}</span>
-                </div>
+          <div className="mb-4 pb-4 border-b border-gray-200">
+            <div className="grid grid-cols-2 gap-2 text-xs leading-tight">
+              <div className="leading-tight">
+                <span className="text-gray-600">2025: </span>
+                <span className="font-semibold">{cliente.dados2025.valor}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">2024:</span>
-                <div className="text-right">
-                  <span className="font-semibold">{cliente.dados2024.valor}</span>
-                  <span className="ml-2 text-blue-600 text-sm">{cliente.dados2024.qnt}</span>
-                </div>
+              <div className="text-right leading-tight">
+                <span className="text-gray-600">{cliente.dados2025.qnt}</span>
               </div>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-orange-600">● Oport:</span>
-                <span className="font-semibold">{cliente.oportunidade}</span>
+              
+              <div className="leading-tight">
+                <span className="text-gray-600">2024: </span>
+                <span className="font-semibold">{cliente.dados2024.valor}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-blue-600">● Meta:</span>
-                <span className="font-semibold">{cliente.meta}</span>
+              <div className="text-right leading-tight">
+                <span className="text-gray-600">{cliente.dados2024.qnt}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600"></span>
-                <span className="text-blue-600 text-sm">📈 {cliente.atingimento}</span>
+              
+              <div className="leading-tight">
+                <span className="text-green-600">Oport: </span>
+                <span className="font-semibold text-green-700">{cliente.oportunidade}</span>
+              </div>
+              <div></div>
+              
+              <div className="leading-tight">
+                <span className="text-blue-600">Meta: </span>
+                <span className="font-semibold text-blue-700">{cliente.meta}</span>
+              </div>
+              <div className="text-right leading-tight">
+                <span className="text-gray-600">{cliente.atingimento}</span>
               </div>
             </div>
           </div>
 
           {/* Mix de Produtos */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Mix de Produtos</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div className="mb-4 pb-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">Mix de Produtos</h3>
+            <div className="overflow-x-auto bg-white rounded-lg shadow-lg border-2 border-primary/60">
+              <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2"></th>
-                    <th className="text-center py-2 text-gray-600">OB</th>
-                    <th className="text-center py-2 text-gray-600">PW</th>
+                  <tr className="bg-primary/25 border-b-2 border-primary/70">
+                    <th className="text-left py-2 px-3 font-bold text-gray-900">Produto</th>
+                    <th className="text-center py-2 px-3 font-bold text-gray-900">OB</th>
+                    <th className="text-center py-2 px-3 font-bold text-gray-900">PW</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cliente.mixProdutos.map((item, index) => (
-                    <tr key={index} className={index === cliente.mixProdutos.length - 1 ? 'border-t font-semibold' : ''}>
-                      <td className="py-2">{item.produto}</td>
-                      <td className="text-center py-2">{item.ob}</td>
-                      <td className="text-center py-2">{item.pw}</td>
+                    <tr key={index} className={`
+                      ${index === cliente.mixProdutos.length - 1 
+                        ? 'border-t-2 border-primary bg-primary/20 font-bold' 
+                        : index % 2 === 0 ? 'bg-gray-200' : 'bg-white'
+                      }
+                      hover:bg-primary/25 transition-colors
+                    `}>
+                      <td className="py-2 px-3 text-black font-semibold">{item.produto}</td>
+                      <td className="text-center py-2 px-3 text-black font-bold">{item.ob}</td>
+                      <td className="text-center py-2 px-3 text-black font-bold">{item.pw}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -144,19 +151,21 @@ const DetalhesCliente: React.FC = () => {
           </div>
 
           {/* Botões de Ação */}
-          <div className="space-y-3">
-            <button className="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
-              <Phone className="h-5 w-5" />
-              Ligar
-            </button>
-            <button className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              WhatsApp
-            </button>
-            <button className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors flex items-center justify-center gap-2">
-              <Mic className="h-5 w-5" />
-              Gravar Áudio
-            </button>
+          <div className="pt-4 border-t border-gray-200">
+            <div className="space-y-2">
+              <button className="w-full bg-primary text-white py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+                <Phone className="h-4 w-4" />
+                <span className="text-sm">Ligar</span>
+              </button>
+              <button className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                <span className="text-sm">WhatsApp</span>
+              </button>
+              <button className="w-full bg-gray-200 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-300 transition-colors flex items-center justify-center gap-2">
+                <Mic className="h-4 w-4" />
+                <span className="text-sm">Gravar Áudio</span>
+              </button>
+            </div>
           </div>
         </div>
       </main>

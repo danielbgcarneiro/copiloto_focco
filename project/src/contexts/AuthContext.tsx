@@ -56,6 +56,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const logout = () => {
+    // Limpa cache do vendedor antes de fazer logout
+    if (user?.cod_vendedor) {
+      localStorage.removeItem(`vendedor_${user.cod_vendedor}`)
+    }
     setUser(null)
     localStorage.removeItem('user')
   }

@@ -1,10 +1,20 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Search, BarChart3, User, LogOut, MapPin } from 'lucide-react'
+import { ArrowLeft, Search, User, LogOut, MapPin } from 'lucide-react'
 
 const Rotas: React.FC = () => {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Função para normalizar texto removendo acentos e caracteres especiais
+  const normalizeText = (text: string): string => {
+    return text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/[^\w\s]/gi, '') // Remove caracteres especiais exceto espaços
+      .toLowerCase()
+      .trim()
+  }
 
   const rotas = [
     {
@@ -37,37 +47,38 @@ const Rotas: React.FC = () => {
     }
   ]
 
-  const filteredRotas = rotas.filter(rota =>
-    rota.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredRotas = rotas.filter(rota => {
+    const normalizedSearchTerm = normalizeText(searchTerm)
+    return normalizeText(rota.nome).includes(normalizedSearchTerm)
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-primary text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 relative">
             <div className="flex items-center">
               <button 
                 onClick={() => navigate('/dashboard')}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors mr-3"
+                className="p-1.5 hover:bg-white/10 rounded-full transition-colors mr-2"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4 w-4" />
               </button>
-              <BarChart3 className="h-8 w-8 mr-3" />
-              <h1 className="text-xl font-bold">Copiloto</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="bg-white/20 px-3 py-1 rounded-full text-sm">Representante</span>
-              <div className="flex items-center space-x-2">
-                <User className="h-5 w-5" />
-                <span>Charles</span>
+            <div className="flex items-center absolute left-1/2 transform -translate-x-1/2">
+              <h1 className="text-lg font-bold">Copiloto</h1>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5">
+                <User className="h-4 w-4" />
+                <span className="text-sm">Charles</span>
               </div>
               <button 
                 onClick={() => navigate('/')}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -75,48 +86,52 @@ const Rotas: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4">
         {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Buscar rotas..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
         </div>
 
         {/* Rotas List */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredRotas.map((rota) => (
             <div
               key={rota.id}
-              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer"
+              className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer"
               onClick={() => navigate('/cidades')}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <MapPin className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold text-gray-900">{rota.nome}</h3>
+                  <div className="flex items-center space-x-2 mb-1.5">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <h3 className="text-base font-semibold text-gray-900">{rota.nome}</h3>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="mb-2"></div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs leading-tight">
                     <div>
-                      <span className="text-gray-500">Oportunidade:</span>
-                      <p className="font-medium text-gray-900">{rota.oportunidade}</p>
+                      <span className="text-green-600">Oportunidade:</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-green-700">{rota.oportunidade}</p>
                     </div>
                     <div>
-                      <span className="text-gray-500">Cidades:</span>
-                      <p className="font-medium text-gray-900">{rota.cidades} Cidades</p>
+                      <span className="text-blue-600">Cidades:</span>
+                      <span className="font-semibold text-blue-700 ml-1">{rota.cidades}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-500">Óticas:</span>
-                      <p className="font-medium text-gray-900">{rota.oticas} Óticas</p>
+                    <div className="text-right">
+                      <span className="text-purple-600">Óticas:</span>
+                      <span className="font-semibold text-purple-700 ml-1">{rota.oticas}</span>
                     </div>
                   </div>
                 </div>

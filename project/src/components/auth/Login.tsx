@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { testConnection } from '../../lib/supabase'
 import logoFocco from '../../assets/logos/Logo Focco Brasil.png'
 
 const Login: React.FC = () => {
@@ -20,20 +21,33 @@ const Login: React.FC = () => {
     }
   }, [user, navigate])
 
+  // Testar conexão ao montar o componente
+  useEffect(() => {
+    testConnection()
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setIsLoading(true)
 
+    console.log('🔑 Iniciando processo de login...')
+    console.log('👤 Login:', loginValue)
+    console.log('🔒 Senha tem', senha.length, 'caracteres')
+
     try {
       const result = await login(loginValue, senha)
+      console.log('📋 Resultado do login:', result)
       
       if (result.success) {
+        console.log('✅ Login bem-sucedido, redirecionando...')
         navigate('/dashboard')
       } else {
+        console.error('❌ Falha no login:', result.error)
         setError(result.error || 'Erro desconhecido')
       }
     } catch (error) {
+      console.error('💥 Erro crítico:', error)
       setError('Erro na conexão com o servidor')
     } finally {
       setIsLoading(false)
