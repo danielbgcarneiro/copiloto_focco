@@ -1,9 +1,13 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, MapPin, Building } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { useUserData } from '../../contexts/VendedorDataContext'
 
 const Cidades: React.FC = () => {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const { } = useUserData()
   const [searchTerm, setSearchTerm] = useState('')
 
   // Função para normalizar texto removendo acentos e caracteres especiais
@@ -22,6 +26,7 @@ const Cidades: React.FC = () => {
       somaOportunidade: 'R$ 7.300,00',
       saldoMetas: 'R$ 13.500,00',
       nLojas: 12,
+      semVendas90d: 2,
       indicadores: {
         at: 2,
         inad: 1,
@@ -34,6 +39,7 @@ const Cidades: React.FC = () => {
       somaOportunidade: 'R$ 5.200,00',
       saldoMetas: 'R$ 8.000,00',
       nLojas: 8,
+      semVendas90d: 1,
       indicadores: {
         at: 1,
         inad: 2,
@@ -46,6 +52,7 @@ const Cidades: React.FC = () => {
       somaOportunidade: 'R$ 4.100,00',
       saldoMetas: 'R$ 6.000,00',
       nLojas: 6,
+      semVendas90d: 0,
       indicadores: {
         at: 3,
         inad: 1,
@@ -58,6 +65,7 @@ const Cidades: React.FC = () => {
       somaOportunidade: 'R$ 3.200,00',
       saldoMetas: 'R$ 4.500,00',
       nLojas: 4,
+      semVendas90d: 1,
       indicadores: {
         at: 2,
         inad: 0,
@@ -91,10 +99,10 @@ const Cidades: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1.5">
                 <User className="h-4 w-4" />
-                <span className="text-sm">Charles</span>
+                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
               </div>
               <button 
-                onClick={() => navigate('/')}
+                onClick={() => { logout(); navigate('/') }}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
               >
                 <LogOut className="h-4 w-4" />
@@ -147,6 +155,9 @@ const Cidades: React.FC = () => {
                     
                     <span className="text-blue-600">Saldo de Metas:</span>
                     <p className="font-semibold text-blue-700 text-right">{cidade.saldoMetas}</p>
+                    
+                    <span className="text-red-600">Sem Vendas +90d:</span>
+                    <p className="font-semibold text-red-700 text-right">{cidade.semVendas90d} {cidade.semVendas90d === 1 ? 'ótica' : 'óticas'}</p>
                     
                     <span className="text-purple-600">N Lojas:</span>
                     <div className="flex items-center justify-end space-x-2 text-xs">

@@ -2,12 +2,13 @@ import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, Target, User, LogOut, Map, Building, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useVendedorData } from '../../contexts/VendedorDataContext'
+import { useUserData } from '../../contexts/VendedorDataContext'
+import '../../styles/dashboard.css'
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { vendedor } = useVendedorData()
+  const { } = useUserData()
   
   // Estados para controlar ordenação
   const [sortByRoute, setSortByRoute] = useState<'asc' | 'desc' | null>(null)
@@ -99,6 +100,14 @@ const Dashboard: React.FC = () => {
     navigate('/')
   }
 
+  // Dados dos cards de métricas
+  const metricas = {
+    oticasPositivadas: 15,
+    oticasPositivadasAnterior: 12,
+    semVendas90d: 3,
+    semVendas90dAnterior: 5
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -113,7 +122,7 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1.5">
                 <User className="h-4 w-4" />
-                <span className="text-sm">{vendedor?.apelido || user?.cod_vendedor || user?.login || 'Usuário'}</span>
+                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
               </div>
               <button 
                 onClick={handleLogout}
@@ -132,7 +141,7 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Dashboard Pessoal</h2>
-            <p className="text-gray-600">Bem-vindo, {vendedor?.apelido || user?.cod_vendedor || 'Usuário'}! Aqui estão suas métricas</p>
+            <p className="text-gray-600">Bem-vindo, {user?.apelido || user?.nome || user?.email || 'Usuário'}! Aqui estão suas métricas</p>
           </div>
           <div className="flex items-center space-x-2 sm:space-x-3">
             <button 
@@ -151,48 +160,68 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Cards de Métricas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {/* Vendas do Mês */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Vendas do Mês</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">R$ 125.000,00</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Ano anterior: R$ 100.000,00
+                <p className="text-xs font-medium text-gray-600">Vendas do Mês</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">R$ 125.000,00</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Anterior: R$ 100.000,00
                 </p>
               </div>
-              <div className="bg-blue-50 p-3 rounded-full">
-                <TrendingUp className="h-6 w-6 text-blue-600" />
+              <div className="bg-blue-50 p-2 rounded-full">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
               </div>
             </div>
           </div>
 
           {/* Óticas Positivadas */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Óticas Positivadas</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">15</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Ano anterior: 12
+                <p className="text-xs font-medium text-gray-600">Óticas Positivadas</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">
+                  {metricas.oticasPositivadas} {metricas.oticasPositivadas === 1 ? 'ótica' : 'óticas'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Anterior: {metricas.oticasPositivadasAnterior} {metricas.oticasPositivadasAnterior === 1 ? 'ótica' : 'óticas'}
                 </p>
               </div>
-              <div className="bg-green-50 p-3 rounded-full">
-                <Building className="h-6 w-6 text-green-600" />
+              <div className="bg-green-50 p-2 rounded-full">
+                <Building className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </div>
 
           {/* Meta */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Meta</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">83%</p>
-                </div>
-              <div className="bg-yellow-50 p-3 rounded-full">
-                <Target className="h-6 w-6 text-yellow-600" />
+                <p className="text-xs font-medium text-gray-600">Meta</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">83%</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Anterior: 75%
+                </p>
+              </div>
+              <div className="bg-yellow-50 p-2 rounded-full">
+                <Target className="h-5 w-5 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Óticas Sem Vendas +90d */}
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-600">Sem Vendas +90d</p>
+                <p className="text-xl font-bold text-red-600 mt-1">
+                  {metricas.semVendas90d} {metricas.semVendas90d === 1 ? 'ótica' : 'óticas'}
+                </p>
+              </div>
+              <div className="bg-red-50 p-2 rounded-full">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
               </div>
             </div>
           </div>
@@ -213,100 +242,70 @@ const Dashboard: React.FC = () => {
                 <span className="text-xs font-medium text-gray-500 w-6">#1</span>
                 <span className="text-xs font-medium text-gray-900">Fortaleza</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '56px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 450.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 450.000,00</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-500 w-6">#2</span>
                 <span className="text-xs font-medium text-gray-900">Caucaia</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '52px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 280.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 280.000,00</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-500 w-6">#3</span>
                 <span className="text-xs font-medium text-gray-900">Maracanaú</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '48px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 250.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 250.000,00</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-500 w-6">#4</span>
                 <span className="text-xs font-medium text-gray-900">Sobral</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '44px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 220.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 220.000,00</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-500 w-6">#5</span>
                 <span className="text-xs font-medium text-gray-900">Juazeiro do Norte</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '40px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 200.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 200.000,00</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-500 w-6">#6</span>
                 <span className="text-xs font-medium text-gray-900">Crato</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '36px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 180.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 180.000,00</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-500 w-6">#7</span>
                 <span className="text-xs font-medium text-gray-900">Iguatu</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '32px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 160.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 160.000,00</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-500 w-6">#8</span>
                 <span className="text-xs font-medium text-gray-900">Quixadá</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '28px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 140.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 140.000,00</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-500 w-6">#9</span>
                 <span className="text-xs font-medium text-gray-900">Canindé</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '24px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 120.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 120.000,00</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-500 w-6">#10</span>
                 <span className="text-xs font-medium text-gray-900">Ceará-Mirim</span>
               </div>
-              <div className="flex items-center">
-                <div className="bg-primary h-1.5 rounded-full mr-2" style={{width: '20px'}}></div>
-                <span className="text-xs font-medium text-gray-900">R$ 100.000,00</span>
-              </div>
+              <span className="text-xs font-medium text-gray-900">R$ 100.000,00</span>
             </div>
           </div>
         </div>
@@ -412,12 +411,12 @@ const Dashboard: React.FC = () => {
                 <span className="text-[8px] sm:text-[9px] text-gray-500">500k</span>
               </div>
               <div className="absolute top-5 left-8 sm:left-12 right-2 sm:right-4 h-24 sm:h-32 pointer-events-none">
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200" style={{left: '0%'}}></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200" style={{left: '20%'}}></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200" style={{left: '40%'}}></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200" style={{left: '60%'}}></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200" style={{left: '80%'}}></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200" style={{left: '100%'}}></div>
+                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-0"></div>
+                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-20"></div>
+                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-40"></div>
+                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-60"></div>
+                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-80"></div>
+                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-100"></div>
               </div>
               <div className="space-y-2 sm:space-y-3 pl-8 sm:pl-12 pr-2 sm:pr-4">
                 <div className="flex items-center">
@@ -425,8 +424,8 @@ const Dashboard: React.FC = () => {
                     <span className="text-[8px] sm:text-[9px] text-gray-700 font-medium">Centro</span>
                   </div>
                   <div className="flex-1 relative">
-                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative" style={{width: '100%'}}>
-                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center" style={{width: '90%'}}>
+                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative chart-bar-full">
+                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center chart-progress-90">
                         <span className="text-[7px] sm:text-[8px] text-white font-medium">90%</span>
                       </div>
                       <div className="absolute right-0.5 sm:right-1 top-0 h-4 sm:h-5 flex items-center">
@@ -442,8 +441,8 @@ const Dashboard: React.FC = () => {
                     <span className="text-[8px] sm:text-[9px] text-gray-700 font-medium">Norte</span>
                   </div>
                   <div className="flex-1 relative">
-                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative" style={{width: '80%'}}>
-                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center" style={{width: '80%'}}>
+                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative chart-bar-80">
+                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center chart-progress-80">
                         <span className="text-[7px] sm:text-[8px] text-white font-medium">80%</span>
                       </div>
                       <div className="absolute right-0.5 sm:right-1 top-0 h-4 sm:h-5 flex items-center">
@@ -459,8 +458,8 @@ const Dashboard: React.FC = () => {
                     <span className="text-[8px] sm:text-[9px] text-gray-700 font-medium">Sul</span>
                   </div>
                   <div className="flex-1 relative">
-                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative" style={{width: '90%'}}>
-                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center" style={{width: '70%'}}>
+                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative chart-bar-90">
+                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center chart-progress-70">
                         <span className="text-[7px] sm:text-[8px] text-white font-medium">70%</span>
                       </div>
                       <div className="absolute right-0.5 sm:right-1 top-0 h-4 sm:h-5 flex items-center">
@@ -476,8 +475,8 @@ const Dashboard: React.FC = () => {
                     <span className="text-[8px] sm:text-[9px] text-gray-700 font-medium">Leste</span>
                   </div>
                   <div className="flex-1 relative">
-                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative" style={{width: '70%'}}>
-                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center" style={{width: '60%'}}>
+                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative chart-bar-70">
+                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center chart-progress-60">
                         <span className="text-[7px] sm:text-[8px] text-white font-medium">60%</span>
                       </div>
                       <div className="absolute right-0.5 sm:right-1 top-0 h-4 sm:h-5 flex items-center">

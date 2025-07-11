@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { User, loginUser } from '../lib/supabase'
+import { User, loginUser, logoutUser, getCurrentUser } from '../lib/supabase'
 
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (login: string, senha: string) => Promise<{ success: boolean; error?: string }>
-  logout: () => void
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -27,18 +27,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Verificar se há um usuário salvo no localStorage
-    const savedUser = localStorage.getItem('user')
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
+    // Verificar se há um usuário autenticado no Supabase
+    const checkUser = async () => {
+      const { user, error } = await getCurrentUser()
+      if (user && !error) {
+        setUser(user)
+      }
+      setLoading(false)
     }
-    setLoading(false)
+    
+    checkUser()
   }, [])
 
-  const login = async (loginValue: string, senha: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setLoading(true)
     try {
-      const { user: authUser, error } = await loginUser(loginValue, senha)
+      const { user: authUser, error } = await loginUser(email, password)
       
       if (error || !authUser) {
         setLoading(false)
@@ -46,7 +50,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       setUser(authUser)
-      localStorage.setItem('user', JSON.stringify(authUser))
       setLoading(false)
       return { success: true }
     } catch (error) {
@@ -55,13 +58,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  const logout = () => {
-    // Limpa cache do vendedor antes de fazer logout
-    if (user?.cod_vendedor) {
-      localStorage.removeItem(`vendedor_${user.cod_vendedor}`)
+  const logout = async () => {
+    setLoading(true)
+    try {
+      // Limpa cache do vendedor antes de fazer logout
+      if (user?.profile?.cod_vendedor) {
+        localStorage.removeItem(`vendedor_${user.profile.cod_vendedor}`)
+      }
+      
+      await logoutUser()
+      setUser(null)
+    } catch (error) {
+      console.error('Erro no logout:', error)
+    } finally {
+      setLoading(false)
     }
-    setUser(null)
-    localStorage.removeItem('user')
   }
 
   const value: AuthContextType = {

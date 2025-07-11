@@ -1,120 +1,155 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useAuth } from './AuthContext'
 import { 
-  getDadosVendedor,
-  getClientesByVendedor,
-  getRotasByVendedor,
-  getCidadesByVendedor,
-  getVendasByVendedor
+  getClientes,
+  getRotas,
+  getCidades,
+  getVendas,
+  getUserProfile
 } from '../lib/supabase'
 
-interface VendedorData {
+interface UserProfile {
+  id: string
+  email: string
+  cargo: 'diretor' | 'gestor' | 'vendedor'
   cod_vendedor?: string
-  apelido?: string
   nome?: string
-  role?: string
-  vendedor_responsavel?: string
-  created_at?: string
+  ativo: boolean
 }
 
-interface VendedorDataContextType {
-  vendedor: VendedorData | null
+interface UserDataContextType {
+  profile: UserProfile | null
   clientes: any[]
   rotas: any[]
   cidades: any[]
   vendas: any[]
   loading: boolean
+  error: string | null
   hasData: (key: string) => boolean
   refresh: () => void
   clear: () => void
 }
 
-const VendedorDataContext = createContext<VendedorDataContextType | undefined>(undefined)
+const UserDataContext = createContext<UserDataContextType | undefined>(undefined)
 
-export const useVendedorData = () => {
-  const context = useContext(VendedorDataContext)
+export const useUserData = () => {
+  const context = useContext(UserDataContext)
   if (context === undefined) {
-    throw new Error('useVendedorData must be used within a VendedorDataProvider')
+    throw new Error('useUserData must be used within a UserDataProvider')
   }
   return context
 }
 
-interface VendedorDataProviderProps {
+// Manter compatibilidade com nome antigo
+export const useVendedorData = useUserData
+
+interface UserDataProviderProps {
   children: ReactNode
 }
 
-export const VendedorDataProvider: React.FC<VendedorDataProviderProps> = ({ children }) => {
+export const UserDataProvider: React.FC<UserDataProviderProps> = ({ children }) => {
   const { user } = useAuth()
   const [dadosCompletos, setDadosCompletos] = useState({
-    vendedor: null,
+    profile: null,
     clientes: [],
     rotas: [],
     cidades: [],
     vendas: []
   })
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const carregarDadosDisponiveis = async (cod_vendedor: string) => {
+  const carregarDados = async (userId: string) => {
     setLoading(true)
+    setError(null)
     
     const resultados: any = {
-      vendedor: null,
+      profile: null,
       clientes: [],
       rotas: [],
       cidades: [],
       vendas: []
     }
 
-    // 1. SEMPRE carrega dados do vendedor
     try {
-      const { data: vendedorData } = await getDadosVendedor(cod_vendedor)
-      resultados.vendedor = vendedorData
-    } catch (error) {
-      console.log('Erro ao carregar dados do vendedor:', error)
-    }
-
-    // 2. Tenta carregar outras tabelas (SE existirem)
-    const queries = [
-      { key: 'clientes', fn: getClientesByVendedor },
-      { key: 'rotas', fn: getRotasByVendedor },
-      { key: 'cidades', fn: getCidadesByVendedor },
-      { key: 'vendas', fn: getVendasByVendedor }
-    ]
-
-    for (const { key, fn } of queries) {
-      try {
-        const { data } = await fn(cod_vendedor)
-        resultados[key] = data || []
-      } catch (error) {
-        resultados[key] = []
+      // 1. Carrega perfil do usuário
+      const { data: profileData, error: profileError } = await getUserProfile(userId)
+      if (profileError) {
+        throw new Error(`Erro ao carregar perfil: ${profileError}`)
       }
+      resultados.profile = profileData
+
+      // 2. Carrega dados com RLS (Row Level Security)
+      // Agora o backend filtra automaticamente baseado no usuário logado
+      const queries = [
+        { key: 'clientes', fn: getClientes },
+        { key: 'rotas', fn: getRotas },
+        { key: 'cidades', fn: getCidades },
+        { key: 'vendas', fn: getVendas }
+      ]
+
+      for (const { key, fn } of queries) {
+        try {
+          const { data, error } = await fn()
+          if (error) {
+            console.warn(`Erro ao carregar ${key}:`, error)
+            resultados[key] = []
+          } else {
+            resultados[key] = data || []
+          }
+        } catch (error) {
+          console.warn(`Erro ao carregar ${key}:`, error)
+          resultados[key] = []
+        }
+      }
+
+      // Cache em localStorage para performance
+      const cacheKey = `userData_${userId}`
+      localStorage.setItem(cacheKey, JSON.stringify({
+        ...resultados,
+        loadedAt: new Date().toISOString()
+      }))
+
+      setDadosCompletos(resultados)
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error)
+      setError(error instanceof Error ? error.message : 'Erro desconhecido')
+    } finally {
+      setLoading(false)
     }
-
-    // Cache em localStorage para performance
-    localStorage.setItem(`vendedor_${cod_vendedor}`, JSON.stringify({
-      ...resultados,
-      loadedAt: new Date().toISOString()
-    }))
-
-    setDadosCompletos(resultados)
-    setLoading(false)
   }
 
   // Tenta recuperar do cache primeiro
   useEffect(() => {
-    if (user?.cod_vendedor) {
-      const cached = localStorage.getItem(`vendedor_${user.cod_vendedor}`)
+    if (user?.id) {
+      const cacheKey = `userData_${user.id}`
+      const cached = localStorage.getItem(cacheKey)
       
       if (cached) {
         // Tem cache - usa instantaneamente
-        const cachedData = JSON.parse(cached)
-        setDadosCompletos(cachedData)
+        try {
+          const cachedData = JSON.parse(cached)
+          setDadosCompletos(cachedData)
+        } catch (error) {
+          console.warn('Erro ao carregar cache:', error)
+          carregarDados(user.id)
+        }
       } else {
         // Não tem cache - carrega tudo
-        carregarDadosDisponiveis(user.cod_vendedor)
+        carregarDados(user.id)
       }
+    } else {
+      // Usuário não logado - limpa dados
+      setDadosCompletos({
+        profile: null,
+        clientes: [],
+        rotas: [],
+        cidades: [],
+        vendas: []
+      })
+      setError(null)
     }
-  }, [user?.cod_vendedor])
+  }, [user?.id])
 
   const hasData = (key: string) => {
     return Array.isArray(dadosCompletos[key as keyof typeof dadosCompletos]) 
@@ -123,39 +158,45 @@ export const VendedorDataProvider: React.FC<VendedorDataProviderProps> = ({ chil
   }
 
   const refresh = () => {
-    if (user?.cod_vendedor) {
-      carregarDadosDisponiveis(user.cod_vendedor)
+    if (user?.id) {
+      carregarDados(user.id)
     }
   }
 
   const clear = () => {
-    if (user?.cod_vendedor) {
-      localStorage.removeItem(`vendedor_${user.cod_vendedor}`)
+    if (user?.id) {
+      const cacheKey = `userData_${user.id}`
+      localStorage.removeItem(cacheKey)
     }
     setDadosCompletos({
-      vendedor: null,
+      profile: null,
       clientes: [],
       rotas: [],
       cidades: [],
       vendas: []
     })
+    setError(null)
   }
 
-  const value: VendedorDataContextType = {
-    vendedor: dadosCompletos.vendedor,
+  const value: UserDataContextType = {
+    profile: dadosCompletos.profile,
     clientes: dadosCompletos.clientes,
     rotas: dadosCompletos.rotas,
     cidades: dadosCompletos.cidades,
     vendas: dadosCompletos.vendas,
     loading,
+    error,
     hasData,
     refresh,
     clear
   }
 
   return (
-    <VendedorDataContext.Provider value={value}>
+    <UserDataContext.Provider value={value}>
       {children}
-    </VendedorDataContext.Provider>
+    </UserDataContext.Provider>
   )
 }
+
+// Manter compatibilidade com nome antigo
+export const VendedorDataProvider = UserDataProvider

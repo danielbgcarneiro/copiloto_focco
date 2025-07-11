@@ -1,9 +1,13 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, AlertTriangle, Phone, MessageCircle, Filter } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { useUserData } from '../../contexts/VendedorDataContext'
 
 const Inadimplentes: React.FC = () => {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const { } = useUserData()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [sortBy, setSortBy] = useState('nome')
@@ -161,10 +165,10 @@ const Inadimplentes: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1.5">
                 <User className="h-4 w-4" />
-                <span className="text-sm">Charles</span>
+                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
               </div>
               <button 
-                onClick={() => navigate('/')}
+                onClick={() => { logout(); navigate('/') }}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
               >
                 <LogOut className="h-4 w-4" />

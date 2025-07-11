@@ -6,8 +6,8 @@ import { testConnection } from '../../lib/supabase'
 import logoFocco from '../../assets/logos/Logo Focco Brasil.png'
 
 const Login: React.FC = () => {
-  const [loginValue, setLoginValue] = useState('')
-  const [senha, setSenha] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -32,11 +32,11 @@ const Login: React.FC = () => {
     setIsLoading(true)
 
     console.log('🔑 Iniciando processo de login...')
-    console.log('👤 Login:', loginValue)
-    console.log('🔒 Senha tem', senha.length, 'caracteres')
+    console.log('👤 Email:', email)
+    console.log('🔒 Senha tem', password.length, 'caracteres')
 
     try {
-      const result = await login(loginValue, senha)
+      const result = await login(email, password)
       console.log('📋 Resultado do login:', result)
       
       if (result.success) {
@@ -73,13 +73,13 @@ const Login: React.FC = () => {
           {/* Campo Login */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Login
+              E-mail
             </label>
             <input
-              type="text"
-              value={loginValue}
-              onChange={(e) => setLoginValue(e.target.value)}
-              placeholder="Seu login"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu.email@empresa.com"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               required
               disabled={isLoading}
@@ -94,8 +94,8 @@ const Login: React.FC = () => {
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent pr-12"
                 required

@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
-import { VendedorDataProvider } from './contexts/VendedorDataContext'
+import { UserDataProvider } from './contexts/VendedorDataContext'
 import Login from './components/auth/Login'
 import Dashboard from './components/dashboard/Dashboard'
 import Clientes from './components/pages/Clientes'
@@ -19,9 +19,9 @@ const router = createBrowserRouter([
     path: "/dashboard",
     element: (
       <ProtectedRoute>
-        <VendedorDataProvider>
+        <UserDataProvider>
           <Dashboard />
-        </VendedorDataProvider>
+        </UserDataProvider>
       </ProtectedRoute>
     )
   },
@@ -29,9 +29,9 @@ const router = createBrowserRouter([
     path: "/clientes",
     element: (
       <ProtectedRoute>
-        <VendedorDataProvider>
+        <UserDataProvider>
           <Clientes />
-        </VendedorDataProvider>
+        </UserDataProvider>
       </ProtectedRoute>
     )
   },
@@ -39,9 +39,9 @@ const router = createBrowserRouter([
     path: "/rotas",
     element: (
       <ProtectedRoute>
-        <VendedorDataProvider>
+        <UserDataProvider>
           <Rotas />
-        </VendedorDataProvider>
+        </UserDataProvider>
       </ProtectedRoute>
     )
   },
@@ -49,9 +49,9 @@ const router = createBrowserRouter([
     path: "/cidades",
     element: (
       <ProtectedRoute>
-        <VendedorDataProvider>
+        <UserDataProvider>
           <Cidades />
-        </VendedorDataProvider>
+        </UserDataProvider>
       </ProtectedRoute>
     )
   },
@@ -59,9 +59,9 @@ const router = createBrowserRouter([
     path: "/cliente/:id",
     element: (
       <ProtectedRoute>
-        <VendedorDataProvider>
+        <UserDataProvider>
           <DetalhesCliente />
-        </VendedorDataProvider>
+        </UserDataProvider>
       </ProtectedRoute>
     )
   },
@@ -69,9 +69,9 @@ const router = createBrowserRouter([
     path: "/inadimplentes",
     element: (
       <ProtectedRoute>
-        <VendedorDataProvider>
+        <UserDataProvider>
           <Inadimplentes />
-        </VendedorDataProvider>
+        </UserDataProvider>
       </ProtectedRoute>
     )
   }

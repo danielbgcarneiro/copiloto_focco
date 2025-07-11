@@ -19,6 +19,10 @@ export default defineConfig({
       // Usa polling em ambientes WSL se necessário
       usePolling: false,
       interval: 1000
+    },
+    // Desabilita CSP para desenvolvimento
+    headers: {
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:;"
     }
   },
   build: {

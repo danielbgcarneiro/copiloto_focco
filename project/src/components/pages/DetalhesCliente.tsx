@@ -1,9 +1,13 @@
 import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, User, LogOut, Phone, MessageCircle, Mic } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { useUserData } from '../../contexts/VendedorDataContext'
 
 const DetalhesCliente: React.FC = () => {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const { } = useUserData()
   const { id } = useParams()
   
   // Usando o id do parâmetro da rota (pode ser usado para buscar dados específicos do cliente)
@@ -14,6 +18,7 @@ const DetalhesCliente: React.FC = () => {
     endereco: 'S LIMA DA SILVA / 123456',
     status: 'Liberado',
     statusInativo: 'Inativo',
+    dsv: 120,
     dados2025: {
       valor: 'R$ 5.550,20',
       qnt: 'Qnt: 2'
@@ -54,10 +59,10 @@ const DetalhesCliente: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1.5">
                 <User className="h-4 w-4" />
-                <span className="text-sm">Charles</span>
+                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
               </div>
               <button 
-                onClick={() => navigate('/')}
+                onClick={() => { logout(); navigate('/') }}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
               >
                 <LogOut className="h-4 w-4" />
@@ -72,14 +77,20 @@ const DetalhesCliente: React.FC = () => {
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
           {/* Cliente Info */}
           <div className="mb-4 pb-4 border-b border-gray-200">
-            <div className="flex items-center space-x-2 mb-1.5">
-              <h2 className="text-base font-bold text-gray-900">{cliente.nome}</h2>
-              <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-medium">
-                {cliente.status}
-              </span>
-              <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
-                {cliente.statusInativo}
-              </span>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center space-x-2">
+                <h2 className="text-base font-bold text-gray-900">{cliente.nome}</h2>
+                <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-medium">
+                  {cliente.status}
+                </span>
+                <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
+                  {cliente.statusInativo}
+                </span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <span className="text-xs text-gray-600">DSV:</span>
+                <span className="text-xs font-semibold text-red-600">{cliente.dsv}d</span>
+              </div>
             </div>
             <p className="text-xs text-gray-600 mb-2 leading-tight">{cliente.endereco}</p>
           </div>

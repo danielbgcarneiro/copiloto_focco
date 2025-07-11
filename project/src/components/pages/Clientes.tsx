@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, Filter, User, LogOut } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { useUserData } from '../../contexts/VendedorDataContext'
 
 const Clientes: React.FC = () => {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const { } = useUserData()
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('nome')
   const [showSortMenu, setShowSortMenu] = useState(false)
@@ -42,7 +46,8 @@ const Clientes: React.FC = () => {
       limiteCred: 'R$25.000',
       meta: 'R$18.000',
       vendido: 'R$9.000',
-      bairro: 'Aldeota'
+      bairro: 'Aldeota',
+      dsv: 45
     },
     {
       id: 2,
@@ -54,7 +59,8 @@ const Clientes: React.FC = () => {
       limiteCred: 'R$20.000',
       meta: 'R$18.000',
       vendido: 'R$9.000',
-      bairro: 'Meireles'
+      bairro: 'Meireles',
+      dsv: 120
     },
     {
       id: 3,
@@ -66,7 +72,8 @@ const Clientes: React.FC = () => {
       limiteCred: 'R$15.000',
       meta: 'R$12.000',
       vendido: 'R$4.500',
-      bairro: 'Centro'
+      bairro: 'Centro',
+      dsv: 30
     }
   ]
 
@@ -113,10 +120,10 @@ const Clientes: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1.5">
                 <User className="h-4 w-4" />
-                <span className="text-sm">Charles</span>
+                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
               </div>
               <button 
-                onClick={() => navigate('/')}
+                onClick={() => { logout(); navigate('/') }}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
               >
                 <LogOut className="h-4 w-4" />
@@ -193,12 +200,18 @@ const Clientes: React.FC = () => {
               onClick={() => navigate(`/cliente/${cliente.id}`)}
             >
               <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1.5">
-                  <h3 className="text-base font-semibold text-gray-900">{cliente.nome}</h3>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cliente.statusColor}`}>
-                    {cliente.status}
-                  </span>
-                  <span className="text-xs text-gray-500">Ativo</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-base font-semibold text-gray-900">{cliente.nome}</h3>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cliente.statusColor}`}>
+                      {cliente.status}
+                    </span>
+                    <span className="text-xs text-gray-500">Ativo</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-xs text-gray-600">DSV:</span>
+                    <span className="text-xs font-semibold text-red-600">{cliente.dsv}d</span>
+                  </div>
                 </div>
                 <p className="text-xs text-gray-600 mb-2 leading-tight">Código: {cliente.codigo}</p>
                 

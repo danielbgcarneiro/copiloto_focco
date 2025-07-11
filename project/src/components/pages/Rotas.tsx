@@ -1,9 +1,13 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, MapPin } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { useUserData } from '../../contexts/VendedorDataContext'
 
 const Rotas: React.FC = () => {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const { } = useUserData()
   const [searchTerm, setSearchTerm] = useState('')
 
   // Função para normalizar texto removendo acentos e caracteres especiais
@@ -22,28 +26,32 @@ const Rotas: React.FC = () => {
       nome: 'Rota Centro',
       oportunidade: 'R$ 10.573,00',
       cidades: 5,
-      oticas: 25
+      oticas: 25,
+      semVendas90d: 2
     },
     {
       id: 2,
       nome: 'Rota Norte',
       oportunidade: 'R$ 8.250,00',
       cidades: 3,
-      oticas: 15
+      oticas: 15,
+      semVendas90d: 1
     },
     {
       id: 3,
       nome: 'Rota Sul',
       oportunidade: 'R$ 12.800,00',
       cidades: 4,
-      oticas: 20
+      oticas: 20,
+      semVendas90d: 0
     },
     {
       id: 4,
       nome: 'Rota Leste',
       oportunidade: 'R$ 15.400,00',
       cidades: 6,
-      oticas: 30
+      oticas: 30,
+      semVendas90d: 3
     }
   ]
 
@@ -72,10 +80,10 @@ const Rotas: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1.5">
                 <User className="h-4 w-4" />
-                <span className="text-sm">Charles</span>
+                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
               </div>
               <button 
-                onClick={() => navigate('/')}
+                onClick={() => { logout(); navigate('/') }}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
               >
                 <LogOut className="h-4 w-4" />
@@ -132,6 +140,12 @@ const Rotas: React.FC = () => {
                     <div className="text-right">
                       <span className="text-purple-600">Óticas:</span>
                       <span className="font-semibold text-purple-700 ml-1">{rota.oticas}</span>
+                    </div>
+                    <div>
+                      <span className="text-red-600">Sem Vendas +90d:</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-semibold text-red-700">{rota.semVendas90d} {rota.semVendas90d === 1 ? 'ótica' : 'óticas'}</span>
                     </div>
                   </div>
                 </div>

@@ -13,8 +13,8 @@
 cp .env.example .env
 
 # Configure suas credenciais reais
-VITE_SUPABASE_URL=https://seu-projeto-id.supabase.co
-VITE_SUPABASE_ANON_KEY=sua-chave-anonima-aqui
+VITE_SUPABASE_URL=https://krisjvemfpnkmduebqdr.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyaXNqdmVtZnBua21kdWVicWRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4NTQ5MTMsImV4cCI6MjA2MzQzMDkxM30.jktcXSfSQfcfXUPTDuvu75GuUscMhpsYnvhfloRUf4I
 ```
 
 ## 🛡️ Boas Práticas de Segurança

@@ -4,16 +4,40 @@ Uma aplicação moderna e completa para gestão de representantes, rotas e ótic
 
 ## 🚀 Funcionalidades
 
-- **Dashboard Executivo**: Métricas completas com indicadores de performance
-- **Comparativo de Rotas**: Análise de oportunidades por rota
-- **Top Clientes**: Rankings dos maiores clientes 2024 e 2025
-- **Sistema de Alertas**: Monitoramento de clientes em risco
-- **Gestão de Representantes**: Controle completo de representantes por região
-- **Rotas Inteligentes**: Organização eficiente de rotas de vendas
-- **Gestão de Óticas**: Cadastro e acompanhamento de óticas parceiras
-- **Controle de Inadimplência**: Sistema completo para gestores
-- **Autenticação Segura**: Sistema de login com níveis de acesso
-- **Design Responsivo**: Interface otimizada para desktop e mobile
+### Dashboard Executivo
+- **Métricas de Performance**: Vendas do mês, óticas positivadas, atingimento de meta
+- **Indicador Crítico**: Óticas sem vendas há mais de 90 dias
+- **Top 10 Cidades**: Ranking por valor de vendas com indicadores visuais
+- **Top 20 Clientes**: Lista ordenável por rota e percentual de meta
+- **Ranking de Rotas**: Gráfico comparativo de meta vs vendido com percentuais
+
+### Sistema de Rotas
+- **Gestão Completa**: Visualização de oportunidades, cidades e óticas por rota
+- **Indicadores**: Quantidade de óticas sem vendas por mais de 90 dias
+- **Busca Inteligente**: Filtro que ignora acentos e caracteres especiais
+
+### Gestão de Cidades
+- **Métricas por Cidade**: Soma de oportunidades, saldo de metas
+- **Status das Lojas**: Indicadores AT (Ativas), PEN (Pendentes), INA (Inativas)
+- **Monitoramento**: Óticas sem vendas há mais de 90 dias por cidade
+
+### Gestão de Óticas/Clientes
+- **Perfil Completo**: Status, oportunidades, limites de crédito, metas
+- **DSV (Dias Sem Vendas)**: Indicador crítico visível em todas as telas
+- **Filtros Avançados**: Por bairro, valor de oportunidade (maior/menor), ordem alfabética
+- **Detalhes Completos**: Mix de produtos, dados financeiros 2024/2025
+
+### Sistema de Inadimplência
+- **Dashboard Específico**: Total de inadimplentes, valor total, clientes críticos
+- **Classificação Automática**: Baseada em dias de atraso (Baixo, Médio, Alto, Crítico)
+- **Cálculo Dinâmico**: Dias de atraso calculados automaticamente
+- **Ações Diretas**: Botões para ligação e WhatsApp
+
+### Funcionalidades Gerais
+- **Autenticação Segura**: Sistema de login com contextos de usuário
+- **Design Responsivo**: Interface otimizada para desktop e mobile (2x2 em mobile, 4x1 em desktop)
+- **Busca Normalizada**: Ignora acentos e caracteres especiais em todas as buscas
+- **Lógica Singular/Plural**: Exibe "ótica" ou "óticas" conforme quantidade
 
 ## 🛠️ Tecnologias
 
@@ -32,24 +56,35 @@ A aplicação possui três níveis de acesso:
 - **Gestor**: Acesso à equipe e relatórios de inadimplência
 - **Diretor**: Acesso completo a todos os dados
 
-## 📱 Interface
+## 📱 Interface Responsiva
 
-A aplicação possui uma interface profissional e intuitiva, com:
-- Navegação simplificada entre seções
-- Dashboard com indicadores executivos
-- Sistema de alertas em tempo real
-- Filtros e busca avançada
-- Indicadores visuais de status
-- Design responsivo para todos os dispositivos
+### Layout Mobile-First
+- **Cards de Métricas**: 2x2 em mobile, 4x1 em desktop
+- **Navegação**: Header fixo com breadcrumbs
+- **Botões de Ação**: Otimizados para toque
+- **Textos**: Tamanhos ajustados para evitar quebras
 
-## 📊 Funcionalidades do Dashboard
+### Funcionalidades UX
+- **Busca Inteligente**: Normalização automática de texto
+- **Ordenação Visual**: Setas indicativas sempre visíveis
+- **Status Coloridos**: Sistema de cores por criticidade
+- **Feedback Visual**: Estados hover e transições suaves
 
-- **Métricas Principais**: Vendas, óticas ativas, metas e alertas
-- **Comparativo de Rotas**: Análise de oportunidades por região
-- **Top 20 Clientes**: Rankings 2024 e 2025
-- **Sistema de Alertas**:
-  - 10 Clientes inativando
-  - 10 Clientes próximos do 2º boleto atrasado
+## 📊 Estrutura da Aplicação
+
+### Páginas Principais
+1. **Dashboard**: Visão executiva completa com métricas e rankings
+2. **Rotas**: Gestão de rotas de vendas com indicadores por rota
+3. **Cidades**: Métricas por cidade com status das lojas
+4. **Clientes/Óticas**: Gestão completa de óticas parceiras
+5. **Detalhes do Cliente**: Perfil detalhado com mix de produtos
+6. **Inadimplentes**: Sistema especializado para gestão de inadimplência
+
+### Indicadores Críticos
+- **DSV (Dias Sem Vendas)**: Presente em clientes e detalhes
+- **Sem Vendas +90d**: Indicador em dashboard, rotas e cidades
+- **Classificação de Risco**: Automática baseada em dias de atraso
+- **Status Dinâmico**: Cálculo em tempo real de dias de atraso
 
 ## 🎨 Design System
 
