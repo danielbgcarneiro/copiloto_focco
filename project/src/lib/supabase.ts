@@ -7,7 +7,27 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  global: {
+    headers: {
+      'x-client-info': 'copiloto-app'
+    }
+  }
+})
+
+// Debug listener para autenticação
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('🔐 Auth state changed:', event, {
+    userId: session?.user?.id,
+    email: session?.user?.email,
+    hasToken: !!session?.access_token
+  })
+})
 
 // Função para testar conexão
 export async function testConnection() {

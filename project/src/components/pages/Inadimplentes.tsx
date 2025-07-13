@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, AlertTriangle, Phone, MessageCircle, Filter } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
+import { supabase } from '../../lib/supabase'
 
 const Inadimplentes: React.FC = () => {
   const navigate = useNavigate()
@@ -11,6 +12,8 @@ const Inadimplentes: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [sortBy, setSortBy] = useState('nome')
+  const [inadimplentesData, setInadimplentesData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   // Função para normalizar texto removendo acentos e caracteres especiais
   const normalizeText = (text: string): string => {
@@ -43,60 +46,52 @@ const Inadimplentes: React.FC = () => {
     }
   }
 
-  const inadimplentesData = [
-    {
-      id: 1,
-      nome: 'Ótica Vision Plus',
-      codigo: '100789',
-      rota: 'Centro',
-      valorTotal: 'R$ 25.430,00',
-      ultimoPagamento: '15/11/2024',
-      telefone: '(85) 99999-1234',
-      titulosAbertos: [
-        { vencimento: '15/11/2024', valor: 'R$ 12.500,00' },
-        { vencimento: '30/11/2024', valor: 'R$ 8.200,00' },
-        { vencimento: '15/12/2024', valor: 'R$ 4.730,00' }
-      ]
-    },
-    {
-      id: 2,
-      nome: 'Ótica São Paulo',
-      codigo: '100567',
-      rota: 'Norte',
-      valorTotal: 'R$ 18.750,00',
-      ultimoPagamento: '30/11/2024',
-      telefone: '(85) 98888-5678',
-      titulosAbertos: [
-        { vencimento: '30/11/2024', valor: 'R$ 10.000,00' },
-        { vencimento: '15/12/2024', valor: 'R$ 8.750,00' }
-      ]
-    },
-    {
-      id: 3,
-      nome: 'Ótica Moderna',
-      codigo: '100234',
-      rota: 'Sul',
-      valorTotal: 'R$ 12.300,00',
-      ultimoPagamento: '15/12/2024',
-      telefone: '(85) 97777-9101',
-      titulosAbertos: [
-        { vencimento: '15/12/2024', valor: 'R$ 7.800,00' },
-        { vencimento: '30/12/2024', valor: 'R$ 4.500,00' }
-      ]
-    },
-    {
-      id: 4,
-      nome: 'Ótica Elite',
-      codigo: '100345',
-      rota: 'Leste',
-      valorTotal: 'R$ 8.920,00',
-      ultimoPagamento: '22/12/2024',
-      telefone: '(85) 96666-1122',
-      titulosAbertos: [
-        { vencimento: '22/12/2024', valor: 'R$ 8.920,00' }
-      ]
+  // Carregar inadimplentes reais do usuário logado
+  useEffect(() => {
+    carregarInadimplentes()
+  }, [user])
+
+  async function carregarInadimplentes() {
+    try {
+      setLoading(true)
+      console.log('🔍 Carregando inadimplentes para usuário:', user?.id)
+      
+      // Buscar clientes inadimplentes respeitando RLS
+      const { data, error } = await supabase
+        .from('vw_clientes_completo')
+        .select('*')
+        .eq('status_financeiro', 'INADIMPLENTE')
+        .order('dias_sem_comprar', { ascending: false })
+      
+      if (error) {
+        console.error('❌ Erro ao carregar inadimplentes:', error)
+        setInadimplentesData([]) // Retorna vazio se houver erro
+        return
+      }
+      
+      console.log('✅ Inadimplentes carregados:', data)
+      
+      // Transformar dados para o formato esperado pela interface
+      const inadimplentesFormatados = (data || []).map(cliente => ({
+        id: cliente.codigo_cliente,
+        nome: cliente.nome_fantasia,
+        codigo: cliente.codigo_cliente.toString(),
+        rota: cliente.rota || 'Sem rota',
+        valorTotal: 'R$ 0,00', // Dados reais de títulos virão de outra consulta
+        ultimoPagamento: 'N/A', // Dados reais virão de outra consulta
+        telefone: cliente.celular || 'N/A',
+        titulosAbertos: [] // Dados reais virão de outra consulta
+      }))
+      
+      setInadimplentesData(inadimplentesFormatados)
+      
+    } catch (error) {
+      console.error('💥 Erro ao carregar inadimplentes:', error)
+      setInadimplentesData([]) // Retorna vazio em caso de erro
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
   // Processar dados calculando dias de atraso e status
   const inadimplentes = inadimplentesData.map(inadimplente => {
@@ -179,7 +174,7 @@ const Inadimplentes: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
         {/* Page Title */}
         <div className="flex items-center mb-4">
           <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
@@ -262,7 +257,13 @@ const Inadimplentes: React.FC = () => {
 
         {/* Inadimplentes List */}
         <div className="space-y-3">
-          {filteredInadimplentes.map((inadimplente) => (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-2 text-gray-600">Carregando inadimplentes...</span>
+            </div>
+          ) : filteredInadimplentes.length > 0 ? (
+            filteredInadimplentes.map((inadimplente) => (
             <div
               key={inadimplente.id}
               className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all"
@@ -326,7 +327,15 @@ const Inadimplentes: React.FC = () => {
                 </div>
               </div>
             </div>
-          ))}
+          ))
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg mb-2">Nenhum inadimplente encontrado</p>
+              <p className="text-sm">
+                {searchTerm ? 'Tente ajustar o filtro de busca.' : 'Todos os clientes estão em dia!'}
+              </p>
+            </div>
+          )}
         </div>
       </main>
     </div>

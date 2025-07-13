@@ -56,7 +56,7 @@ const router = createBrowserRouter([
     )
   },
   {
-    path: "/cliente/:id",
+    path: "/clientes/detalhes/:id",
     element: (
       <ProtectedRoute>
         <UserDataProvider>

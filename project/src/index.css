@@ -12,4 +12,17 @@
   .gradient-bg {
     background: linear-gradient(135deg, #e0f2fe 0%, #b3e5fc 100%);
   }
+  
+  /* Gradientes suaves para os cards de clientes */
+  .bg-red-50 {
+    background: linear-gradient(to bottom right, #fef2f2, #fee2e2);
+  }
+
+  .bg-yellow-50 {
+    background: linear-gradient(to bottom right, #fffbeb, #fef3c7);
+  }
+
+  .bg-green-50 {
+    background: linear-gradient(to bottom right, #f0fdf4, #dcfce7);
+  }
 }

@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, Target, User, LogOut, Map, Building, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
+import { getClientesPorVendedor } from '../../lib/queries/clientes'
 import '../../styles/dashboard.css'
 
 const Dashboard: React.FC = () => {
@@ -14,29 +15,43 @@ const Dashboard: React.FC = () => {
   const [sortByRoute, setSortByRoute] = useState<'asc' | 'desc' | null>(null)
   const [sortByPercentage, setSortByPercentage] = useState<'asc' | 'desc' | null>(null)
   
-  // Dados dos clientes
-  const clientesData = [
-    { nome: 'Ótica Visão Perfeita', rota: 'Centro', meta: 200000, vendido: 180000, percentual: 90 },
-    { nome: 'Ótica Foco', rota: 'Norte', meta: 170000, vendido: 150000, percentual: 88 },
-    { nome: 'Ótica Olhar Certo', rota: 'Sul', meta: 150000, vendido: 130000, percentual: 87 },
-    { nome: 'Ótica Visão Global', rota: 'Leste', meta: 140000, vendido: 120000, percentual: 86 },
-    { nome: 'Ótica Visão & Cia', rota: 'Centro', meta: 130000, vendido: 110000, percentual: 85 },
-    { nome: 'Ótica Moderna', rota: 'Norte', meta: 120000, vendido: 105000, percentual: 88 },
-    { nome: 'Ótica Prime', rota: 'Sul', meta: 110000, vendido: 95000, percentual: 86 },
-    { nome: 'Ótica Central', rota: 'Leste', meta: 100000, vendido: 85000, percentual: 85 },
-    { nome: 'Ótica Ideal', rota: 'Centro', meta: 95000, vendido: 80000, percentual: 84 },
-    { nome: 'Ótica Plus', rota: 'Norte', meta: 90000, vendido: 75000, percentual: 83 },
-    { nome: 'Ótica Master', rota: 'Sul', meta: 85000, vendido: 70000, percentual: 82 },
-    { nome: 'Ótica Elite', rota: 'Leste', meta: 80000, vendido: 65000, percentual: 81 },
-    { nome: 'Ótica Top', rota: 'Centro', meta: 75000, vendido: 60000, percentual: 80 },
-    { nome: 'Ótica Nova', rota: 'Norte', meta: 70000, vendido: 55000, percentual: 79 },
-    { nome: 'Ótica Class', rota: 'Sul', meta: 65000, vendido: 50000, percentual: 77 },
-    { nome: 'Ótica Style', rota: 'Leste', meta: 60000, vendido: 45000, percentual: 75 },
-    { nome: 'Ótica Trend', rota: 'Centro', meta: 55000, vendido: 40000, percentual: 73 },
-    { nome: 'Ótica Flash', rota: 'Norte', meta: 50000, vendido: 35000, percentual: 70 },
-    { nome: 'Ótica Smart', rota: 'Sul', meta: 45000, vendido: 30000, percentual: 67 },
-    { nome: 'Ótica Pro', rota: 'Leste', meta: 40000, vendido: 25000, percentual: 63 }
-  ]
+  // Estados para dados reais
+  const [clientesData, setClientesData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  
+  // Carregar dados reais de clientes do usuário logado
+  useEffect(() => {
+    carregarDadosClientes()
+  }, [user])
+
+  async function carregarDadosClientes() {
+    try {
+      setLoading(true)
+      console.log('🔍 Carregando dados do dashboard para usuário:', user?.id)
+      
+      // Buscar clientes reais respeitando RLS
+      const dados = await getClientesPorVendedor(user?.id)
+      
+      // Transformar dados para o formato do dashboard com cálculos reais
+      const clientesFormatados = dados.map(cliente => ({
+        nome: cliente.nome_fantasia,
+        rota: cliente.rota || 'Sem rota',
+        meta: cliente.meta_2025 || 0,
+        vendido: cliente.valor_vendas_2025 || 0,
+        percentual: cliente.percentual_atingimento || 0,
+        codigo_cliente: cliente.codigo_cliente
+      }))
+      
+      console.log('✅ Dados do dashboard carregados:', clientesFormatados)
+      setClientesData(clientesFormatados)
+      
+    } catch (error) {
+      console.error('💥 Erro ao carregar dados do dashboard:', error)
+      setClientesData([]) // Retorna vazio em caso de erro
+    } finally {
+      setLoading(false)
+    }
+  }
   
   // Função para ordenar os clientes
   const clientesOrdenados = useMemo(() => {
@@ -136,7 +151,7 @@ const Dashboard: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
         {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -368,25 +383,37 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
             </div>
-            {clientesOrdenados.map((cliente) => (
-              <div key={cliente.nome} className="grid grid-cols-3 gap-2 text-xs items-center py-1">
-                <div className="flex items-center">
-                  <span className="font-medium text-gray-500 w-6">#{cliente.posicao}</span>
-                  <span className="font-medium text-gray-900 truncate">{cliente.nome}</span>
-                </div>
-                <div className="text-center text-gray-600">{cliente.rota}</div>
-                <div className="relative">
-                  <div className="w-full bg-gray-200 rounded h-6 sm:h-5 relative">
-                    <div className="bg-primary h-6 sm:h-5 rounded transition-all duration-300" style={{width: `${cliente.percentual}%`}}></div>
-                    <div className="absolute inset-0 flex items-center justify-center px-2 sm:px-4">
-                      <span className="text-[9px] sm:text-[10px] text-white font-medium tracking-tight">
-                        <span className="hidden xs:inline">{cliente.meta.toLocaleString('pt-BR')} | {cliente.vendido.toLocaleString('pt-BR')} | </span>{cliente.percentual}%
-                      </span>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <span className="ml-2 text-sm text-gray-600">Carregando dados...</span>
+              </div>
+            ) : clientesOrdenados.length > 0 ? (
+              clientesOrdenados.map((cliente) => (
+                <div key={cliente.codigo_cliente || cliente.nome} className="grid grid-cols-3 gap-2 text-xs items-center py-1">
+                  <div className="flex items-center">
+                    <span className="font-medium text-gray-500 w-6">#{cliente.posicao}</span>
+                    <span className="font-medium text-gray-900 truncate">{cliente.nome}</span>
+                  </div>
+                  <div className="text-center text-gray-600">{cliente.rota}</div>
+                  <div className="relative">
+                    <div className="w-full bg-gray-200 rounded h-6 sm:h-5 relative">
+                      <div className="bg-primary h-6 sm:h-5 rounded transition-all duration-300" style={{width: `${cliente.percentual}%`}}></div>
+                      <div className="absolute inset-0 flex items-center justify-center px-2 sm:px-4">
+                        <span className="text-[9px] sm:text-[10px] text-white font-medium tracking-tight">
+                          <span className="hidden xs:inline">{cliente.meta.toLocaleString('pt-BR')} | {cliente.vendido.toLocaleString('pt-BR')} | </span>{cliente.percentual}%
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">Nenhum cliente encontrado</p>
+                <p className="text-xs">Você não possui clientes no momento.</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
