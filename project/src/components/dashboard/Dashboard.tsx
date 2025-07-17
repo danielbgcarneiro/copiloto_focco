@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { TrendingUp, Target, User, LogOut, Map, Building, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
-import { getClientesPorVendedor } from '../../lib/queries/clientes'
+import { getDashboardCompleto, formatarMoeda, formatarValorGrande, type DashboardData, type Top20Cliente } from '../../lib/queries/dashboard'
+import { getVendedorRanking, type VendedorRanking } from '../../lib/queries/vendedores'
+import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import '../../styles/dashboard.css'
 
 const Dashboard: React.FC = () => {
@@ -16,42 +18,86 @@ const Dashboard: React.FC = () => {
   const [sortByPercentage, setSortByPercentage] = useState<'asc' | 'desc' | null>(null)
   
   // Estados para dados reais
-  const [clientesData, setClientesData] = useState<any[]>([])
+  const [clientesData, setClientesData] = useState<Top20Cliente[]>([])
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [vendedorRanking, setVendedorRanking] = useState<VendedorRanking | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isCarregando, setIsCarregando] = useState(false)
   
-  // Carregar dados reais de clientes do usuário logado
+  // Carregar dados reais de clientes e dashboard do usuário logado
   useEffect(() => {
-    carregarDadosClientes()
-  }, [user])
-
-  async function carregarDadosClientes() {
-    try {
-      setLoading(true)
-      console.log('🔍 Carregando dados do dashboard para usuário:', user?.id)
+    async function carregarDados() {
+      if (!user?.id || isCarregando) {
+        return;
+      }
       
-      // Buscar clientes reais respeitando RLS
-      const dados = await getClientesPorVendedor(user?.id)
-      
-      // Transformar dados para o formato do dashboard com cálculos reais
-      const clientesFormatados = dados.map(cliente => ({
-        nome: cliente.nome_fantasia,
-        rota: cliente.rota || 'Sem rota',
-        meta: cliente.meta_2025 || 0,
-        vendido: cliente.valor_vendas_2025 || 0,
-        percentual: cliente.percentual_atingimento || 0,
-        codigo_cliente: cliente.codigo_cliente
-      }))
-      
-      console.log('✅ Dados do dashboard carregados:', clientesFormatados)
-      setClientesData(clientesFormatados)
-      
-    } catch (error) {
-      console.error('💥 Erro ao carregar dados do dashboard:', error)
-      setClientesData([]) // Retorna vazio em caso de erro
-    } finally {
-      setLoading(false)
+      try {
+        setIsCarregando(true);
+        setLoading(true)
+        setError(null)
+        console.log('🔍 Carregando dados do dashboard para usuário:', {
+          userId: user?.id,
+          email: user?.email,
+          cargo: user?.cargo
+        });
+        
+        // Carregar dados completos do dashboard (já inclui top20 clientes)
+        const dashboardCompleto = await getDashboardCompleto();
+        
+        // Tentar carregar ranking do vendedor separadamente (não-blocking)
+        let rankingVendedor = null;
+        
+        try {
+          rankingVendedor = await getVendedorRanking();
+        } catch (vendedorError) {
+          console.warn('⚠️ Não foi possível carregar dados do vendedor:', vendedorError);
+        }
+        
+        // Dados dos clientes já vêm formatados do dashboard
+        const clientesTop20 = dashboardCompleto.top20Clientes;
+        
+        console.log('✅ Dados completos carregados:', {
+          dashboard: {
+            metricas: dashboardCompleto.metricas,
+            cidadesCount: dashboardCompleto.top10Cidades.length,
+            rotasCount: dashboardCompleto.rankingRotas.length,
+            clientesCount: dashboardCompleto.top20Clientes.length
+          },
+          vendedorRanking: rankingVendedor
+        });
+        
+        // Verificar se há dados suficientes
+        if (dashboardCompleto.top10Cidades.length === 0 && 
+            dashboardCompleto.rankingRotas.length === 0 && 
+            clientesTop20.length === 0) {
+          console.warn('⚠️ Nenhum dado encontrado - possível problema com RLS');
+        }
+        
+        setDashboardData(dashboardCompleto);
+        setClientesData(clientesTop20);
+        setVendedorRanking(rankingVendedor);
+        
+      } catch (error) {
+        console.error('💥 Erro ao carregar dados do dashboard:', {
+          error,
+          message: error instanceof Error ? error.message : 'Erro desconhecido',
+          stack: error instanceof Error ? error.stack : undefined,
+          user: { id: user?.id, email: user?.email, cargo: user?.cargo }
+        });
+        
+        setError(error instanceof Error ? error.message : 'Erro desconhecido')
+        setDashboardData(null)
+        setClientesData([])
+        setVendedorRanking(null)
+      } finally {
+        setLoading(false)
+        setIsCarregando(false);
+      }
     }
-  }
+    
+    carregarDados();
+  }, [user?.id])
   
   // Função para ordenar os clientes
   const clientesOrdenados = useMemo(() => {
@@ -84,7 +130,7 @@ const Dashboard: React.FC = () => {
     })
     
     return clientesComRanking
-  }, [sortByRoute, sortByPercentage])
+  }, [sortByRoute, sortByPercentage, clientesData])
   
   // Funções para alternar ordenação
   const toggleSortByRoute = () => {
@@ -115,13 +161,7 @@ const Dashboard: React.FC = () => {
     navigate('/')
   }
 
-  // Dados dos cards de métricas
-  const metricas = {
-    oticasPositivadas: 15,
-    oticasPositivadasAnterior: 12,
-    semVendas90d: 3,
-    semVendas90dAnterior: 5
-  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -175,72 +215,105 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Cards de Métricas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {/* Vendas do Mês */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+                <div className="animate-pulse">
+                  <div className="h-3 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-6 bg-gray-200 rounded mb-1"></div>
+                  <div className="h-2 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+            <p className="text-red-600 text-sm">Erro ao carregar métricas: {error}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {/* Vendas do Mês */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
+              <div className="absolute top-3 right-3">
+                <div className="bg-blue-50 p-2 rounded-full">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+              <div className="pr-12">
                 <p className="text-xs font-medium text-gray-600">Vendas do Mês</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">R$ 125.000,00</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">
+                  {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.vendas_mes || 0) : 'N/A'}
+                </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Anterior: R$ 100.000,00
+                  Meta: {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.meta_mes || 0) : 'N/A'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {dashboardData?.metricas ? `${Math.round(dashboardData.metricas.percentual_meta || 0)}% atingido` : 'N/A'}
                 </p>
               </div>
-              <div className="bg-blue-50 p-2 rounded-full">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-              </div>
             </div>
-          </div>
 
-          {/* Óticas Positivadas */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
+            {/* Óticas Positivadas */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
+              <div className="absolute top-3 right-3">
+                <div className="bg-green-50 p-2 rounded-full">
+                  <Building className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
+              <div className="pr-12">
                 <p className="text-xs font-medium text-gray-600">Óticas Positivadas</p>
                 <p className="text-xl font-bold text-gray-900 mt-1">
-                  {metricas.oticasPositivadas} {metricas.oticasPositivadas === 1 ? 'ótica' : 'óticas'}
+                  {dashboardData?.metricas ? 
+                    `${dashboardData.metricas.oticas_positivadas || 0} ${(dashboardData.metricas.oticas_positivadas || 0) === 1 ? 'ótica' : 'óticas'}` 
+                    : 'N/A'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Anterior: {metricas.oticasPositivadasAnterior} {metricas.oticasPositivadasAnterior === 1 ? 'ótica' : 'óticas'}
+                  Meta: {dashboardData?.metricas ? `${Math.round(dashboardData.metricas.percentual_meta || 0)}% atingido` : 'N/A'}
                 </p>
               </div>
-              <div className="bg-green-50 p-2 rounded-full">
-                <Building className="h-5 w-5 text-green-600" />
-              </div>
             </div>
-          </div>
 
-          {/* Meta */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Meta</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">83%</p>
+            {/* Meta Geral */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
+              <div className="absolute top-3 right-3">
+                <div className="bg-yellow-50 p-2 rounded-full">
+                  <Target className="h-5 w-5 text-yellow-600" />
+                </div>
+              </div>
+              <div className="pr-12">
+                <p className="text-xs font-medium text-gray-600">Meta Geral</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">
+                  {clientesData.length > 0 ? 
+                    Math.round(clientesData.reduce((acc, cliente) => acc + cliente.percentual, 0) / clientesData.length) 
+                    : 0}%
+                </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Anterior: 75%
+                  Média dos clientes
                 </p>
               </div>
-              <div className="bg-yellow-50 p-2 rounded-full">
-                <Target className="h-5 w-5 text-yellow-600" />
-              </div>
             </div>
-          </div>
 
-          {/* Óticas Sem Vendas +90d */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
+            {/* Óticas Sem Vendas +90d */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
+              <div className="absolute top-3 right-3">
+                <div className="bg-red-50 p-2 rounded-full">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                </div>
+              </div>
+              <div className="pr-12">
                 <p className="text-xs font-medium text-gray-600">Sem Vendas +90d</p>
                 <p className="text-xl font-bold text-red-600 mt-1">
-                  {metricas.semVendas90d} {metricas.semVendas90d === 1 ? 'ótica' : 'óticas'}
+                  {vendedorRanking?.clientes_sem_vendas_90d || 
+                   clientesData.filter(cliente => cliente.percentual === 0 || cliente.vendido === 0).length} óticas
                 </p>
-              </div>
-              <div className="bg-red-50 p-2 rounded-full">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <p className="text-xs text-gray-500 mt-1">
+                  De {vendedorRanking?.total_clientes || clientesData.length} total
+                </p>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Top 10 Cidades */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
@@ -252,76 +325,34 @@ const Dashboard: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900">Top 10 Cidades</h3>
           </div>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#1</span>
-                <span className="text-xs font-medium text-gray-900">Fortaleza</span>
+            {loading ? (
+              [...Array(10)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between animate-pulse">
+                  <div className="flex items-center">
+                    <div className="w-6 h-3 bg-gray-200 rounded mr-2"></div>
+                    <div className="w-20 h-3 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="w-16 h-3 bg-gray-200 rounded"></div>
+                </div>
+              ))
+            ) : dashboardData?.top10Cidades && dashboardData.top10Cidades.length > 0 ? (
+              dashboardData.top10Cidades.map((cidade) => (
+                <div key={cidade.cidade} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <span className="text-xs font-medium text-gray-500 w-6">#{cidade.posicao}</span>
+                    <span className="text-xs font-medium text-gray-900">{cidade.cidade}</span>
+                  </div>
+                  <span className="text-xs font-medium text-gray-900">
+                    {formatarMoeda(cidade.valor_vendas)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <p className="text-sm">{getEmptyStateMessage(user, 'dashboard').title}</p>
+                <p className="text-xs">{getEmptyStateMessage(user, 'dashboard').subtitle}</p>
               </div>
-              <span className="text-xs font-medium text-gray-900">R$ 450.000,00</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#2</span>
-                <span className="text-xs font-medium text-gray-900">Caucaia</span>
-              </div>
-              <span className="text-xs font-medium text-gray-900">R$ 280.000,00</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#3</span>
-                <span className="text-xs font-medium text-gray-900">Maracanaú</span>
-              </div>
-              <span className="text-xs font-medium text-gray-900">R$ 250.000,00</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#4</span>
-                <span className="text-xs font-medium text-gray-900">Sobral</span>
-              </div>
-              <span className="text-xs font-medium text-gray-900">R$ 220.000,00</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#5</span>
-                <span className="text-xs font-medium text-gray-900">Juazeiro do Norte</span>
-              </div>
-              <span className="text-xs font-medium text-gray-900">R$ 200.000,00</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#6</span>
-                <span className="text-xs font-medium text-gray-900">Crato</span>
-              </div>
-              <span className="text-xs font-medium text-gray-900">R$ 180.000,00</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#7</span>
-                <span className="text-xs font-medium text-gray-900">Iguatu</span>
-              </div>
-              <span className="text-xs font-medium text-gray-900">R$ 160.000,00</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#8</span>
-                <span className="text-xs font-medium text-gray-900">Quixadá</span>
-              </div>
-              <span className="text-xs font-medium text-gray-900">R$ 140.000,00</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#9</span>
-                <span className="text-xs font-medium text-gray-900">Canindé</span>
-              </div>
-              <span className="text-xs font-medium text-gray-900">R$ 120.000,00</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-500 w-6">#10</span>
-                <span className="text-xs font-medium text-gray-900">Ceará-Mirim</span>
-              </div>
-              <span className="text-xs font-medium text-gray-900">R$ 100.000,00</span>
-            </div>
+            )}
           </div>
         </div>
 
@@ -343,75 +374,127 @@ const Dashboard: React.FC = () => {
             </svg>
             <h3 className="text-lg font-semibold text-gray-900">Top 20 Clientes</h3>
           </div>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-gray-600 border-b border-gray-200 pb-2 mb-2">
-              <div className="text-left">Cliente</div>
-              <div className="text-center flex items-center justify-center">
+          <div className="max-h-96 overflow-y-auto">
+            {/* Header da tabela */}
+            <div className="grid grid-cols-12 gap-2 text-[10px] font-semibold text-gray-600 border-b border-gray-200 pb-2 mb-2 px-2">
+              <div className="col-span-5 text-left">Cliente</div>
+              <div className="col-span-2 text-left flex items-center">
                 <span>Rota</span>
                 <button 
                   onClick={toggleSortByRoute}
                   className="ml-1 p-0.5 hover:bg-gray-100 rounded transition-colors"
                 >
                   {sortByRoute === 'asc' ? (
-                    <ChevronUp className="h-3 w-3" />
+                    <ChevronUp className="h-2.5 w-2.5" />
                   ) : sortByRoute === 'desc' ? (
-                    <ChevronDown className="h-3 w-3" />
+                    <ChevronDown className="h-2.5 w-2.5" />
                   ) : (
                     <div className="flex flex-col">
-                      <ChevronUp className="h-2 w-2 -mb-0.5" />
-                      <ChevronDown className="h-2 w-2" />
+                      <ChevronUp className="h-1.5 w-1.5 -mb-0.5" />
+                      <ChevronDown className="h-1.5 w-1.5" />
                     </div>
                   )}
                 </button>
               </div>
-              <div className="text-center flex items-center justify-center">
-                <span>Meta x Vendido</span>
+              <div className="col-span-5 text-center flex items-center justify-center">
+                <span>Performance</span>
                 <button 
                   onClick={toggleSortByPercentage}
                   className="ml-1 p-0.5 hover:bg-gray-100 rounded transition-colors"
                 >
                   {sortByPercentage === 'desc' ? (
-                    <ChevronDown className="h-3 w-3" />
+                    <ChevronDown className="h-2.5 w-2.5" />
                   ) : sortByPercentage === 'asc' ? (
-                    <ChevronUp className="h-3 w-3" />
+                    <ChevronUp className="h-2.5 w-2.5" />
                   ) : (
                     <div className="flex flex-col">
-                      <ChevronUp className="h-2 w-2 -mb-0.5" />
-                      <ChevronDown className="h-2 w-2" />
+                      <ChevronUp className="h-1.5 w-1.5 -mb-0.5" />
+                      <ChevronDown className="h-1.5 w-1.5" />
                     </div>
                   )}
                 </button>
               </div>
             </div>
+
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                 <span className="ml-2 text-sm text-gray-600">Carregando dados...</span>
               </div>
             ) : clientesOrdenados.length > 0 ? (
-              clientesOrdenados.map((cliente) => (
-                <div key={cliente.codigo_cliente || cliente.nome} className="grid grid-cols-3 gap-2 text-xs items-center py-1">
-                  <div className="flex items-center">
-                    <span className="font-medium text-gray-500 w-6">#{cliente.posicao}</span>
-                    <span className="font-medium text-gray-900 truncate">{cliente.nome}</span>
-                  </div>
-                  <div className="text-center text-gray-600">{cliente.rota}</div>
-                  <div className="relative">
-                    <div className="w-full bg-gray-200 rounded h-6 sm:h-5 relative">
-                      <div className="bg-primary h-6 sm:h-5 rounded transition-all duration-300" style={{width: `${cliente.percentual}%`}}></div>
-                      <div className="absolute inset-0 flex items-center justify-center px-2 sm:px-4">
-                        <span className="text-[9px] sm:text-[10px] text-white font-medium tracking-tight">
-                          <span className="hidden xs:inline">{cliente.meta.toLocaleString('pt-BR')} | {cliente.vendido.toLocaleString('pt-BR')} | </span>{cliente.percentual}%
-                        </span>
+              (() => {
+                // 1º: Garantir os TOP 20 maiores compradores por volume e adicionar posição original
+                let top20Clientes = [...clientesOrdenados]
+                  .sort((a, b) => b.vendido - a.vendido)
+                  .slice(0, 20)
+                  .map((cliente, index) => ({ ...cliente, posicaoOriginal: index + 1 }));
+
+                // 2º: Aplicar ordenação escolhida pelo usuário
+                if (sortByRoute === 'asc') {
+                  top20Clientes.sort((a, b) => a.rota.localeCompare(b.rota));
+                } else if (sortByRoute === 'desc') {
+                  top20Clientes.sort((a, b) => b.rota.localeCompare(a.rota));
+                } else if (sortByPercentage === 'desc') {
+                  top20Clientes.sort((a, b) => b.percentual - a.percentual);
+                } else if (sortByPercentage === 'asc') {
+                  top20Clientes.sort((a, b) => a.percentual - b.percentual);
+                } else {
+                  // Padrão: manter ordenação por volume (maior → menor)
+                  top20Clientes.sort((a, b) => b.vendido - a.vendido);
+                }
+
+                return top20Clientes;
+              })()
+                .map((cliente) => {
+                  const maxValue = Math.max(cliente.meta, cliente.vendido);
+                  const metaPercentage = (cliente.meta / maxValue) * 100;
+                  const vendidoPercentage = (cliente.vendido / maxValue) * 100;
+                  const isOverTarget = cliente.vendido > cliente.meta;
+                  const nomeDisplay = cliente.nome.length > 20 ? cliente.nome.substring(0, 20) + '...' : cliente.nome;
+                  
+                  return (
+                    <div key={cliente.codigo_cliente || cliente.nome} className="grid grid-cols-12 gap-2 items-center py-1.5 hover:bg-gray-50 rounded-lg px-2 transition-colors">
+                      {/* Ranking + Nome */}
+                      <div className="col-span-5 flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-gray-700 w-3 text-right">{cliente.posicaoOriginal}</span>
+                        <span className="text-xs text-gray-900 truncate">{nomeDisplay}</span>
+                      </div>
+                      
+                      {/* Rota */}
+                      <div className="col-span-2 text-left">
+                        <span className="text-[10px] text-gray-600">{cliente.rota}</span>
+                      </div>
+                      
+                      {/* Performance + Valores */}
+                      <div className="col-span-5 space-y-1">
+                        <div className="text-right text-[9px] text-gray-600">
+                          <span className="font-medium">VD {(cliente.vendido / 1000).toFixed(0)}k</span>
+                          <span className="text-gray-400"> / MT {(cliente.meta / 1000).toFixed(0)}k</span>
+                        </div>
+                        
+                        <div className="relative w-full h-1.5 bg-gray-400 rounded-sm overflow-hidden">
+                          {/* Barra da Meta */}
+                          <div 
+                            className="absolute top-0 left-0 h-full bg-gray-300 transition-all duration-500"
+                            style={{ width: `${metaPercentage}%` }}
+                          />
+                          
+                          {/* Barra do Vendido */}
+                          <div 
+                            className={`absolute top-0 left-0 h-full transition-all duration-500 ${
+                              isOverTarget ? 'bg-primary' : 'bg-blue-500'
+                            }`}
+                            style={{ width: `${vendidoPercentage}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))
+                  );
+                })
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">Nenhum cliente encontrado</p>
-                <p className="text-xs">Você não possui clientes no momento.</p>
+                <p className="text-sm">{getEmptyStateMessage(user, 'clientes').title}</p>
+                <p className="text-xs">{getEmptyStateMessage(user, 'clientes').subtitle}</p>
               </div>
             )}
           </div>
@@ -427,106 +510,71 @@ const Dashboard: React.FC = () => {
             </svg>
             <h3 className="text-lg font-semibold text-gray-900">Ranking Rotas</h3>
           </div>
-          <div>
-            <div className="relative">
-              <div className="flex justify-between mb-2 px-8 sm:px-12">
-                <span className="text-[8px] sm:text-[9px] text-gray-500">0</span>
-                <span className="text-[8px] sm:text-[9px] text-gray-500">100k</span>
-                <span className="text-[8px] sm:text-[9px] text-gray-500">200k</span>
-                <span className="text-[8px] sm:text-[9px] text-gray-500">300k</span>
-                <span className="text-[8px] sm:text-[9px] text-gray-500">400k</span>
-                <span className="text-[8px] sm:text-[9px] text-gray-500">500k</span>
-              </div>
-              <div className="absolute top-5 left-8 sm:left-12 right-2 sm:right-4 h-24 sm:h-32 pointer-events-none">
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-0"></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-20"></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-40"></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-60"></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-80"></div>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-200 chart-grid-line-100"></div>
-              </div>
-              <div className="space-y-2 sm:space-y-3 pl-8 sm:pl-12 pr-2 sm:pr-4">
-                <div className="flex items-center">
-                  <div className="w-8 sm:w-12 text-right pr-1 sm:pr-2">
-                    <span className="text-[8px] sm:text-[9px] text-gray-700 font-medium">Centro</span>
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-12 h-3 bg-gray-200 rounded"></div>
+                    <div className="flex-1 h-5 bg-gray-200 rounded"></div>
                   </div>
-                  <div className="flex-1 relative">
-                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative chart-bar-full">
-                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center chart-progress-90">
-                        <span className="text-[7px] sm:text-[8px] text-white font-medium">90%</span>
-                      </div>
-                      <div className="absolute right-0.5 sm:right-1 top-0 h-4 sm:h-5 flex items-center">
-                        <span className="text-[7px] sm:text-[8px] text-gray-600 font-medium">
-                          <span className="hidden sm:inline">450k/500k</span>
+                </div>
+              ))}
+            </div>
+          ) : dashboardData?.rankingRotas && dashboardData.rankingRotas.length > 0 ? (
+            <div>
+              <div>
+                {/* Layout limpo sem escala de valores */}
+                <div className="space-y-2 px-2 sm:px-4">
+                  {dashboardData.rankingRotas.map((rota) => (
+                    <div key={rota.rota} className="">
+                      {/* Nome da rota sem número de ranking */}
+                      <div className="mb-1">
+                        <span className="text-xs sm:text-sm text-gray-700 font-medium">
+                          {rota.rota}
                         </span>
                       </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-8 sm:w-12 text-right pr-1 sm:pr-2">
-                    <span className="text-[8px] sm:text-[9px] text-gray-700 font-medium">Norte</span>
-                  </div>
-                  <div className="flex-1 relative">
-                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative chart-bar-80">
-                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center chart-progress-80">
-                        <span className="text-[7px] sm:text-[8px] text-white font-medium">80%</span>
-                      </div>
-                      <div className="absolute right-0.5 sm:right-1 top-0 h-4 sm:h-5 flex items-center">
-                        <span className="text-[7px] sm:text-[8px] text-gray-600 font-medium">
-                          <span className="hidden sm:inline">320k/400k</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-8 sm:w-12 text-right pr-1 sm:pr-2">
-                    <span className="text-[8px] sm:text-[9px] text-gray-700 font-medium">Sul</span>
-                  </div>
-                  <div className="flex-1 relative">
-                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative chart-bar-90">
-                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center chart-progress-70">
-                        <span className="text-[7px] sm:text-[8px] text-white font-medium">70%</span>
-                      </div>
-                      <div className="absolute right-0.5 sm:right-1 top-0 h-4 sm:h-5 flex items-center">
-                        <span className="text-[7px] sm:text-[8px] text-gray-600 font-medium">
-                          <span className="hidden sm:inline">315k/450k</span>
-                        </span>
+                      
+                      {/* Barra de progresso mais fina */}
+                      <div className="relative">
+                        <div className="h-3 sm:h-4 bg-gray-200 rounded relative">
+                          <div 
+                            className="h-3 sm:h-4 bg-primary rounded transition-all duration-300 relative flex items-center justify-center"
+                            style={{width: `${Math.min(rota.percentual_meta, 100)}%`}}
+                          >
+                            <span className="text-[9px] sm:text-[10px] text-white font-medium">
+                              {Math.round(rota.percentual_meta)}%
+                            </span>
+                          </div>
+                          
+                          {/* Valores vendido/meta - sempre mostra ambos */}
+                          <div className="absolute right-1 top-0 h-3 sm:h-4 flex items-center">
+                            <span className="text-[9px] sm:text-[10px] text-gray-600 font-medium bg-white/90 px-1 rounded shadow-sm">
+                              {formatarValorGrande(rota.vendido_2025)}/{formatarValorGrande(rota.meta_2025)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-                <div className="flex items-center">
-                  <div className="w-8 sm:w-12 text-right pr-1 sm:pr-2">
-                    <span className="text-[8px] sm:text-[9px] text-gray-700 font-medium">Leste</span>
+                <div className="flex items-center justify-center mt-3 space-x-4">
+                  <div className="flex items-center">
+                    <div className="w-2.5 h-2.5 bg-gray-200 rounded mr-1.5"></div>
+                    <span className="text-[10px] sm:text-xs text-gray-600 font-medium">Meta</span>
                   </div>
-                  <div className="flex-1 relative">
-                    <div className="h-4 sm:h-5 bg-gray-200 rounded relative chart-bar-70">
-                      <div className="h-4 sm:h-5 bg-primary rounded transition-all duration-300 relative flex items-center justify-center chart-progress-60">
-                        <span className="text-[7px] sm:text-[8px] text-white font-medium">60%</span>
-                      </div>
-                      <div className="absolute right-0.5 sm:right-1 top-0 h-4 sm:h-5 flex items-center">
-                        <span className="text-[7px] sm:text-[8px] text-gray-600 font-medium">
-                          <span className="hidden sm:inline">210k/350k</span>
-                        </span>
-                      </div>
-                    </div>
+                  <div className="flex items-center">
+                    <div className="w-2.5 h-2.5 bg-primary rounded mr-1.5"></div>
+                    <span className="text-[10px] sm:text-xs text-gray-600 font-medium">Vendido</span>
                   </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-center mt-2 sm:mt-3 space-x-3 sm:space-x-4">
-                <div className="flex items-center">
-                  <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-200 rounded mr-1"></div>
-                  <span className="text-[8px] sm:text-[9px] text-gray-600">Meta</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-2 h-2 sm:w-3 sm:h-3 bg-primary rounded mr-1"></div>
-                  <span className="text-[8px] sm:text-[9px] text-gray-600">Vendido</span>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p className="text-sm">{getEmptyStateMessage(user, 'rotas').title}</p>
+            </div>
+          )}
         </div>
         
       </main>
