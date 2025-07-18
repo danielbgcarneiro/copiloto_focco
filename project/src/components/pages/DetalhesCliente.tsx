@@ -205,11 +205,11 @@ const DetalhesCliente: React.FC = () => {
         const { data: dadosRFM, error: errorRFM } = await supabase
           .from('analise_rfm')
           .select(`
-            qtd_compras_2024, 
-            qtd_compras_2025, 
-            valor_vendas_2024, 
-            valor_vendas_2025, 
-            meta_2025, 
+            qtd_compras_ano_anterior, 
+            qtd_compras_ano_atual, 
+            valor_ano_anterior, 
+            valor_ano_atual, 
+            meta_ano_atual, 
             percentual_atingimento, 
             estrelas, 
             acao_recomendada, 
@@ -253,14 +253,14 @@ const DetalhesCliente: React.FC = () => {
         
         console.log('🔍 DEBUG - Dados carregados:', {
           codigo_cliente: dadosCompletos.codigo_cliente,
-          qtd_2024: dadosCompletos.qtd_compras_2024,
-          qtd_2025: dadosCompletos.qtd_compras_2025,
-          tipo_qtd_2024: typeof dadosCompletos.qtd_compras_2024,
-          tipo_qtd_2025: typeof dadosCompletos.qtd_compras_2025,
-          tem_qtd_2024: 'qtd_compras_2024' in dadosCompletos,
-          tem_qtd_2025: 'qtd_compras_2025' in dadosCompletos,
-          valor_exato_2024: dadosCompletos.qtd_compras_2024,
-          valor_exato_2025: dadosCompletos.qtd_compras_2025,
+          qtd_2024: dadosCompletos.qtd_compras_ano_anterior,
+          qtd_2025: dadosCompletos.qtd_compras_ano_atual,
+          tipo_qtd_2024: typeof dadosCompletos.qtd_compras_ano_anterior,
+          tipo_qtd_2025: typeof dadosCompletos.qtd_compras_ano_atual,
+          tem_qtd_2024: 'qtd_compras_ano_anterior' in dadosCompletos,
+          tem_qtd_2025: 'qtd_compras_ano_atual' in dadosCompletos,
+          valor_exato_2024: dadosCompletos.qtd_compras_ano_anterior,
+          valor_exato_2025: dadosCompletos.qtd_compras_ano_atual,
           dados_completos: dadosCompletos
         });
       } catch (err) {
@@ -335,12 +335,12 @@ const DetalhesCliente: React.FC = () => {
     status: cliente.status_financeiro,
     codigo: cliente.codigo_cliente,
     dsv: cliente.dias_sem_comprar,
-    vendas2025: cliente.valor_vendas_2025,
-    vendas2024: cliente.valor_vendas_2024,
-    oportunidade: cliente.oportunidade,
-    meta: cliente.meta_2025,
-    qtdVendas2025: cliente.qtd_compras_2025 ?? 0,  // Com fallback
-    qtdVendas2024: cliente.qtd_compras_2024 ?? 0,  // Com fallback
+    vendas2025: cliente.valor_ano_atual,
+    vendas2024: cliente.valor_ano_anterior,
+    oportunidade: cliente.previsao_pedido,
+    meta: cliente.meta_ano_atual,
+    qtdVendas2025: cliente.qtd_compras_ano_atual ?? 0,  // Com fallback
+    qtdVendas2024: cliente.qtd_compras_ano_anterior ?? 0,  // Com fallback
     percentualMeta: cliente.percentual_atingimento,
     acaoRecomendada: cliente.acao_recomendada,
     celular: cliente.celular || '',  // Com fallback
@@ -363,8 +363,8 @@ const DetalhesCliente: React.FC = () => {
     qtdVendas2024_final: dadosCliente.qtdVendas2024,
     tipo_qtd_2025: typeof dadosCliente.qtdVendas2025,
     tipo_qtd_2024: typeof dadosCliente.qtdVendas2024,
-    origem_qtd_2025: cliente.qtd_compras_2025,
-    origem_qtd_2024: cliente.qtd_compras_2024
+    origem_qtd_2025: cliente.qtd_compras_ano_atual,
+    origem_qtd_2024: cliente.qtd_compras_ano_anterior
   })
   console.log('Métricas categoria:', metricasCategoria)
 
@@ -476,8 +476,10 @@ const DetalhesCliente: React.FC = () => {
 
           {/* Mix de Produtos */}
           <div className="mb-4 pb-4">
-            <h3 className="text-base font-semibold text-gray-900 mb-3">Mix de Produtos</h3>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-semibold text-gray-900">Mix últimos 12 meses</h3>
+            </div>
+            <div className="bg-gray-100 p-4 rounded-lg">
               {metricasCategoria.categorias.length > 0 ? (
                 <table className="w-full">
                   <thead>

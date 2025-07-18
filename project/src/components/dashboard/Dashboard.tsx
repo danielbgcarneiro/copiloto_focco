@@ -246,10 +246,7 @@ const Dashboard: React.FC = () => {
                   {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.vendas_mes || 0) : 'N/A'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Meta: {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.meta_mes || 0) : 'N/A'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {dashboardData?.metricas ? `${Math.round(dashboardData.metricas.percentual_meta || 0)}% atingido` : 'N/A'}
+                  Obj: {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.meta_mes || 0) : 'N/A'} | {dashboardData?.metricas ? `${Math.round(dashboardData.metricas.percentual_meta || 0)}%` : 'N/A'}
                 </p>
               </div>
             </div>
@@ -267,9 +264,6 @@ const Dashboard: React.FC = () => {
                   {dashboardData?.metricas ? 
                     `${dashboardData.metricas.oticas_positivadas || 0} ${(dashboardData.metricas.oticas_positivadas || 0) === 1 ? 'ótica' : 'óticas'}` 
                     : 'N/A'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Meta: {dashboardData?.metricas ? `${Math.round(dashboardData.metricas.percentual_meta || 0)}% atingido` : 'N/A'}
                 </p>
               </div>
             </div>

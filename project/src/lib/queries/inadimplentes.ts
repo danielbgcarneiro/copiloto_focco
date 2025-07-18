@@ -22,20 +22,22 @@ export interface ClienteInadimplente {
 }
 
 // Função auxiliar para buscar valor de inadimplência específico por cliente
-async function getValorInadimplenciaCliente(codigoCliente: number): Promise<number> {
+async function getValorInadimplenciaCliente(codigoCliente: number, userId: string): Promise<number> {
   try {
     const { data, error } = await supabase
-      .from('vw_inadimplentes_resumo')
-      .select('valor_total')
+      .from('vw_titulos_vencidos_detalhado')
+      .select('valor_saldo')
       .eq('codigo_cliente', codigoCliente)
-      .single();
+      .eq('vendedor_uuid', userId);
     
     if (error) {
       console.warn(`⚠️ Erro ao buscar valor de inadimplência para cliente ${codigoCliente}:`, error);
       return 0;
     }
     
-    return Number(data?.valor_total || 0);
+    // Somar todos os valores de títulos do cliente
+    const valorTotal = (data || []).reduce((sum, titulo) => sum + (titulo.valor_saldo || 0), 0);
+    return valorTotal;
   } catch (error) {
     console.warn(`⚠️ Erro ao buscar valor de inadimplência para cliente ${codigoCliente}:`, error);
     return 0;
@@ -52,68 +54,70 @@ export async function getClientesInadimplentes(): Promise<ClienteInadimplente[]>
 
     console.log('🚨 Buscando inadimplentes para vendedor:', { userId: user.id });
 
-    // Buscar clientes inadimplentes da view com filtro por vendedor
-    const { data: clientes, error: clientesError } = await supabase
-      .from('vw_clientes_completo')
+    // Buscar TODOS os dados da nova view com RLS automático
+    const { data: dadosInadimplentes, error: inadimplentesError } = await supabase
+      .from('vw_titulos_vencidos_detalhado')
       .select('*')
-      .eq('vendedor_uuid', user.id)  // ✅ FILTRO AUSENTE ADICIONADO!
-      .eq('status_financeiro', 'INADIMPLENTE')
-      .order('dias_sem_comprar', { ascending: false });
+      .eq('vendedor_uuid', user.id)
+      .order('dias_atraso', { ascending: false });
     
-    if (clientesError) {
-      console.error('Erro ao buscar clientes inadimplentes:', clientesError);
-      throw clientesError;
+    if (inadimplentesError) {
+      console.error('Erro ao buscar inadimplentes:', inadimplentesError);
+      throw inadimplentesError;
     }
     
-    if (!clientes || clientes.length === 0) {
+    if (!dadosInadimplentes || dadosInadimplentes.length === 0) {
       return [];
     }
     
-    // Buscar todos os títulos em uma única query otimizada
-    const { data: todosTitulos, error: titulosError } = await supabase
-      .from('vw_inadimplentes')
-      .select('codigo_cliente, titulo_uuid, data_vencimento, valor_original, dias_atraso')
-      .in('codigo_cliente', clientes.map(c => c.codigo_cliente))
-      .order('codigo_cliente', { ascending: true })
-      .order('data_vencimento', { ascending: true });
+    // Agrupar dados por cliente
+    const clientesMap = new Map<number, any>();
+    const titulosPorCliente: { [key: number]: TituloAberto[] } = {};
     
-    if (titulosError) {
-      console.warn('⚠️ Erro ao buscar títulos de inadimplentes:', titulosError);
-    }
-    
-    // Agrupar títulos por cliente
-    const titulosPorCliente: { [key: number]: TituloAberto[] } = (todosTitulos || []).reduce((acc, titulo) => {
-      if (!acc[titulo.codigo_cliente]) acc[titulo.codigo_cliente] = [];
-      acc[titulo.codigo_cliente].push({
-        numero: titulo.titulo_uuid,
-        vencimento: new Date(titulo.data_vencimento).toLocaleDateString('pt-BR'),
-        valor: titulo.valor_original,
-        dias_atraso: titulo.dias_atraso
+    dadosInadimplentes.forEach(registro => {
+      const codigoCliente = registro.codigo_cliente;
+      
+      // Armazenar dados do cliente (será sobrescrito, mas são iguais)
+      if (!clientesMap.has(codigoCliente)) {
+        clientesMap.set(codigoCliente, {
+          codigo_cliente: registro.codigo_cliente,
+          nome_fantasia: registro.nome_fantasia,
+          cidade: registro.cidade || 'Sem cidade',
+          rota: registro.rota || 'Sem rota',
+          celular: registro.celular
+        });
+        titulosPorCliente[codigoCliente] = [];
+      }
+      
+      // Adicionar título
+      titulosPorCliente[codigoCliente].push({
+        numero: registro.titulo_uuid,
+        vencimento: new Date(registro.data_vencimento).toLocaleDateString('pt-BR'),
+        valor: registro.valor_saldo || registro.valor_original,
+        dias_atraso: registro.dias_atraso
       });
-      return acc;
-    }, {} as { [key: number]: TituloAberto[] });
-
-    // Mapear clientes com seus títulos e valores
-    const clientesComTitulos = await Promise.all(
-      clientes.map(async (cliente) => {
-        // Buscar valor real de inadimplência para este cliente específico
-        const valorInadimplencia = await getValorInadimplenciaCliente(cliente.codigo_cliente);
-        
-        return {
-          codigo_cliente: cliente.codigo_cliente,
-          nome_fantasia: cliente.nome_fantasia,
-          cidade: cliente.cidade || 'Sem cidade',
-          rota: cliente.rota || 'Sem rota',
-          status_financeiro: cliente.status_financeiro,
-          valor_total_titulos: valorInadimplencia, // ✅ Valor real da inadimplência
-          qtd_titulos_abertos: (titulosPorCliente[cliente.codigo_cliente] || []).length,
-          maior_dias_atraso: cliente.dias_sem_comprar || 0,
-          ultimo_pagamento: null, // TODO: Buscar da vw_inadimplentes quando disponível
-          telefone: cliente.celular || null,
-          titulos: titulosPorCliente[cliente.codigo_cliente] || [] // ✅ Títulos reais
-        };
-      })
-    );
+    });
+    
+    // Mapear para o formato final
+    const clientesComTitulos: ClienteInadimplente[] = Array.from(clientesMap.values()).map(cliente => {
+      const titulos = titulosPorCliente[cliente.codigo_cliente] || [];
+      const valorTotal = titulos.reduce((sum, titulo) => sum + titulo.valor, 0);
+      const maiorDiasAtraso = Math.max(...titulos.map(t => t.dias_atraso), 0);
+      
+      return {
+        codigo_cliente: cliente.codigo_cliente,
+        nome_fantasia: cliente.nome_fantasia,
+        cidade: cliente.cidade,
+        rota: cliente.rota,
+        status_financeiro: 'INADIMPLENTE',
+        valor_total_titulos: valorTotal,
+        qtd_titulos_abertos: titulos.length,
+        maior_dias_atraso: maiorDiasAtraso,
+        ultimo_pagamento: null,
+        telefone: cliente.celular || null,
+        titulos: titulos
+      };
+    });
     
     return clientesComTitulos;
   } catch (error) {
