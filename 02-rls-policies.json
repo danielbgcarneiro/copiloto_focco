@@ -1,0 +1,1069 @@
+[
+  {
+    "rls_policies_documentation": {
+      "extraction_timestamp": "2025-07-13T12:27:01.434485+00:00",
+      "database": "postgres",
+      "rls_summary": {
+        "total_tables": 35,
+        "tables_with_rls_enabled": 33,
+        "tables_with_rls_forced": 0
+      },
+      "tables_rls_status": [
+        {
+          "schema": "auth",
+          "table": "audit_log_entries",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "flow_state",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "identities",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "instances",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "mfa_amr_claims",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "mfa_challenges",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "mfa_factors",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "one_time_tokens",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "refresh_tokens",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "saml_providers",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "saml_relay_states",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "schema_migrations",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "sessions",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "sso_domains",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "sso_providers",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "auth",
+          "table": "users",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "analise_rfm",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "cod_produtos",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "compras_produto_cliente",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "meta_compra_cliente",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "metas_vendedores",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "mix_ideal_cliente",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "profiles",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "rotas_estado",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "tabela_clientes",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "titulos_vencidos",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "public",
+          "table": "vendedor_rotas",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "realtime",
+          "table": "messages",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "realtime",
+          "table": "schema_migrations",
+          "rls_enabled": false,
+          "rls_forced": false
+        },
+        {
+          "schema": "realtime",
+          "table": "subscription",
+          "rls_enabled": false,
+          "rls_forced": false
+        },
+        {
+          "schema": "storage",
+          "table": "buckets",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "storage",
+          "table": "migrations",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "storage",
+          "table": "objects",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "storage",
+          "table": "s3_multipart_uploads",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "storage",
+          "table": "s3_multipart_uploads_parts",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "schema": "supabase_migrations",
+          "table": "schema_migrations",
+          "rls_enabled": false,
+          "rls_forced": false
+        },
+        {
+          "schema": "vault",
+          "table": "secrets",
+          "rls_enabled": false,
+          "rls_forced": false
+        }
+      ],
+      "policies_by_table": {
+        "analise_rfm": [
+          {
+            "policy_name": "Vendedores veem RFM de seus clientes",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "public"
+            ],
+            "role_names": [
+              "public"
+            ],
+            "command": "ALL",
+            "using_expression": "((auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.cargo = 'diretor'::text))) OR (EXISTS ( SELECT 1\n   FROM ((tabela_clientes tc\n     JOIN rotas_estado re ON ((tc.codigo_ibge_cidade = re.codigo_ibge_cidade)))\n     JOIN profiles p ON ((re.cod_vendedor = p.cod_vendedor)))\n  WHERE ((tc.codigo_cliente = analise_rfm.codigo_cliente) AND (p.id = auth.uid())))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"Vendedores veem RFM de seus clientes\" ON public.analise_rfm\nFOR ALL\nTO public\nUSING (((auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.cargo = 'diretor'::text))) OR (EXISTS ( SELECT 1\n   FROM ((tabela_clientes tc\n     JOIN rotas_estado re ON ((tc.codigo_ibge_cidade = re.codigo_ibge_cidade)))\n     JOIN profiles p ON ((re.cod_vendedor = p.cod_vendedor)))\n  WHERE ((tc.codigo_cliente = analise_rfm.codigo_cliente) AND (p.id = auth.uid()))))));"
+          }
+        ],
+        "cod_produtos": [
+          {
+            "policy_name": "produtos_admin",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "ALL",
+            "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"produtos_admin\" ON public.cod_produtos\nFOR ALL\nTO authenticated\nUSING ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))));"
+          },
+          {
+            "policy_name": "produtos_select_all",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "true",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"produtos_select_all\" ON public.cod_produtos\nFOR SELECT\nTO authenticated\nUSING (true);"
+          }
+        ],
+        "compras_produto_cliente": [
+          {
+            "policy_name": "compras_select_by_cliente",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "(codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"compras_select_by_cliente\" ON public.compras_produto_cliente\nFOR SELECT\nTO authenticated\nUSING ((codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes)));"
+          },
+          {
+            "policy_name": "compras_system_only",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "ALL",
+            "using_expression": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'sistema'::text)))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"compras_system_only\" ON public.compras_produto_cliente\nFOR ALL\nTO authenticated\nUSING (((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'sistema'::text))))));"
+          }
+        ],
+        "meta_compra_cliente": [
+          {
+            "policy_name": "meta_cliente_admin",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "ALL",
+            "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'sistema'::text])))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"meta_cliente_admin\" ON public.meta_compra_cliente\nFOR ALL\nTO authenticated\nUSING ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'sistema'::text]))))));"
+          },
+          {
+            "policy_name": "meta_cliente_select",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "(codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"meta_cliente_select\" ON public.meta_compra_cliente\nFOR SELECT\nTO authenticated\nUSING ((codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes)));"
+          }
+        ],
+        "metas_vendedores": [
+          {
+            "policy_name": "metas_all_select_temp",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "true",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"metas_all_select_temp\" ON public.metas_vendedores\nFOR SELECT\nTO authenticated\nUSING (true);"
+          },
+          {
+            "policy_name": "metas_no_delete",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "DELETE",
+            "using_expression": "false",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"metas_no_delete\" ON public.metas_vendedores\nFOR DELETE\nTO authenticated\nUSING (false);"
+          },
+          {
+            "policy_name": "metas_no_insert",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "INSERT",
+            "using_expression": null,
+            "check_expression": "false",
+            "policy_definition": "CREATE POLICY \"metas_no_insert\" ON public.metas_vendedores\nFOR INSERT\nTO authenticated\nUSING (true)\nWITH CHECK (false);"
+          },
+          {
+            "policy_name": "metas_no_update",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "UPDATE",
+            "using_expression": "false",
+            "check_expression": "false",
+            "policy_definition": "CREATE POLICY \"metas_no_update\" ON public.metas_vendedores\nFOR UPDATE\nTO authenticated\nUSING (false)\nWITH CHECK (false);"
+          },
+          {
+            "policy_name": "metas_own_select",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "(cod_vendedor = ( SELECT profiles.cod_vendedor\n   FROM profiles\n  WHERE (profiles.id = auth.uid())))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"metas_own_select\" ON public.metas_vendedores\nFOR SELECT\nTO authenticated\nUSING ((cod_vendedor = ( SELECT profiles.cod_vendedor\n   FROM profiles\n  WHERE (profiles.id = auth.uid()))));"
+          }
+        ],
+        "mix_ideal_cliente": [
+          {
+            "policy_name": "mix_select_by_cliente",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "(codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"mix_select_by_cliente\" ON public.mix_ideal_cliente\nFOR SELECT\nTO authenticated\nUSING ((codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes)));"
+          },
+          {
+            "policy_name": "mix_system_only",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "ALL",
+            "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'sistema'::text])))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"mix_system_only\" ON public.mix_ideal_cliente\nFOR ALL\nTO authenticated\nUSING ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'sistema'::text]))))));"
+          }
+        ],
+        "profiles": [
+          {
+            "policy_name": "profiles_all_select",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "true",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"profiles_all_select\" ON public.profiles\nFOR SELECT\nTO authenticated\nUSING (true);"
+          },
+          {
+            "policy_name": "profiles_director_delete",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "DELETE",
+            "using_expression": "(EXISTS ( SELECT 1\n   FROM auth.users u\n  WHERE ((u.id = auth.uid()) AND ((u.raw_user_meta_data ->> 'cargo'::text) = 'diretor'::text))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"profiles_director_delete\" ON public.profiles\nFOR DELETE\nTO authenticated\nUSING ((EXISTS ( SELECT 1\n   FROM auth.users u\n  WHERE ((u.id = auth.uid()) AND ((u.raw_user_meta_data ->> 'cargo'::text) = 'diretor'::text)))));"
+          },
+          {
+            "policy_name": "profiles_director_insert",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "INSERT",
+            "using_expression": null,
+            "check_expression": "(EXISTS ( SELECT 1\n   FROM auth.users u\n  WHERE ((u.id = auth.uid()) AND ((u.raw_user_meta_data ->> 'cargo'::text) = 'diretor'::text))))",
+            "policy_definition": "CREATE POLICY \"profiles_director_insert\" ON public.profiles\nFOR INSERT\nTO authenticated\nUSING (true)\nWITH CHECK ((EXISTS ( SELECT 1\n   FROM auth.users u\n  WHERE ((u.id = auth.uid()) AND ((u.raw_user_meta_data ->> 'cargo'::text) = 'diretor'::text)))));"
+          },
+          {
+            "policy_name": "profiles_own_select",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "(auth.uid() = id)",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"profiles_own_select\" ON public.profiles\nFOR SELECT\nTO authenticated\nUSING ((auth.uid() = id));"
+          },
+          {
+            "policy_name": "profiles_own_update",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "UPDATE",
+            "using_expression": "(auth.uid() = id)",
+            "check_expression": "((auth.uid() = id) AND (cargo = ( SELECT profiles_1.cargo\n   FROM profiles profiles_1\n  WHERE (profiles_1.id = auth.uid()))))",
+            "policy_definition": "CREATE POLICY \"profiles_own_update\" ON public.profiles\nFOR UPDATE\nTO authenticated\nUSING ((auth.uid() = id))\nWITH CHECK (((auth.uid() = id) AND (cargo = ( SELECT profiles_1.cargo\n   FROM profiles profiles_1\n  WHERE (profiles_1.id = auth.uid())))));"
+          }
+        ],
+        "rotas_estado": [
+          {
+            "policy_name": "rotas_estado_admin",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "ALL",
+            "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"rotas_estado_admin\" ON public.rotas_estado\nFOR ALL\nTO authenticated\nUSING ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))));"
+          },
+          {
+            "policy_name": "rotas_estado_select",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "true",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"rotas_estado_select\" ON public.rotas_estado\nFOR SELECT\nTO authenticated\nUSING (true);"
+          }
+        ],
+        "tabela_clientes": [
+          {
+            "policy_name": "Apenas admin modifica clientes",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "ALL",
+            "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"Apenas admin modifica clientes\" ON public.tabela_clientes\nFOR ALL\nTO authenticated\nUSING ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))));"
+          },
+          {
+            "policy_name": "Vendedores veem clientes de suas rotas",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'gestor'::text)))) OR (EXISTS ( SELECT 1\n   FROM (vendedor_rotas vr\n     JOIN rotas_estado re ON ((re.rota = vr.rota)))\n  WHERE ((vr.vendedor_id = auth.uid()) AND (vr.ativo = true) AND (re.codigo_ibge_cidade = tabela_clientes.codigo_ibge_cidade)))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"Vendedores veem clientes de suas rotas\" ON public.tabela_clientes\nFOR SELECT\nTO authenticated\nUSING (((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'gestor'::text)))) OR (EXISTS ( SELECT 1\n   FROM (vendedor_rotas vr\n     JOIN rotas_estado re ON ((re.rota = vr.rota)))\n  WHERE ((vr.vendedor_id = auth.uid()) AND (vr.ativo = true) AND (re.codigo_ibge_cidade = tabela_clientes.codigo_ibge_cidade))))));"
+          },
+          {
+            "policy_name": "clientes_admin_delete",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "DELETE",
+            "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"clientes_admin_delete\" ON public.tabela_clientes\nFOR DELETE\nTO authenticated\nUSING ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))));"
+          },
+          {
+            "policy_name": "clientes_admin_write",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "INSERT",
+            "using_expression": null,
+            "check_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+            "policy_definition": "CREATE POLICY \"clientes_admin_write\" ON public.tabela_clientes\nFOR INSERT\nTO authenticated\nUSING (true)\nWITH CHECK ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))));"
+          },
+          {
+            "policy_name": "clientes_select_by_route",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'gestor'::text)))) OR (EXISTS ( SELECT 1\n   FROM (vendedor_rotas vr\n     JOIN rotas_estado re ON ((re.rota = vr.rota)))\n  WHERE ((vr.vendedor_id = auth.uid()) AND (vr.ativo = true) AND (re.codigo_ibge_cidade = tabela_clientes.codigo_ibge_cidade)))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"clientes_select_by_route\" ON public.tabela_clientes\nFOR SELECT\nTO authenticated\nUSING (((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'gestor'::text)))) OR (EXISTS ( SELECT 1\n   FROM (vendedor_rotas vr\n     JOIN rotas_estado re ON ((re.rota = vr.rota)))\n  WHERE ((vr.vendedor_id = auth.uid()) AND (vr.ativo = true) AND (re.codigo_ibge_cidade = tabela_clientes.codigo_ibge_cidade))))));"
+          },
+          {
+            "policy_name": "clientes_update_by_route",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "UPDATE",
+            "using_expression": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'gestor'::text]))))) OR (EXISTS ( SELECT 1\n   FROM (vendedor_rotas vr\n     JOIN rotas_estado re ON ((re.rota = vr.rota)))\n  WHERE ((vr.vendedor_id = auth.uid()) AND (vr.ativo = true) AND (re.codigo_ibge_cidade = tabela_clientes.codigo_ibge_cidade)))))",
+            "check_expression": "((codigo_cliente = ( SELECT tabela_clientes_1.codigo_cliente\n   FROM tabela_clientes tabela_clientes_1\n  WHERE (tabela_clientes_1.id = tabela_clientes_1.id))) AND (codigo_ibge_cidade = ( SELECT tabela_clientes_1.codigo_ibge_cidade\n   FROM tabela_clientes tabela_clientes_1\n  WHERE (tabela_clientes_1.id = tabela_clientes_1.id))))",
+            "policy_definition": "CREATE POLICY \"clientes_update_by_route\" ON public.tabela_clientes\nFOR UPDATE\nTO authenticated\nUSING (((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'gestor'::text]))))) OR (EXISTS ( SELECT 1\n   FROM (vendedor_rotas vr\n     JOIN rotas_estado re ON ((re.rota = vr.rota)))\n  WHERE ((vr.vendedor_id = auth.uid()) AND (vr.ativo = true) AND (re.codigo_ibge_cidade = tabela_clientes.codigo_ibge_cidade))))))\nWITH CHECK (((codigo_cliente = ( SELECT tabela_clientes_1.codigo_cliente\n   FROM tabela_clientes tabela_clientes_1\n  WHERE (tabela_clientes_1.id = tabela_clientes_1.id))) AND (codigo_ibge_cidade = ( SELECT tabela_clientes_1.codigo_ibge_cidade\n   FROM tabela_clientes tabela_clientes_1\n  WHERE (tabela_clientes_1.id = tabela_clientes_1.id)))));"
+          }
+        ],
+        "titulos_vencidos": [
+          {
+            "policy_name": "titulos_admin",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "ALL",
+            "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'sistema'::text])))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"titulos_admin\" ON public.titulos_vencidos\nFOR ALL\nTO authenticated\nUSING ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'sistema'::text]))))));"
+          },
+          {
+            "policy_name": "titulos_select",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "(codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"titulos_select\" ON public.titulos_vencidos\nFOR SELECT\nTO authenticated\nUSING ((codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes)));"
+          }
+        ],
+        "vendedor_rotas": [
+          {
+            "policy_name": "vendedor_rotas_admin",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "ALL",
+            "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"vendedor_rotas_admin\" ON public.vendedor_rotas\nFOR ALL\nTO authenticated\nUSING ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))));"
+          },
+          {
+            "policy_name": "vendedor_rotas_select",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "role_names": [
+              "authenticated"
+            ],
+            "command": "SELECT",
+            "using_expression": "((vendedor_id = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['gestor'::text, 'diretor'::text]))))))",
+            "check_expression": null,
+            "policy_definition": "CREATE POLICY \"vendedor_rotas_select\" ON public.vendedor_rotas\nFOR SELECT\nTO authenticated\nUSING (((vendedor_id = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['gestor'::text, 'diretor'::text])))))));"
+          }
+        ]
+      },
+      "policies_list": [
+        {
+          "schema": "public",
+          "table": "analise_rfm",
+          "policy_name": "Vendedores veem RFM de seus clientes",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "public"
+          ],
+          "command": "ALL",
+          "using_expression": "((auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.cargo = 'diretor'::text))) OR (EXISTS ( SELECT 1\n   FROM ((tabela_clientes tc\n     JOIN rotas_estado re ON ((tc.codigo_ibge_cidade = re.codigo_ibge_cidade)))\n     JOIN profiles p ON ((re.cod_vendedor = p.cod_vendedor)))\n  WHERE ((tc.codigo_cliente = analise_rfm.codigo_cliente) AND (p.id = auth.uid())))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "cod_produtos",
+          "policy_name": "produtos_admin",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "ALL",
+          "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "cod_produtos",
+          "policy_name": "produtos_select_all",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "true",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "compras_produto_cliente",
+          "policy_name": "compras_select_by_cliente",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "(codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "compras_produto_cliente",
+          "policy_name": "compras_system_only",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "ALL",
+          "using_expression": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'sistema'::text)))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "meta_compra_cliente",
+          "policy_name": "meta_cliente_admin",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "ALL",
+          "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'sistema'::text])))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "meta_compra_cliente",
+          "policy_name": "meta_cliente_select",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "(codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "metas_vendedores",
+          "policy_name": "metas_all_select_temp",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "true",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "metas_vendedores",
+          "policy_name": "metas_no_delete",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "DELETE",
+          "using_expression": "false",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "metas_vendedores",
+          "policy_name": "metas_no_insert",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "INSERT",
+          "using_expression": null,
+          "check_expression": "false"
+        },
+        {
+          "schema": "public",
+          "table": "metas_vendedores",
+          "policy_name": "metas_no_update",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "UPDATE",
+          "using_expression": "false",
+          "check_expression": "false"
+        },
+        {
+          "schema": "public",
+          "table": "metas_vendedores",
+          "policy_name": "metas_own_select",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "(cod_vendedor = ( SELECT profiles.cod_vendedor\n   FROM profiles\n  WHERE (profiles.id = auth.uid())))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "mix_ideal_cliente",
+          "policy_name": "mix_select_by_cliente",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "(codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "mix_ideal_cliente",
+          "policy_name": "mix_system_only",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "ALL",
+          "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'sistema'::text])))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "profiles",
+          "policy_name": "profiles_all_select",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "true",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "profiles",
+          "policy_name": "profiles_director_delete",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "DELETE",
+          "using_expression": "(EXISTS ( SELECT 1\n   FROM auth.users u\n  WHERE ((u.id = auth.uid()) AND ((u.raw_user_meta_data ->> 'cargo'::text) = 'diretor'::text))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "profiles",
+          "policy_name": "profiles_director_insert",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "INSERT",
+          "using_expression": null,
+          "check_expression": "(EXISTS ( SELECT 1\n   FROM auth.users u\n  WHERE ((u.id = auth.uid()) AND ((u.raw_user_meta_data ->> 'cargo'::text) = 'diretor'::text))))"
+        },
+        {
+          "schema": "public",
+          "table": "profiles",
+          "policy_name": "profiles_own_select",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "(auth.uid() = id)",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "profiles",
+          "policy_name": "profiles_own_update",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "UPDATE",
+          "using_expression": "(auth.uid() = id)",
+          "check_expression": "((auth.uid() = id) AND (cargo = ( SELECT profiles_1.cargo\n   FROM profiles profiles_1\n  WHERE (profiles_1.id = auth.uid()))))"
+        },
+        {
+          "schema": "public",
+          "table": "rotas_estado",
+          "policy_name": "rotas_estado_admin",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "ALL",
+          "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "rotas_estado",
+          "policy_name": "rotas_estado_select",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "true",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "tabela_clientes",
+          "policy_name": "Apenas admin modifica clientes",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "ALL",
+          "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "tabela_clientes",
+          "policy_name": "Vendedores veem clientes de suas rotas",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'gestor'::text)))) OR (EXISTS ( SELECT 1\n   FROM (vendedor_rotas vr\n     JOIN rotas_estado re ON ((re.rota = vr.rota)))\n  WHERE ((vr.vendedor_id = auth.uid()) AND (vr.ativo = true) AND (re.codigo_ibge_cidade = tabela_clientes.codigo_ibge_cidade)))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "tabela_clientes",
+          "policy_name": "clientes_admin_delete",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "DELETE",
+          "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "tabela_clientes",
+          "policy_name": "clientes_admin_write",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "INSERT",
+          "using_expression": null,
+          "check_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))"
+        },
+        {
+          "schema": "public",
+          "table": "tabela_clientes",
+          "policy_name": "clientes_select_by_route",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text)))) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'gestor'::text)))) OR (EXISTS ( SELECT 1\n   FROM (vendedor_rotas vr\n     JOIN rotas_estado re ON ((re.rota = vr.rota)))\n  WHERE ((vr.vendedor_id = auth.uid()) AND (vr.ativo = true) AND (re.codigo_ibge_cidade = tabela_clientes.codigo_ibge_cidade)))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "tabela_clientes",
+          "policy_name": "clientes_update_by_route",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "UPDATE",
+          "using_expression": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'gestor'::text]))))) OR (EXISTS ( SELECT 1\n   FROM (vendedor_rotas vr\n     JOIN rotas_estado re ON ((re.rota = vr.rota)))\n  WHERE ((vr.vendedor_id = auth.uid()) AND (vr.ativo = true) AND (re.codigo_ibge_cidade = tabela_clientes.codigo_ibge_cidade)))))",
+          "check_expression": "((codigo_cliente = ( SELECT tabela_clientes_1.codigo_cliente\n   FROM tabela_clientes tabela_clientes_1\n  WHERE (tabela_clientes_1.id = tabela_clientes_1.id))) AND (codigo_ibge_cidade = ( SELECT tabela_clientes_1.codigo_ibge_cidade\n   FROM tabela_clientes tabela_clientes_1\n  WHERE (tabela_clientes_1.id = tabela_clientes_1.id))))"
+        },
+        {
+          "schema": "public",
+          "table": "titulos_vencidos",
+          "policy_name": "titulos_admin",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "ALL",
+          "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['diretor'::text, 'sistema'::text])))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "titulos_vencidos",
+          "policy_name": "titulos_select",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "(codigo_cliente IN ( SELECT tabela_clientes.codigo_cliente\n   FROM tabela_clientes))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "vendedor_rotas",
+          "policy_name": "vendedor_rotas_admin",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "ALL",
+          "using_expression": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = 'diretor'::text))))",
+          "check_expression": null
+        },
+        {
+          "schema": "public",
+          "table": "vendedor_rotas",
+          "policy_name": "vendedor_rotas_select",
+          "permissive": "PERMISSIVE",
+          "roles": [
+            "authenticated"
+          ],
+          "command": "SELECT",
+          "using_expression": "((vendedor_id = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cargo = ANY (ARRAY['gestor'::text, 'diretor'::text]))))))",
+          "check_expression": null
+        }
+      ]
+    }
+  }
+]

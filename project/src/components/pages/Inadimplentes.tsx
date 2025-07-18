@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, AlertTriangle, Phone, MessageCircle, Filter } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
-import { supabase } from '../../lib/supabase'
+import { getClientesInadimplentes, getStatusInadimplencia, formatarTelefone } from '../../lib/queries/inadimplentes'
+import { formatarMoeda } from '../../lib/queries/dashboard'
+import { getVendedorRanking } from '../../lib/queries/vendedores'
+import { isAdmin } from '../../lib/utils/userHelpers'
 
 const Inadimplentes: React.FC = () => {
   const navigate = useNavigate()
@@ -14,6 +17,7 @@ const Inadimplentes: React.FC = () => {
   const [sortBy, setSortBy] = useState('nome')
   const [inadimplentesData, setInadimplentesData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [valorTotalInadimplencia, setValorTotalInadimplencia] = useState(0)
 
   // Função para normalizar texto removendo acentos e caracteres especiais
   const normalizeText = (text: string): string => {
@@ -25,26 +29,6 @@ const Inadimplentes: React.FC = () => {
       .trim()
   }
 
-  // Função para calcular dias de atraso
-  const calcularDiasAtraso = (dataVencimento: string): number => {
-    const hoje = new Date()
-    const vencimento = new Date(dataVencimento.split('/').reverse().join('-'))
-    const diffTime = hoje.getTime() - vencimento.getTime()
-    return Math.floor(diffTime / (1000 * 60 * 60 * 24))
-  }
-
-  // Função para classificar status baseado no maior atraso
-  const classificarStatus = (diasAtraso: number): { status: string, statusColor: string } => {
-    if (diasAtraso > 30) {
-      return { status: 'Crítico', statusColor: 'bg-red-100 text-red-800' }
-    } else if (diasAtraso > 15) {
-      return { status: 'Alto', statusColor: 'bg-orange-100 text-orange-800' }
-    } else if (diasAtraso > 7) {
-      return { status: 'Médio', statusColor: 'bg-yellow-100 text-yellow-800' }
-    } else {
-      return { status: 'Baixo', statusColor: 'bg-blue-100 text-blue-800' }
-    }
-  }
 
   // Carregar inadimplentes reais do usuário logado
   useEffect(() => {
@@ -56,56 +40,53 @@ const Inadimplentes: React.FC = () => {
       setLoading(true)
       console.log('🔍 Carregando inadimplentes para usuário:', user?.id)
       
-      // Buscar clientes inadimplentes respeitando RLS
-      const { data, error } = await supabase
-        .from('vw_clientes_completo')
-        .select('*')
-        .eq('status_financeiro', 'INADIMPLENTE')
-        .order('dias_sem_comprar', { ascending: false })
+      // Buscar clientes inadimplentes com RLS aplicado
+      const clientesInadimplentes = await getClientesInadimplentes()
+      console.log('✅ Inadimplentes carregados:', clientesInadimplentes)
       
-      if (error) {
-        console.error('❌ Erro ao carregar inadimplentes:', error)
-        setInadimplentesData([]) // Retorna vazio se houver erro
-        return
+      // Buscar valor total de inadimplência da vw_ranking_vendedores
+      try {
+        const vendedorRanking = await getVendedorRanking()
+        if (vendedorRanking) {
+          setValorTotalInadimplencia(vendedorRanking.total_inadimplencia)
+          console.log('✅ Valor total inadimplência carregado:', vendedorRanking.total_inadimplencia)
+        }
+      } catch (error) {
+        console.warn('⚠️ Erro ao carregar valor total de inadimplência:', error)
       }
       
-      console.log('✅ Inadimplentes carregados:', data)
-      
       // Transformar dados para o formato esperado pela interface
-      const inadimplentesFormatados = (data || []).map(cliente => ({
-        id: cliente.codigo_cliente,
-        nome: cliente.nome_fantasia,
-        codigo: cliente.codigo_cliente.toString(),
-        rota: cliente.rota || 'Sem rota',
-        valorTotal: 'R$ 0,00', // Dados reais de títulos virão de outra consulta
-        ultimoPagamento: 'N/A', // Dados reais virão de outra consulta
-        telefone: cliente.celular || 'N/A',
-        titulosAbertos: [] // Dados reais virão de outra consulta
-      }))
+      const inadimplentesFormatados = clientesInadimplentes.map(cliente => {
+        const { status, statusColor } = getStatusInadimplencia(cliente.maior_dias_atraso)
+        
+        return {
+          id: cliente.codigo_cliente,
+          nome: cliente.nome_fantasia,
+          codigo: cliente.codigo_cliente.toString(),
+          cidade: cliente.cidade,
+          rota: cliente.rota,
+          valorTotal: formatarMoeda(cliente.valor_total_titulos),
+          ultimoPagamento: cliente.ultimo_pagamento || 'N/A',
+          telefone: formatarTelefone(cliente.telefone),
+          titulosAbertos: cliente.titulos,
+          diasAtraso: cliente.maior_dias_atraso,
+          status,
+          statusColor
+        }
+      })
       
       setInadimplentesData(inadimplentesFormatados)
       
     } catch (error) {
       console.error('💥 Erro ao carregar inadimplentes:', error)
-      setInadimplentesData([]) // Retorna vazio em caso de erro
+      setInadimplentesData([])
     } finally {
       setLoading(false)
     }
   }
 
-  // Processar dados calculando dias de atraso e status
-  const inadimplentes = inadimplentesData.map(inadimplente => {
-    const diasAtrasoTitulos = inadimplente.titulosAbertos.map(titulo => calcularDiasAtraso(titulo.vencimento))
-    const maiorAtraso = Math.max(...diasAtrasoTitulos)
-    const { status, statusColor } = classificarStatus(maiorAtraso)
-    
-    return {
-      ...inadimplente,
-      diasAtraso: maiorAtraso,
-      status,
-      statusColor
-    }
-  })
+  // Usar os dados já processados
+  const inadimplentes = inadimplentesData
 
   const filteredInadimplentes = inadimplentes
     .filter(inadimplente => {
@@ -133,11 +114,6 @@ const Inadimplentes: React.FC = () => {
 
   // Cálculos dinâmicos para os cards
   const totalInadimplentes = filteredInadimplentes.length
-  
-  const valorTotalCalculado = filteredInadimplentes.reduce((total, cliente) => {
-    return total + parseFloat(cliente.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.'))
-  }, 0)
-  
   const criticosCount = filteredInadimplentes.filter(cliente => cliente.diasAtraso > 30).length
 
   return (
@@ -190,7 +166,7 @@ const Inadimplentes: React.FC = () => {
           <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4">
             <p className="text-[10px] sm:text-xs text-gray-600 mb-1">Valor Total</p>
             <p className="text-sm sm:text-lg font-bold text-red-600">
-              R$ {valorTotalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatarMoeda(valorTotalInadimplencia)}
             </p>
           </div>
           <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4">
@@ -269,14 +245,24 @@ const Inadimplentes: React.FC = () => {
               className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all"
             >
               <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1.5">
+                <div className="flex items-center space-x-2 mb-1">
                   <AlertTriangle className="h-4 w-4 text-red-500" />
                   <h3 className="text-base font-semibold text-gray-900">{inadimplente.nome}</h3>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${inadimplente.statusColor}`}>
                     {inadimplente.status}
                   </span>
                 </div>
-                <p className="text-xs text-gray-600 mb-2 leading-tight">Código: {inadimplente.codigo}</p>
+                
+                <div className="grid grid-cols-2 gap-2 text-xs leading-tight mb-1">
+                  <div>
+                    <span className="text-gray-600">Código:</span>
+                    <span className="ml-1 font-semibold text-gray-800">{inadimplente.codigo}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-gray-600">Cidade:</span>
+                    <span className="ml-1 font-semibold text-gray-800">{inadimplente.cidade}</span>
+                  </div>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-2 text-xs leading-tight mb-3">
                   <div>
@@ -293,13 +279,13 @@ const Inadimplentes: React.FC = () => {
                 <div className="border-t border-gray-100 pt-2 mb-3">
                   <p className="text-xs font-medium text-gray-700 mb-2">Títulos Atrasados:</p>
                   <div className="space-y-1">
-                    {inadimplente.titulosAbertos.map((titulo, index) => {
-                      const diasAtraso = calcularDiasAtraso(titulo.vencimento)
+                    {inadimplente.titulosAbertos.map((titulo: any, index: number) => {
+                      const diasAtraso = titulo.dias_atraso || 0
                       return (
                         <div key={index} className="grid grid-cols-3 gap-2 text-xs items-center">
                           <span className="text-gray-600">{titulo.vencimento}</span>
                           <span className="text-center text-red-600 font-medium">{diasAtraso}d</span>
-                          <span className="font-semibold text-red-600 text-right">{titulo.valor}</span>
+                          <span className="font-semibold text-red-600 text-right">{formatarMoeda(titulo.valor)}</span>
                         </div>
                       )
                     })}
@@ -332,7 +318,8 @@ const Inadimplentes: React.FC = () => {
             <div className="text-center py-12 text-gray-500">
               <p className="text-lg mb-2">Nenhum inadimplente encontrado</p>
               <p className="text-sm">
-                {searchTerm ? 'Tente ajustar o filtro de busca.' : 'Todos os clientes estão em dia!'}
+                {searchTerm ? 'Tente ajustar o filtro de busca.' : 
+                  isAdmin(user) ? 'Não há clientes inadimplentes no sistema.' : 'Todos os seus clientes estão em dia!'}
               </p>
             </div>
           )}

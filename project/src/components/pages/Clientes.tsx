@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Search, Filter, User, LogOut, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
 import { getClientesPorVendedor, getCorPrioridade } from '../../lib/queries/clientes'
+import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 
 const Clientes: React.FC = () => {
   const navigate = useNavigate()
+  const { rotaId, cidadeNome } = useParams<{ rotaId: string; cidadeNome: string }>()
   const { user, logout } = useAuth()
   const { } = useUserData()
   const [clientes, setClientes] = useState<any[]>([])
@@ -15,6 +17,10 @@ const Clientes: React.FC = () => {
   const sortMenuRef = useRef<HTMLDivElement>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('nome')
+
+  // Decodificar parâmetros da URL
+  const rotaNome = rotaId ? decodeURIComponent(rotaId) : null
+  const cidadeDecodificada = cidadeNome ? decodeURIComponent(cidadeNome) : null
 
   // Fechar menu ao clicar fora
   useEffect(() => {
@@ -31,14 +37,17 @@ const Clientes: React.FC = () => {
   // Carregar clientes ao montar o componente
   useEffect(() => {
     carregarClientes()
-  }, [user])
+  }, [user, cidadeDecodificada])
 
   async function carregarClientes() {
     try {
       setLoading(true)
-      const dados = await getClientesPorVendedor(user?.id)
-      console.log('Dados carregados:', dados)
-      console.log('Primeiro cliente:', dados[0])
+      console.log('🔍 Carregando clientes para cidade:', cidadeDecodificada)
+      
+      // Buscar clientes direto com filtro por cidade (se especificada)
+      const dados = await getClientesPorVendedor(undefined, cidadeDecodificada || undefined)
+      console.log('✅ Clientes carregados:', dados)
+      
       setClientes(dados)
     } catch (error) {
       console.error('Erro ao carregar clientes:', error)
@@ -111,7 +120,7 @@ const Clientes: React.FC = () => {
           <div className="flex items-center justify-between h-14 relative">
             <div className="flex items-center">
               <button 
-                onClick={() => navigate('/cidades')}
+                onClick={() => navigate(`/rotas/${encodeURIComponent(rotaNome || '')}/cidades`)}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors mr-2"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -138,6 +147,17 @@ const Clientes: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
+        {/* Breadcrumb */}
+        {(rotaNome || cidadeDecodificada) && (
+          <div className="mb-4 px-2">
+            <div className="flex items-center text-sm text-gray-600">
+              {rotaNome && <span>Rota: <span className="font-semibold text-primary">{rotaNome}</span></span>}
+              {rotaNome && cidadeDecodificada && <span className="mx-2">•</span>}
+              {cidadeDecodificada && <span>Cidade: <span className="font-semibold text-primary">{cidadeDecodificada}</span></span>}
+            </div>
+          </div>
+        )}
+        
         {/* Search Bar */}
         <div className="mb-4 flex items-center gap-3">
           <div className="relative flex-1">
@@ -205,8 +225,11 @@ const Clientes: React.FC = () => {
                 className={`bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer ${corPrioridade}`}
                 onClick={() => {
                   console.log('Clicou no cliente:', cliente.codigo_cliente);
-                  console.log('Navegando para:', `/clientes/detalhes/${cliente.codigo_cliente}`);
-                  navigate(`/clientes/detalhes/${cliente.codigo_cliente}`);
+                  const rotaPath = rotaNome ? encodeURIComponent(rotaNome) : 'sem-rota';
+                  const cidadePath = cidadeDecodificada ? encodeURIComponent(cidadeDecodificada) : 'sem-cidade';
+                  const detalhesUrl = `/rotas/${rotaPath}/cidades/${cidadePath}/clientes/${cliente.codigo_cliente}/detalhes`;
+                  console.log('Navegando para:', detalhesUrl);
+                  navigate(detalhesUrl);
                 }}
               >
                 <div className="flex-1">
@@ -274,8 +297,10 @@ const Clientes: React.FC = () => {
         {/* Mensagem se não houver clientes */}
         {clientesFiltrados.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            <p className="text-lg mb-2">Nenhum cliente encontrado</p>
-            <p className="text-sm">Tente ajustar os filtros para encontrar os clientes desejados.</p>
+            <p className="text-lg mb-2">{getEmptyStateMessage(user, 'clientes').title}</p>
+            <p className="text-sm">
+              {searchTerm ? 'Tente ajustar os filtros para encontrar os clientes desejados.' : getEmptyStateMessage(user, 'clientes').subtitle}
+            </p>
           </div>
         )}
       </main>

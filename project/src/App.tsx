@@ -26,16 +26,6 @@ const router = createBrowserRouter([
     )
   },
   {
-    path: "/clientes",
-    element: (
-      <ProtectedRoute>
-        <UserDataProvider>
-          <Clientes />
-        </UserDataProvider>
-      </ProtectedRoute>
-    )
-  },
-  {
     path: "/rotas",
     element: (
       <ProtectedRoute>
@@ -46,11 +36,31 @@ const router = createBrowserRouter([
     )
   },
   {
-    path: "/cidades",
+    path: "/rotas/:rotaId/cidades",
     element: (
       <ProtectedRoute>
         <UserDataProvider>
           <Cidades />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/rotas/:rotaId/cidades/:cidadeNome/clientes",
+    element: (
+      <ProtectedRoute>
+        <UserDataProvider>
+          <Clientes />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes",
+    element: (
+      <ProtectedRoute>
+        <UserDataProvider>
+          <DetalhesCliente />
         </UserDataProvider>
       </ProtectedRoute>
     )

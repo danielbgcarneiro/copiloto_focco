@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, User, LogOut, Phone, MessageCircle, Mic } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
-import { getClienteDetalhes } from '../../lib/queries/cliente'
 import { supabase } from '../../lib/supabase' // MUDANÇA 1: Adicionar import
 
 // Funções de formatação
@@ -76,97 +75,178 @@ const DetalhesCliente: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { } = useUserData()
-  const { id } = useParams()
+  const { id, rotaId, cidadeNome, clienteId } = useParams<{ 
+    id?: string; 
+    rotaId?: string; 
+    cidadeNome?: string; 
+    clienteId?: string; 
+  }>()
   const [cliente, setCliente] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // TESTE TEMPORÁRIO - REMOVER APÓS DEBUG
-  useEffect(() => {
-    async function testSupabaseAccess() {
-      console.log('🧪 INICIANDO TESTE DE ACESSO...');
-      
-      const { data: { user } } = await supabase.auth.getUser()
-      console.log('🔐 Current user:', {
-        id: user?.id,
-        email: user?.email,
-        isAuthenticated: !!user
-      })
-      
-      if (!user) {
-        console.log('❌ Usuário não autenticado - parando testes');
-        return;
-      }
-      
-      // Teste 1: Acesso direto à tabela
-      console.log('🧪 Teste 1: tabela_clientes');
-      try {
-        const { data: t1, error: e1 } = await supabase
-          .from('tabela_clientes')
-          .select('codigo_cliente, nome_fantasia')
-          .eq('codigo_cliente', 100273)
-        
-        console.log('Test 1 - tabela_clientes:', { data: t1, error: e1 })
-      } catch (err) {
-        console.log('Test 1 - Erro:', err);
-      }
-      
-      // Teste 2: Acesso à view
-      console.log('🧪 Teste 2: vw_clientes_completo');
-      try {
-        const { data: t2, error: e2 } = await supabase
-          .from('vw_clientes_completo')
-          .select('codigo_cliente, nome_fantasia')
-          .eq('codigo_cliente', 100273)
-        
-        console.log('Test 2 - vw_clientes_completo:', { data: t2, error: e2 })
-      } catch (err) {
-        console.log('Test 2 - Erro:', err);
-      }
-      
-      // Teste 3: RPC
-      console.log('🧪 Teste 3: RPC get_cliente_detalhes');
-      try {
-        const rpcResult = await supabase.rpc('get_cliente_detalhes', { p_codigo_cliente: 100273 });
-        console.log('Test 3 - RPC:', rpcResult);
-      } catch (err) {
-        console.log('Test 3 - Erro:', err);
-      }
+  // Determinar qual ID usar (hierárquico ou direto)
+  const codigoCliente = clienteId || id
+  
+  // Decodificar parâmetros da navegação hierárquica
+  const rotaNome = rotaId ? decodeURIComponent(rotaId) : null
+  const cidadeDecodificada = cidadeNome ? decodeURIComponent(cidadeNome) : null
+  
+  // Função para navegar de volta
+  const voltarParaClientes = () => {
+    if (rotaNome && cidadeDecodificada) {
+      // Navegação hierárquica
+      navigate(`/rotas/${encodeURIComponent(rotaNome)}/cidades/${encodeURIComponent(cidadeDecodificada)}/clientes`)
+    } else {
+      // Navegação direta (fallback)
+      navigate('/clientes')
     }
-    
-    testSupabaseAccess()
-  }, [])
+  }
+
+  // TESTE TEMPORÁRIO - REMOVIDO PARA EVITAR CONSULTAS DUPLICADAS
+  // useEffect(() => {
+  //   async function testSupabaseAccess() {
+  //     console.log('🧪 INICIANDO TESTE DE ACESSO...');
+  //     
+  //     const { data: { user } } = await supabase.auth.getUser()
+  //     console.log('🔐 Current user:', {
+  //       id: user?.id,
+  //       email: user?.email,
+  //       isAuthenticated: !!user
+  //     })
+  //     
+  //     if (!user) {
+  //       console.log('❌ Usuário não autenticado - parando testes');
+  //       return;
+  //     }
+      
+  //     // Teste 1: Acesso direto à view (RLS-safe)
+  //     console.log('🧪 Teste 1: vw_clientes_completo');
+  //     try {
+  //       const { data: t1, error: e1 } = await supabase
+  //         .from('vw_clientes_completo')
+  //         .select('codigo_cliente, nome_fantasia')
+  //         .eq('codigo_cliente', 100273)
+  //       
+  //       console.log('Test 1 - tabela_clientes:', { data: t1, error: e1 })
+  //     } catch (err) {
+  //       console.log('Test 1 - Erro:', err);
+  //     }
+  //     
+  //     // Teste 2: Acesso à view
+  //     console.log('🧪 Teste 2: vw_clientes_completo');
+  //     try {
+  //       const { data: t2, error: e2 } = await supabase
+  //         .from('vw_clientes_completo')
+  //         .select('codigo_cliente, nome_fantasia')
+  //         .eq('codigo_cliente', 100273)
+  //       
+  //       console.log('Test 2 - vw_clientes_completo:', { data: t2, error: e2 })
+  //     } catch (err) {
+  //       console.log('Test 2 - Erro:', err);
+  //     }
+  //     
+  //     // Teste 3: RPC
+  //     console.log('🧪 Teste 3: RPC get_cliente_detalhes');
+  //     try {
+  //       const rpcResult = await supabase.rpc('get_cliente_detalhes', { p_codigo_cliente: 100273 });
+  //       console.log('Test 3 - RPC:', rpcResult);
+  //     } catch (err) {
+  //       console.log('Test 3 - Erro:', err);
+  //     }
+  //   }
+  //   
+  //   testSupabaseAccess()
+  // }, [])
 
   useEffect(() => {
     async function carregarCliente() {
-      if (!id) {
+      if (!codigoCliente) {
         console.log('❌ ID não fornecido');
         return;
       }
       
-      console.log('🔍 Carregando cliente com ID:', id);
+      const clienteIdNumerico = parseInt(codigoCliente);
+      if (isNaN(clienteIdNumerico)) {
+        console.log('❌ ID inválido:', codigoCliente);
+        setError('ID do cliente inválido');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('🔍 Carregando cliente com ID:', clienteIdNumerico);
       
       try {
         setLoading(true);
-        console.log('📞 Chamando getClienteDetalhes com ID:', parseInt(id));
-        const dados = await getClienteDetalhes(parseInt(id));
-        console.log('✅ Dados recebidos:', dados);
+        console.log('📞 Buscando dados diretamente da view para ID:', clienteIdNumerico);
         
-        // MUDANÇA 2: Buscar métricas de categoria separadamente
-        const { data: metricas, error: errorMetricas } = await supabase
-          .from('vw_metricas_categoria_cliente')
+        // Buscar dados básicos da view
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          throw new Error('Usuário não autenticado');
+        }
+
+        const { data: dadosBasicos, error: errorBasicos } = await supabase
+          .from('vw_clientes_completo')
           .select('*')
-          .eq('codigo_cliente', parseInt(id))
+          .eq('codigo_cliente', clienteIdNumerico)
+          .eq('vendedor_uuid', user.id)
           .single();
-        
-        if (errorMetricas) {
-          console.warn('⚠️ Erro ao buscar métricas:', errorMetricas);
+          
+        if (errorBasicos) {
+          throw errorBasicos;
         }
         
-        // MUDANÇA 3: Combinar dados com métricas
+        console.log('✅ Dados básicos recebidos:', dadosBasicos);
+        
+        // Buscar dados de análise RFM com verificação de segurança
+        // Como a tabela analise_rfm não tem vendedor_uuid, vamos garantir 
+        // que só buscamos dados de clientes que o vendedor tem acesso
+        const { data: dadosRFM, error: errorRFM } = await supabase
+          .from('analise_rfm')
+          .select(`
+            qtd_compras_2024, 
+            qtd_compras_2025, 
+            valor_vendas_2024, 
+            valor_vendas_2025, 
+            meta_2025, 
+            percentual_atingimento, 
+            estrelas, 
+            acao_recomendada, 
+            previsao_pedido, 
+            dias_sem_comprar,
+            codigo_cliente,
+            data_analise
+          `)
+          .eq('codigo_cliente', clienteIdNumerico)
+          .order('data_analise', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (errorRFM) {
+          console.warn('⚠️ Erro ao buscar dados RFM:', errorRFM);
+        }
+        
+        console.log('✅ Dados RFM recebidos:', dadosRFM);
+        
+        // Buscar métricas por categoria (Mix de Produtos)
+        const { data: metricasCategoria, error: errorMetricas } = await supabase
+          .from('vw_metricas_categoria_cliente')
+          .select('*')
+          .eq('codigo_cliente', clienteIdNumerico)
+          .maybeSingle();
+        
+        if (errorMetricas) {
+          console.warn('⚠️ Erro ao buscar métricas de categoria:', errorMetricas);
+        }
+        
+        console.log('✅ Métricas categoria recebidas:', metricasCategoria);
+        
+        // AGREGAR dados básicos COM dados RFM E métricas
         const dadosCompletos = {
-          ...dados,
-          ...(metricas || {})
+          ...dadosBasicos,
+          ...(dadosRFM || {}),
+          ...(metricasCategoria || {})
         };
         
         setCliente(dadosCompletos);
@@ -202,7 +282,7 @@ const DetalhesCliente: React.FC = () => {
     }
 
     carregarCliente();
-  }, [id]);
+  }, [codigoCliente]);
 
   if (loading) {
     return (
@@ -223,7 +303,7 @@ const DetalhesCliente: React.FC = () => {
             <pre className="text-red-600 text-sm text-left whitespace-pre-wrap">{error}</pre>
           </div>
           <button 
-            onClick={() => navigate('/clientes')}
+            onClick={voltarParaClientes}
             className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90"
           >
             Voltar para Clientes
@@ -239,7 +319,7 @@ const DetalhesCliente: React.FC = () => {
         <div className="text-center">
           <p className="text-gray-600 mb-4">Cliente não encontrado</p>
           <button 
-            onClick={() => navigate('/clientes')}
+            onClick={voltarParaClientes}
             className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90"
           >
             Voltar para Clientes
@@ -276,7 +356,7 @@ const DetalhesCliente: React.FC = () => {
   // Processar Métricas por Categoria
   const metricasCategoria = processarMetricasCategoria(cliente);
 
-  console.log('Cliente ID:', id)
+  console.log('Cliente ID:', codigoCliente)
   console.log('Dados do cliente:', dadosCliente)
   console.log('🔍 DEBUG FINAL - Quantidades:', {
     qtdVendas2025_final: dadosCliente.qtdVendas2025,
@@ -297,7 +377,7 @@ const DetalhesCliente: React.FC = () => {
           <div className="flex items-center justify-between h-14 relative">
             <div className="flex items-center">
               <button 
-                onClick={() => navigate('/clientes')}
+                onClick={voltarParaClientes}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors mr-2"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -324,6 +404,19 @@ const DetalhesCliente: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
+        {/* Breadcrumb */}
+        {(rotaNome || cidadeDecodificada) && (
+          <div className="mb-4 px-2">
+            <div className="flex items-center text-sm text-gray-600">
+              {rotaNome && <span>Rota: <span className="font-semibold text-primary">{rotaNome}</span></span>}
+              {rotaNome && cidadeDecodificada && <span className="mx-2">•</span>}
+              {cidadeDecodificada && <span>Cidade: <span className="font-semibold text-primary">{cidadeDecodificada}</span></span>}
+              {(rotaNome || cidadeDecodificada) && cliente && <span className="mx-2">•</span>}
+              {cliente && <span>Cliente: <span className="font-semibold text-primary">{cliente.nome_fantasia}</span></span>}
+            </div>
+          </div>
+        )}
+        
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
           {/* Cliente Info */}
           <div className="mb-4 pb-4 border-b border-gray-200">

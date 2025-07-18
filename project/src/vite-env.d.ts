@@ -1,5 +1,14 @@
 /// <reference types="vite/client" />
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+declare global {
+  interface Window {
+    supabase: SupabaseClient
+    testeRLSCompleto: () => Promise<void>
+  }
+}
+
 declare module '*.png' {
   const value: string;
   export default value;

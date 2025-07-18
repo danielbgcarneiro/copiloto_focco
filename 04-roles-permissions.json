@@ -1,0 +1,189 @@
+-- =====================================================
+-- EXTRAÇÃO 4 CORRIGIDA: ROLES E PERMISSÕES EM JSON
+-- =====================================================
+-- Baseado na documentação oficial do PostgreSQL e Supabase
+
+WITH role_info AS (
+    SELECT 
+        r.rolname as role_name,
+        r.rolsuper as is_superuser,
+        r.rolinherit as can_inherit,
+        r.rolcreaterole as can_create_role,
+        r.rolcreatedb as can_create_db,
+        r.rolcanlogin as can_login,
+        r.rolreplication as is_replication,
+        r.rolbypassrls as bypass_rls,
+        r.rolconnlimit as connection_limit,
+        r.rolvaliduntil as valid_until,
+        -- Get roles this role is member of
+        ARRAY(
+            SELECT b.rolname 
+            FROM pg_catalog.pg_auth_members m
+            JOIN pg_catalog.pg_roles b ON (m.roleid = b.oid)
+            WHERE m.member = r.oid
+        ) as member_of,
+        -- Get members of this role
+        ARRAY(
+            SELECT m.rolname 
+            FROM pg_catalog.pg_auth_members am
+            JOIN pg_catalog.pg_roles m ON (am.member = m.oid)
+            WHERE am.roleid = r.oid
+        ) as members
+    FROM pg_roles r
+    WHERE r.rolname NOT LIKE 'pg_%'
+),
+table_grants AS (
+    SELECT 
+        table_schema as schema_name,
+        table_name,
+        grantee,
+        array_agg(DISTINCT privilege_type ORDER BY privilege_type) as privileges
+    FROM information_schema.role_table_grants
+    WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+        AND table_schema NOT LIKE 'pg_temp_%'
+    GROUP BY table_schema, table_name, grantee
+),
+table_permissions_agg AS (
+    SELECT 
+        schema_name,
+        table_name,
+        json_object_agg(
+            grantee,
+            privileges
+        ) as permissions
+    FROM table_grants
+    GROUP BY schema_name, table_name
+),
+function_grants AS (
+    SELECT 
+        routine_schema,
+        routine_name,
+        specific_name,
+        grantee,
+        array_agg(DISTINCT privilege_type ORDER BY privilege_type) as privileges
+    FROM information_schema.role_routine_grants
+    WHERE routine_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+        AND routine_schema NOT LIKE 'pg_temp_%'
+    GROUP BY routine_schema, routine_name, specific_name, grantee
+),
+function_permissions_agg AS (
+    SELECT 
+        routine_schema,
+        routine_name,
+        json_object_agg(
+            grantee,
+            privileges
+        ) as permissions
+    FROM function_grants
+    GROUP BY routine_schema, routine_name
+),
+schema_grants AS (
+    SELECT DISTINCT
+        nspname as schema_name,
+        r.rolname as grantee,
+        CASE 
+            WHEN has_schema_privilege(r.rolname, nspname, 'USAGE') THEN true
+            ELSE false
+        END as has_usage,
+        CASE 
+            WHEN has_schema_privilege(r.rolname, nspname, 'CREATE') THEN true
+            ELSE false
+        END as has_create
+    FROM pg_namespace n
+    CROSS JOIN pg_roles r
+    WHERE nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+        AND nspname NOT LIKE 'pg_temp_%'
+        AND r.rolname NOT LIKE 'pg_%'
+        AND (
+            has_schema_privilege(r.rolname, nspname, 'USAGE') OR
+            has_schema_privilege(r.rolname, nspname, 'CREATE')
+        )
+),
+schema_permissions_agg AS (
+    SELECT 
+        schema_name,
+        json_object_agg(
+            grantee,
+            json_build_object(
+                'usage', has_usage,
+                'create', has_create
+            )
+        ) as permissions
+    FROM schema_grants
+    GROUP BY schema_name
+)
+SELECT json_build_object(
+    'extraction_timestamp', now(),
+    'database', current_database(),
+    'current_user', current_user,
+    'summary', json_build_object(
+        'total_roles', (SELECT COUNT(*) FROM role_info),
+        'login_roles', (SELECT COUNT(*) FROM role_info WHERE can_login),
+        'superuser_roles', (SELECT COUNT(*) FROM role_info WHERE is_superuser),
+        'bypass_rls_roles', (SELECT COUNT(*) FROM role_info WHERE bypass_rls),
+        'supabase_roles', json_build_object(
+            'anon', EXISTS(SELECT 1 FROM pg_roles WHERE rolname = 'anon'),
+            'authenticated', EXISTS(SELECT 1 FROM pg_roles WHERE rolname = 'authenticated'),
+            'service_role', EXISTS(SELECT 1 FROM pg_roles WHERE rolname = 'service_role'),
+            'postgres', EXISTS(SELECT 1 FROM pg_roles WHERE rolname = 'postgres')
+        )
+    ),
+    'roles', (
+        SELECT json_agg(
+            json_build_object(
+                'role_name', role_name,
+                'attributes', json_build_object(
+                    'is_superuser', is_superuser,
+                    'can_inherit', can_inherit,
+                    'can_create_role', can_create_role,
+                    'can_create_db', can_create_db,
+                    'can_login', can_login,
+                    'is_replication', is_replication,
+                    'bypass_rls', bypass_rls,
+                    'connection_limit', connection_limit,
+                    'valid_until', valid_until
+                ),
+                'member_of', member_of,
+                'members', members
+            ) ORDER BY role_name
+        )
+        FROM role_info
+    ),
+    'table_permissions', (
+        SELECT json_object_agg(
+            schema_name || '.' || table_name,
+            permissions
+        )
+        FROM table_permissions_agg
+    ),
+    'function_permissions', (
+        SELECT json_object_agg(
+            routine_schema || '.' || routine_name,
+            permissions
+        )
+        FROM function_permissions_agg
+    ),
+    'schema_permissions', (
+        SELECT COALESCE(json_object_agg(
+            schema_name,
+            permissions
+        ), '{}'::json)
+        FROM schema_permissions_agg
+    ),
+    'key_permissions_summary', json_build_object(
+        'public_schema_access', (
+            SELECT json_object_agg(grantee, privileges)
+            FROM table_grants
+            WHERE schema_name = 'public'
+            GROUP BY grantee, privileges
+            LIMIT 10
+        ),
+        'auth_schema_access', (
+            SELECT json_object_agg(grantee, privileges)
+            FROM table_grants
+            WHERE schema_name = 'auth'
+            GROUP BY grantee, privileges
+            LIMIT 10
+        )
+    )
+) as roles_permissions_documentation;

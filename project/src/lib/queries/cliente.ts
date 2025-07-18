@@ -78,18 +78,16 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
   
     if (error1) throw error1;
 
-    // 2. Buscar celular da tabela_clientes
-    const { data: dadosContato } = await supabase
-      .from('tabela_clientes')
-      .select('celular')
-      .eq('codigo_cliente', codigoCliente)
-      .single();
+    // 2. Celular já está incluído em dadosBasicos (select '*')
       
     // 3. DEBUGGING AVANÇADO - INTERCEPTAÇÃO DIRETA
     console.log('🚀 DEBUGGING AVANÇADO - Chamando RPC com código:', codigoCliente);
     
-    // Primeiro: testar RPC SEM destructuring 
-    const rpcResponse = await supabase.rpc('get_cliente_detalhes', { p_codigo_cliente: codigoCliente });
+    // Primeiro: testar RPC COM filtro por vendedor
+    const rpcResponse = await supabase.rpc('get_cliente_detalhes', { 
+      p_codigo_cliente: codigoCliente,
+      p_vendedor_uuid: session.user.id
+    });
     
     console.log('🔥 RESPOSTA RAW DA RPC:', rpcResponse);
     console.log('🔥 TIPO DA RESPOSTA:', typeof rpcResponse);
@@ -116,12 +114,23 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
       });
     }
       
-    // 4. Buscar métricas por categoria
-    const { data: metricasCategoria } = await supabase
-      .from('vw_metricas_categoria_cliente')
-      .select('*')
-      .eq('codigo_cliente', codigoCliente)
-      .single();
+    // 4. Buscar métricas por categoria (opcional)
+    let metricasCategoria = null;
+    try {
+      const { data, error } = await supabase
+        .from('vw_metricas_categoria_cliente')
+        .select('*')
+        .eq('codigo_cliente', codigoCliente)
+        .single();
+      
+      if (error) {
+        console.warn('⚠️ Métricas de categoria não disponíveis:', error.message);
+      } else {
+        metricasCategoria = data;
+      }
+    } catch (err) {
+      console.warn('⚠️ Erro ao buscar métricas de categoria:', err);
+    }
       
     // TESTE DEFINITIVO: Forçar valores hardcoded primeiro
     const qtd2024Raw = produtosData?.qtd_compras_2024;
@@ -139,7 +148,7 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
       ...dadosBasicos,
       qtd_compras_2024: qtd2024Raw ?? 0,
       qtd_compras_2025: qtd2025Raw ?? 0,
-      celular: dadosContato?.celular || '',
+      celular: dadosBasicos.celular || '',
       produtos_comprados: produtosData?.produtos_comprados || [],
       // Métricas por categoria
       rx_fem_ob: metricasCategoria?.rx_fem_ob || 0,
@@ -180,9 +189,9 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
       console.log('🔍 Debug erro 406 - Testando acessos diretos...');
       
       try {
-        // Teste direto tabela_clientes
+        // Teste direto view (RLS-safe)
         const { data: testData, error: testError } = await supabase
-          .from('tabela_clientes')
+          .from('vw_clientes_completo')
           .select('codigo_cliente, nome_fantasia')
           .eq('codigo_cliente', codigoCliente)
           .single();

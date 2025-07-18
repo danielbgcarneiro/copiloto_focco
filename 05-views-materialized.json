@@ -1,0 +1,348 @@
+[
+  {
+    "views_documentation": {
+      "extraction_timestamp": "2025-07-13T12:33:47.6963+00:00",
+      "database": "postgres",
+      "summary": {
+        "total_views": 41,
+        "total_materialized_views": 0,
+        "views_by_schema": {
+          "extensions": 2,
+          "vault": 1,
+          "public": 38
+        }
+      },
+      "views": [
+        {
+          "schema": "extensions",
+          "name": "pg_stat_statements",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 43,
+          "definition_preview": null
+        },
+        {
+          "schema": "extensions",
+          "name": "pg_stat_statements_info",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": null
+        },
+        {
+          "schema": "public",
+          "name": "contagem_oticas_por_cidade",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 5,
+          "definition_preview": " SELECT re.codigo_ibge_cidade,\n    re.cidade,\n    count(\n        CASE\n            WHEN (tc.situacao = ANY (ARRAY['E'::text, 'S'::text])) THEN 1\n            ELSE NULL::integer\n        END) AS ativas,\n    count(\n        CASE\n            WHEN (tc.situacao = 'P'::text) THEN 1\n            ELSE NULL::integer\n        END) AS pendencia,\n    count(\n        CASE\n            WHEN ((tc.situacao <> ALL (ARRAY['E'::text, 'S'::text, 'P'::text, 'Inativo'::text, 'Bloqueado'::text])) AND (tc.situacao IS NOT NULL)...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "meta_vs_realizado_por_cidade",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 5,
+          "definition_preview": " SELECT re.codigo_ibge_cidade,\n    re.cidade,\n    to_char(sum(mc.meta_anual), 'FM999G999G999D00'::text) AS soma_meta_anual,\n    to_char(sum((replace(replace(replace(sc.total_comprado, 'R$'::text, ''::text), '.'::text, ''::text), ','::text, '.'::text))::numeric), 'FM999G999G999D00'::text) AS soma_total_comprado,\n    (trunc(((sum((replace(replace(replace(sc.total_comprado, 'R$'::text, ''::text), '.'::text, ''::text), ','::text, '.'::text))::numeric) / NULLIF(sum(mc.meta_anual), (0)::numeric)) * (1...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "potencial_da_cidade",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 6,
+          "definition_preview": " WITH vendas_2024 AS (\n         SELECT tc.codigo_ibge_cidade,\n            sum((replace(replace(replace(scu.total_comprado, 'R$'::text, ''::text), '.'::text, ''::text), ','::text, '.'::text))::numeric) AS total_2024\n           FROM (soma_compras_ultimo_ano scu\n             JOIN tabela_clientes tc ON ((scu.codigo_cliente = tc.codigo_cliente)))\n          GROUP BY tc.codigo_ibge_cidade\n        ), vendas_2025 AS (\n         SELECT tc.codigo_ibge_cidade,\n            sum((replace(replace(replace(sca.tot...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_do_ano",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT soma_compras_do_ano_v1.codigo_cliente,\n    soma_compras_do_ano_v1.total_comprado\n   FROM soma_compras_do_ano_v1\nUNION ALL\n SELECT soma_compras_do_ano_v2.codigo_cliente,\n    soma_compras_do_ano_v2.total_comprado\n   FROM soma_compras_do_ano_v2\nUNION ALL\n SELECT soma_compras_do_ano_v3.codigo_cliente,\n    soma_compras_do_ano_v3.total_comprado\n   FROM soma_compras_do_ano_v3\nUNION ALL\n SELECT soma_compras_do_ano_v4.codigo_cliente,\n    soma_compras_do_ano_v4.total_comprado\n   FROM soma_compras_...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_do_ano_v1",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 0\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = EXTRACT(year FROM CURRENT_DATE)))))\n  GROUP B...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_do_ano_v2",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 500\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = EXTRACT(year FROM CURRENT_DATE)))))\n  GROUP...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_do_ano_v3",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 1000\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = EXTRACT(year FROM CURRENT_DATE)))))\n  GROU...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_do_ano_v4",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 1500\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = EXTRACT(year FROM CURRENT_DATE)))))\n  GROU...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_do_ano_v5",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 2000\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = EXTRACT(year FROM CURRENT_DATE)))))\n  GROU...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_ultimo_ano",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT soma_compras_ultimo_ano_v1.codigo_cliente,\n    soma_compras_ultimo_ano_v1.total_comprado\n   FROM soma_compras_ultimo_ano_v1\nUNION ALL\n SELECT soma_compras_ultimo_ano_v2.codigo_cliente,\n    soma_compras_ultimo_ano_v2.total_comprado\n   FROM soma_compras_ultimo_ano_v2\nUNION ALL\n SELECT soma_compras_ultimo_ano_v3.codigo_cliente,\n    soma_compras_ultimo_ano_v3.total_comprado\n   FROM soma_compras_ultimo_ano_v3\nUNION ALL\n SELECT soma_compras_ultimo_ano_v4.codigo_cliente,\n    soma_compras_ultimo...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_ultimo_ano_v1",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 0\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = (EXTRACT(year FROM CURRENT_DATE) - (1)::numer...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_ultimo_ano_v2",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 500\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = (EXTRACT(year FROM CURRENT_DATE) - (1)::num...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_ultimo_ano_v3",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 1000\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = (EXTRACT(year FROM CURRENT_DATE) - (1)::nu...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_ultimo_ano_v4",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 1500\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = (EXTRACT(year FROM CURRENT_DATE) - (1)::nu...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "soma_compras_ultimo_ano_v5",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n    ('R$ '::text || to_char(sum(cp.valor_unitario), 'FM999G999G999D00'::text)) AS total_comprado\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 2000\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (EXTRACT(year FROM cp.data_emissao) = (EXTRACT(year FROM CURRENT_DATE) - (1)::nu...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "status_cliente_12meses",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT status_cliente_12meses_v1.codigo_cliente,\n    status_cliente_12meses_v1.status_cliente\n   FROM status_cliente_12meses_v1\nUNION ALL\n SELECT status_cliente_12meses_v2.codigo_cliente,\n    status_cliente_12meses_v2.status_cliente\n   FROM status_cliente_12meses_v2\nUNION ALL\n SELECT status_cliente_12meses_v3.codigo_cliente,\n    status_cliente_12meses_v3.status_cliente\n   FROM status_cliente_12meses_v3\nUNION ALL\n SELECT status_cliente_12meses_v4.codigo_cliente,\n    status_cliente_12meses_v4.sta...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "status_cliente_12meses_v1",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n        CASE\n            WHEN (count(cp.codigo_cliente) > 0) THEN 'Ativo'::text\n            ELSE 'Inativo'::text\n        END AS status_cliente\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 0\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (cp.data_emissao >= (CURRENT_DATE - '...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "status_cliente_12meses_v2",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n        CASE\n            WHEN (count(cp.codigo_cliente) > 0) THEN 'Ativo'::text\n            ELSE 'Inativo'::text\n        END AS status_cliente\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 500\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (cp.data_emissao >= (CURRENT_DATE -...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "status_cliente_12meses_v3",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n        CASE\n            WHEN (count(cp.codigo_cliente) > 0) THEN 'Ativo'::text\n            ELSE 'Inativo'::text\n        END AS status_cliente\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 1000\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (cp.data_emissao >= (CURRENT_DATE ...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "status_cliente_12meses_v4",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n        CASE\n            WHEN (count(cp.codigo_cliente) > 0) THEN 'Ativo'::text\n            ELSE 'Inativo'::text\n        END AS status_cliente\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 1500\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (cp.data_emissao >= (CURRENT_DATE ...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "status_cliente_12meses_v5",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT c.codigo_cliente,\n        CASE\n            WHEN (count(cp.codigo_cliente) > 0) THEN 'Ativo'::text\n            ELSE 'Inativo'::text\n        END AS status_cliente\n   FROM (( SELECT DISTINCT compras_produto_cliente.codigo_cliente\n           FROM compras_produto_cliente\n          ORDER BY compras_produto_cliente.codigo_cliente\n         OFFSET 2000\n         LIMIT 500) c\n     LEFT JOIN compras_produto_cliente cp ON (((cp.codigo_cliente = c.codigo_cliente) AND (cp.data_emissao >= (CURRENT_DATE ...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_cidades_completo",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 9,
+          "definition_preview": " SELECT c.cidade,\n    COALESCE(re.rota, 'SEM ROTA'::text) AS rota,\n    count(DISTINCT c.codigo_cliente) AS total_oticas,\n    count(DISTINCT\n        CASE\n            WHEN (COALESCE(r.dias_sem_comprar, 9999) <= 90) THEN c.codigo_cliente\n            ELSE NULL::integer\n        END) AS oticas_ativas,\n    count(DISTINCT\n        CASE\n            WHEN (c.situacao = ANY (ARRAY['A'::text, 'V'::text])) THEN c.codigo_cliente\n            ELSE NULL::integer\n        END) AS oticas_pendentes,\n    count(DISTINCT...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_clientes_completo",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 23,
+          "definition_preview": " WITH clientes_titulos AS (\n         SELECT titulos_vencidos.codigo_cliente,\n            (count(*) > 0) AS tem_titulo_atraso,\n            max(titulos_vencidos.dias_atraso) AS max_dias_atraso\n           FROM titulos_vencidos\n          WHERE (titulos_vencidos.dias_atraso > 0)\n          GROUP BY titulos_vencidos.codigo_cliente\n        )\n SELECT c.codigo_cliente,\n    c.nome_fantasia,\n    c.razao_social,\n    c.cidade,\n    c.bairro,\n    COALESCE(re.rota, 'SEM ROTA'::text) AS rota,\n    c.situacao AS st...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_clientes_lista",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 13,
+          "definition_preview": " SELECT c.codigo_cliente,\n    c.nome_fantasia,\n    c.cidade,\n    c.bairro,\n    c.situacao,\n    c.celular,\n    r.previsao_pedido AS oportunidade,\n    r.dias_sem_comprar AS dsv,\n    r.classificacao_final,\n    r.estrelas,\n    r.valor_vendas_2025 AS vendido_ano,\n    r.meta_2025 AS meta_ano,\n        CASE\n            WHEN (c.situacao = 'P'::text) THEN 'Pendência'::text\n            WHEN (c.situacao = 'A'::text) THEN 'Ativo'::text\n            WHEN (c.situacao = 'I'::text) THEN 'Inativo'::text\n          ...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_dashboard_geral",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 6,
+          "definition_preview": " WITH vendas_mes_atual AS (\n         SELECT count(DISTINCT compras_produto_cliente.codigo_cliente) AS clientes_positivados,\n            sum((compras_produto_cliente.quantidade * compras_produto_cliente.valor_unitario)) AS valor_vendas_mes\n           FROM compras_produto_cliente\n          WHERE ((compras_produto_cliente.data_emissao >= date_trunc('month'::text, (CURRENT_DATE)::timestamp with time zone)) AND (compras_produto_cliente.data_emissao < (date_trunc('month'::text, (CURRENT_DATE)::timesta...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_dashboard_metricas",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 4,
+          "definition_preview": " WITH vendas_mes AS (\n         SELECT sum((compras_produto_cliente.quantidade * compras_produto_cliente.valor_unitario)) AS vendas_mes_atual,\n            count(DISTINCT compras_produto_cliente.codigo_cliente) AS oticas_positivadas\n           FROM compras_produto_cliente\n          WHERE ((compras_produto_cliente.data_emissao >= date_trunc('month'::text, (CURRENT_DATE)::timestamp with time zone)) AND (compras_produto_cliente.data_emissao <= CURRENT_DATE))\n        )\n SELECT COALESCE(v.vendas_mes_at...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_inadimplentes",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 13,
+          "definition_preview": " SELECT c.codigo_cliente,\n    c.nome_fantasia,\n    c.cidade,\n    COALESCE(re.rota, 'SEM ROTA'::text) AS rota,\n    t.titulo_uuid,\n    t.data_vencimento,\n    t.valor_titulo AS valor_original,\n    t.valor_titulo AS valor_saldo,\n    t.dias_atraso,\n    t.status_atraso,\n    c.celular,\n    c.situacao AS status_erp,\n        CASE\n            WHEN (t.dias_atraso > 90) THEN 'CRÍTICO'::text\n            WHEN (t.dias_atraso > 60) THEN 'ALTO'::text\n            WHEN (t.dias_atraso > 30) THEN 'MÉDIO'::text\n     ...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_inadimplentes_resumo",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 10,
+          "definition_preview": " SELECT c.codigo_cliente,\n    c.nome_fantasia,\n    c.cidade,\n    c.vendedor_responsavel,\n    c.celular,\n    count(t.id) AS qtd_titulos,\n    sum(t.valor_titulo) AS valor_total,\n    max(t.dias_atraso) AS maior_atraso,\n    max(t.status_atraso) AS status_cliente,\n    min(t.data_vencimento) AS titulo_mais_antigo\n   FROM (tabela_clientes c\n     JOIN titulos_vencidos t ON ((c.codigo_cliente = t.codigo_cliente)))\n  GROUP BY c.codigo_cliente, c.nome_fantasia, c.cidade, c.vendedor_responsavel, c.celular;"
+        },
+        {
+          "schema": "public",
+          "name": "vw_metricas_categoria_cliente",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 9,
+          "definition_preview": " SELECT cpc.codigo_cliente,\n    (COALESCE(sum(\n        CASE\n            WHEN ((upper(p.tipo) = 'RX'::text) AND (p.genero = 'FEM'::text) AND (p.marca = 'OB'::text)) THEN cpc.quantidade\n            ELSE NULL::numeric\n        END), (0)::numeric))::integer AS rx_fem_ob,\n    (COALESCE(sum(\n        CASE\n            WHEN ((upper(p.tipo) = 'RX'::text) AND (p.genero = 'FEM'::text) AND (p.marca = 'PW'::text)) THEN cpc.quantidade\n            ELSE NULL::numeric\n        END), (0)::numeric))::integer AS rx_fe...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_metricas_categoria_json",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 2,
+          "definition_preview": " SELECT vw_metricas_categoria_cliente.codigo_cliente,\n    jsonb_build_object('rx_fem', jsonb_build_object('ob', vw_metricas_categoria_cliente.rx_fem_ob, 'pw', vw_metricas_categoria_cliente.rx_fem_pw), 'rx_mas', jsonb_build_object('ob', vw_metricas_categoria_cliente.rx_mas_ob, 'pw', vw_metricas_categoria_cliente.rx_mas_pw), 'sol_fem', jsonb_build_object('ob', vw_metricas_categoria_cliente.sol_fem_ob, 'pw', vw_metricas_categoria_cliente.sol_fem_pw), 'sol_mas', jsonb_build_object('ob', vw_metricas_...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_metricas_por_cidade",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 11,
+          "definition_preview": " SELECT c.codigo_ibge_cidade,\n    c.cidade,\n    c.estado,\n    count(DISTINCT c.codigo_cliente) AS total_clientes,\n    COALESCE(sum(r.previsao_pedido), (0)::numeric) AS soma_oportunidades,\n    COALESCE(sum(r.meta_2025), (0)::numeric) AS soma_metas,\n    COALESCE(sum(r.valor_vendas_2025), (0)::numeric) AS vendas_ano_atual,\n    count(\n        CASE\n            WHEN (r.dias_sem_comprar > 90) THEN 1\n            ELSE NULL::integer\n        END) AS clientes_sem_venda_90d,\n    count(\n        CASE\n         ...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_metricas_por_rota",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 6,
+          "definition_preview": " SELECT re.rota,\n    count(DISTINCT re.cidade) AS total_cidades,\n    count(DISTINCT c.codigo_cliente) AS total_clientes,\n    COALESCE(sum(r.previsao_pedido), (0)::numeric) AS soma_oportunidades,\n    count(\n        CASE\n            WHEN (r.dias_sem_comprar > 90) THEN 1\n            ELSE NULL::integer\n        END) AS clientes_sem_venda_90d,\n    max(p.nome_completo) AS vendedor_responsavel\n   FROM (((rotas_estado re\n     LEFT JOIN tabela_clientes c ON ((c.codigo_ibge_cidade = re.codigo_ibge_cidade))...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_oticas_sem_vendas_90d",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 8,
+          "definition_preview": " SELECT c.codigo_cliente,\n    c.nome_fantasia,\n    c.cidade,\n    c.bairro,\n    COALESCE(re.rota, 'SEM ROTA'::text) AS rota,\n    r.dias_sem_comprar,\n    r.valor_vendas_2025,\n    r.meta_2025\n   FROM ((tabela_clientes c\n     LEFT JOIN rotas_estado re ON ((c.codigo_ibge_cidade = re.codigo_ibge_cidade)))\n     JOIN ( SELECT DISTINCT ON (analise_rfm.codigo_cliente) analise_rfm.codigo_cliente,\n            analise_rfm.dias_sem_comprar,\n            analise_rfm.valor_vendas_2025,\n            analise_rfm.me...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_ranking_rotas",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 7,
+          "definition_preview": " WITH rotas_clientes AS (\n         SELECT DISTINCT re.rota,\n            re.rota AS nome_rota,\n            c.codigo_cliente\n           FROM (rotas_estado re\n             JOIN tabela_clientes c ON ((re.codigo_ibge_cidade = c.codigo_ibge_cidade)))\n        ), rotas_performance AS (\n         SELECT rc.rota,\n            rc.nome_rota,\n            count(DISTINCT rc.codigo_cliente) AS qtd_oticas,\n            COALESCE(sum(r.valor_vendas_2025), (0)::numeric) AS vendido_2025,\n            COALESCE(sum(r.meta...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_ranking_vendedores",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 7,
+          "definition_preview": " SELECT p.cod_vendedor,\n    p.nome_completo,\n    p.apelido,\n    count(DISTINCT c.codigo_cliente) AS total_clientes,\n    COALESCE(sum(r.valor_vendas_2025), (0)::numeric) AS vendas_ano,\n    COALESCE(( SELECT sum(metas_vendedores.meta_valor) AS sum\n           FROM metas_vendedores\n          WHERE ((metas_vendedores.cod_vendedor = p.cod_vendedor) AND (metas_vendedores.ano = 2025))), (0)::numeric) AS meta_ano,\n        CASE\n            WHEN (COALESCE(( SELECT sum(metas_vendedores.meta_valor) AS sum\n  ...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_rotas_completo",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 8,
+          "definition_preview": " WITH rotas_clientes AS (\n         SELECT DISTINCT re.rota,\n            re.rota AS nome_rota,\n            c.codigo_cliente,\n            c.cidade\n           FROM (rotas_estado re\n             JOIN tabela_clientes c ON ((re.codigo_ibge_cidade = c.codigo_ibge_cidade)))\n        )\n SELECT rc.rota,\n    rc.nome_rota,\n    count(DISTINCT rc.codigo_cliente) AS total_oticas,\n    count(DISTINCT\n        CASE\n            WHEN (r.dias_sem_comprar > 90) THEN rc.codigo_cliente\n            ELSE NULL::integer\n    ...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_top10_cidades",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 4,
+          "definition_preview": " WITH vendas_por_cidade AS (\n         SELECT c.cidade,\n            count(DISTINCT c.codigo_cliente) AS qtd_oticas,\n            sum((v.quantidade * v.valor_unitario)) AS valor_vendas\n           FROM (tabela_clientes c\n             LEFT JOIN compras_produto_cliente v ON (((c.codigo_cliente = v.codigo_cliente) AND (v.data_emissao >= date_trunc('month'::text, (CURRENT_DATE)::timestamp with time zone)))))\n          GROUP BY c.cidade\n        )\n SELECT vendas_por_cidade.cidade,\n    vendas_por_cidade.qt...[truncated]"
+        },
+        {
+          "schema": "public",
+          "name": "vw_top20_clientes",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 9,
+          "definition_preview": " SELECT c.codigo_cliente,\n    c.nome_fantasia,\n    c.cidade,\n    COALESCE(re.rota, 'SEM ROTA'::text) AS rota,\n    COALESCE(r.valor_vendas_2025, (0)::numeric) AS valor_vendas_2025,\n    COALESCE(r.meta_2025, (0)::numeric) AS meta_2025,\n    COALESCE(r.percentual_atingimento, 0) AS percentual_atingimento,\n    COALESCE((r.estrelas)::integer, 0) AS estrelas,\n    COALESCE(r.dias_sem_comprar, 9999) AS dias_sem_comprar\n   FROM ((tabela_clientes c\n     LEFT JOIN rotas_estado re ON ((c.codigo_ibge_cidade =...[truncated]"
+        },
+        {
+          "schema": "vault",
+          "name": "decrypted_secrets",
+          "type": "VIEW",
+          "comment": null,
+          "column_count": 9,
+          "definition_preview": null
+        }
+      ],
+      "materialized_views": null
+    }
+  }
+]

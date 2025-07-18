@@ -1,42 +1,55 @@
 import { supabase } from '../supabase';
 
-export async function getClientesPorVendedor(vendedorId?: string) {
+export async function getClientesPorVendedor(_vendedorId?: string, cidade?: string) {
+  // Buscar dados do usuário atual (padrão das outras queries)
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error('Usuário não autenticado');
+  }
+
+  console.log('👥 Buscando clientes para vendedor:', { userId: user.id, cidade });
+
+  // Se há filtro por cidade, buscar TODOS os clientes da cidade
+  // Se não há filtro, buscar apenas Top 20
+  const viewName = cidade ? 'vw_clientes_completo' : 'vw_top20_clientes';
+  
+  console.log('🔍 DECISÃO DA VIEW:', { 
+    cidade, 
+    temCidade: !!cidade, 
+    viewEscolhida: viewName 
+  });
+  
   let query = supabase
-    .from('vw_clientes_completo')
+    .from(viewName)
     .select(`
       codigo_cliente,
       nome_fantasia,
-      status_financeiro,
-      dias_sem_comprar,
-      oportunidade,
-      meta_2025,
-      valor_vendas_2025,
-      valor_limite_credito,
-      bairro,
-      acao_recomendada,
-      rota,
       cidade,
+      bairro,
+      rota,
+      vendedor_uuid,
+      valor_vendas_2025,
+      meta_2025,
       percentual_atingimento,
-      estrelas
+      ${cidade ? 'status_financeiro, dias_sem_comprar, oportunidade, valor_limite_credito, acao_recomendada' : 'ranking'}
     `)
-    .order('nome_fantasia');
+    .eq('vendedor_uuid', user.id);
 
-  // Se vendedorId fornecido, filtrar por rota do vendedor
-  if (vendedorId) {
-    // Primeiro buscar as rotas do vendedor
-    const { data: rotasVendedor } = await supabase
-      .from('vendedor_rotas')
-      .select('rota')
-      .eq('vendedor_id', vendedorId)
-      .eq('ativo', true);
-    
-    if (rotasVendedor && rotasVendedor.length > 0) {
-      const rotas = rotasVendedor.map(r => r.rota);
-      query = query.in('rota', rotas);
-    }
+  // Adicionar filtro por cidade se especificado
+  if (cidade) {
+    query = query.eq('cidade', cidade);
   }
 
-  const { data, error } = await query;
+  console.log('🚀 EXECUTANDO QUERY...', { viewName, temFiltoCidade: !!cidade });
+
+  const { data, error } = await query.order(cidade ? 'nome_fantasia' : 'ranking');
+  
+  console.log('📊 RESULTADO DA QUERY:', { 
+    viewName, 
+    error, 
+    dataCount: data?.length || 0, 
+    primeirosDados: data?.slice(0, 2) 
+  });
   
   if (error) {
     console.error('Erro ao buscar clientes:', error);

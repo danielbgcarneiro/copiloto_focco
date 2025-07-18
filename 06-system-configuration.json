@@ -1,0 +1,286 @@
+-- =====================================================
+-- EXTRAÇÃO 6 CORRIGIDA: CONFIGURAÇÕES DO SISTEMA EM JSON
+-- =====================================================
+-- Baseado na documentação oficial do PostgreSQL e Supabase
+
+WITH database_info AS (
+    SELECT 
+        d.datname,
+        pg_encoding_to_char(d.encoding) as encoding,
+        d.datcollate as collation,
+        d.datctype as ctype,
+        pg_size_pretty(pg_database_size(d.datname)) as size,
+        d.datconnlimit as connection_limit,
+        version() as pg_version
+    FROM pg_database d
+    WHERE d.datname = current_database()
+),
+extensions_info AS (
+    SELECT 
+        e.extname as extension_name,
+        e.extversion as version,
+        n.nspname as schema,
+        obj_description(e.oid, 'pg_extension') as comment
+    FROM pg_extension e
+    JOIN pg_namespace n ON n.oid = e.extnamespace
+    WHERE e.extname NOT IN ('plpgsql')
+),
+schema_info AS (
+    SELECT 
+        n.nspname as schema_name,
+        pg_catalog.obj_description(n.oid, 'pg_namespace') as comment,
+        n.nspowner::regrole::text as owner,
+        CASE 
+            WHEN n.nspname = 'public' THEN 'Default public schema'
+            WHEN n.nspname = 'auth' THEN 'Supabase Auth schema'
+            WHEN n.nspname = 'storage' THEN 'Supabase Storage schema'
+            WHEN n.nspname = 'realtime' THEN 'Supabase Realtime schema'
+            WHEN n.nspname = 'vault' THEN 'Supabase Vault schema'
+            WHEN n.nspname LIKE 'pg_%' THEN 'PostgreSQL system schema'
+            WHEN n.nspname = 'information_schema' THEN 'SQL standard schema'
+            ELSE 'User-defined schema'
+        END as schema_type,
+        (
+            SELECT COUNT(*) 
+            FROM pg_class c 
+            WHERE c.relnamespace = n.oid 
+            AND c.relkind = 'r'
+        ) as table_count,
+        (
+            SELECT COUNT(*) 
+            FROM pg_proc p 
+            WHERE p.pronamespace = n.oid
+        ) as function_count,
+        (
+            SELECT COUNT(*) 
+            FROM pg_class c 
+            WHERE c.relnamespace = n.oid 
+            AND c.relkind = 'v'
+        ) as view_count
+    FROM pg_namespace n
+    WHERE n.nspname NOT IN ('pg_toast', 'pg_temp_1', 'pg_toast_temp_1')
+        AND n.nspname NOT LIKE 'pg_temp_%'
+        AND n.nspname NOT LIKE 'pg_toast_temp_%'
+),
+largest_tables AS (
+    SELECT 
+        s.schemaname,
+        s.tablename,
+        pg_size_pretty(pg_total_relation_size((s.schemaname||'.'||s.tablename)::regclass)) as total_size,
+        pg_size_pretty(pg_relation_size((s.schemaname||'.'||s.tablename)::regclass)) as table_size,
+        pg_size_pretty(pg_indexes_size((s.schemaname||'.'||s.tablename)::regclass)) as indexes_size,
+        s.n_live_tup as row_estimate,
+        s.n_dead_tup as dead_rows,
+        s.last_vacuum,
+        s.last_autovacuum,
+        s.last_analyze,
+        s.last_autoanalyze
+    FROM pg_stat_user_tables s
+    WHERE s.schemaname NOT IN ('pg_catalog', 'information_schema')
+    ORDER BY pg_total_relation_size((s.schemaname||'.'||s.tablename)::regclass) DESC
+    LIMIT 20
+),
+database_settings AS (
+    SELECT 
+        name,
+        setting,
+        unit,
+        category,
+        short_desc
+    FROM pg_settings
+    WHERE name IN (
+        'max_connections',
+        'shared_buffers',
+        'effective_cache_size',
+        'work_mem',
+        'maintenance_work_mem',
+        'max_wal_size',
+        'min_wal_size',
+        'wal_level',
+        'max_replication_slots',
+        'statement_timeout',
+        'lock_timeout',
+        'idle_in_transaction_session_timeout',
+        'row_security',
+        'search_path',
+        'ssl',
+        'ssl_cert_file',
+        'ssl_key_file'
+    )
+),
+replication_info AS (
+    SELECT 
+        COUNT(*) as publication_count,
+        json_agg(
+            json_build_object(
+                'pubname', pubname,
+                'puballtables', puballtables,
+                'pubinsert', pubinsert,
+                'pubupdate', pubupdate,
+                'pubdelete', pubdelete,
+                'pubtruncate', pubtruncate
+            )
+        ) as publications
+    FROM pg_publication
+),
+storage_info AS (
+    SELECT 
+        CASE 
+            WHEN EXISTS (
+                SELECT 1 FROM information_schema.schemata 
+                WHERE schema_name = 'storage'
+            ) THEN json_build_object(
+                'enabled', true,
+                'bucket_count', (
+                    SELECT COUNT(*) 
+                    FROM storage.buckets
+                ),
+                'total_objects', (
+                    SELECT COUNT(*) 
+                    FROM storage.objects
+                )
+            )
+            ELSE json_build_object('enabled', false)
+        END as storage_status
+),
+auth_info AS (
+    SELECT 
+        CASE 
+            WHEN EXISTS (
+                SELECT 1 FROM information_schema.schemata 
+                WHERE schema_name = 'auth'
+            ) THEN json_build_object(
+                'enabled', true,
+                'user_count', (
+                    SELECT COUNT(*) 
+                    FROM auth.users
+                ),
+                'schema_exists', true
+            )
+            ELSE json_build_object('enabled', false, 'schema_exists', false)
+        END as auth_status
+)
+SELECT json_build_object(
+    'extraction_timestamp', now(),
+    'database_info', (
+        SELECT json_build_object(
+            'name', datname,
+            'encoding', encoding,
+            'collation', collation,
+            'ctype', ctype,
+            'size', size,
+            'connection_limit', connection_limit,
+            'version', pg_version
+        )
+        FROM database_info
+        LIMIT 1
+    ),
+    'extensions', (
+        SELECT json_agg(
+            json_build_object(
+                'name', extension_name,
+                'version', version,
+                'schema', schema,
+                'comment', comment
+            ) ORDER BY extension_name
+        )
+        FROM extensions_info
+    ),
+    'schemas', (
+        SELECT json_agg(
+            json_build_object(
+                'name', schema_name,
+                'type', schema_type,
+                'owner', owner,
+                'comment', comment,
+                'table_count', table_count,
+                'function_count', function_count,
+                'view_count', view_count
+            ) ORDER BY 
+                CASE 
+                    WHEN schema_name = 'public' THEN 1
+                    WHEN schema_name IN ('auth', 'storage', 'realtime', 'vault') THEN 2
+                    WHEN schema_type = 'User-defined schema' THEN 3
+                    ELSE 4
+                END,
+                schema_name
+        )
+        FROM schema_info
+    ),
+    'database_settings', (
+        SELECT json_object_agg(
+            name,
+            json_build_object(
+                'value', setting,
+                'unit', unit,
+                'description', short_desc
+            )
+        )
+        FROM database_settings
+    ),
+    'storage', (SELECT storage_status FROM storage_info),
+    'auth', (SELECT auth_status FROM auth_info),
+    'replication', (
+        SELECT json_build_object(
+            'publication_count', publication_count,
+            'publications', publications
+        )
+        FROM replication_info
+    ),
+    'largest_tables', (
+        SELECT json_agg(
+            json_build_object(
+                'schema', schemaname,
+                'table', tablename,
+                'total_size', total_size,
+                'table_size', table_size,
+                'indexes_size', indexes_size,
+                'row_estimate', row_estimate,
+                'dead_rows', dead_rows,
+                'last_vacuum', last_vacuum,
+                'last_analyze', last_analyze
+            )
+        )
+        FROM largest_tables
+    ),
+    'statistics', json_build_object(
+        'total_schemas', (SELECT COUNT(*) FROM schema_info WHERE schema_type = 'User-defined schema'),
+        'total_tables', (
+            SELECT COUNT(*) 
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'r'
+            AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+            AND n.nspname NOT LIKE 'pg_temp_%'
+        ),
+        'total_views', (
+            SELECT COUNT(*) 
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'v'
+            AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+        ),
+        'total_functions', (
+            SELECT COUNT(*) 
+            FROM pg_proc p
+            JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+            AND p.prokind IN ('f', 'p')
+        ),
+        'total_indexes', (
+            SELECT COUNT(*) 
+            FROM pg_indexes
+            WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+        ),
+        'total_policies', (
+            SELECT COUNT(*) 
+            FROM pg_policies
+            WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+        ),
+        'total_roles', (
+            SELECT COUNT(*) 
+            FROM pg_roles 
+            WHERE rolname NOT LIKE 'pg_%'
+        )
+    )
+) as system_configuration;

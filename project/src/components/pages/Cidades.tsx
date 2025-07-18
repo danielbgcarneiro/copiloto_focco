@@ -1,70 +1,55 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, MapPin, Building } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
-import { supabase } from '../../lib/supabase'
+import { getCidadesCompleto, formatarMoeda, normalizeText, type CidadeMapeada } from '../../lib/queries/cidades'
+import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 
 const Cidades: React.FC = () => {
   const navigate = useNavigate()
+  const { rotaId } = useParams<{ rotaId: string }>()
   const { user, logout } = useAuth()
   const { } = useUserData()
   const [searchTerm, setSearchTerm] = useState('')
-  const [cidades, setCidades] = useState<any[]>([])
+  const [cidades, setCidades] = useState<CidadeMapeada[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Função para normalizar texto removendo acentos e caracteres especiais
-  const normalizeText = (text: string): string => {
-    return text
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/[^\w\s]/gi, '') // Remove caracteres especiais exceto espaços
-      .toLowerCase()
-      .trim()
-  }
+  // Decodificar o nome da rota
+  const rotaNome = rotaId ? decodeURIComponent(rotaId) : null
+
   // Carregar cidades reais do usuário logado
   useEffect(() => {
     carregarCidades()
-  }, [user])
+  }, [user, rotaNome])
 
   async function carregarCidades() {
     try {
       setLoading(true)
-      console.log('🔍 Carregando cidades para usuário:', user?.id)
+      setError(null)
       
-      // Buscar cidades das rotas do vendedor logado respeitando RLS
-      const { data, error } = await supabase
-        .from('rotas_estado')
-        .select(`
-          codigo_ibge_cidade,
-          rota,
-          cidades (
-            cidade,
-            codigo_ibge_cidade,
-            populacao,
-            num_oticas,
-            meta_n_oticas
-          ),
-          vendedor_rotas!inner (
-            vendedor_id,
-            ativo
-          )
-        `)
-        .eq('vendedor_rotas.vendedor_id', user?.id)
-        .eq('vendedor_rotas.ativo', true)
-      
-      if (error) {
-        console.error('❌ Erro ao carregar cidades:', error)
-        setCidades([]) // Retorna vazio se houver erro
+      // Verificar se usuário está autenticado antes de continuar
+      if (!user?.id) {
+        console.log('❌ Usuário não autenticado, aguardando...')
         return
       }
       
-      console.log('✅ Cidades carregadas:', data)
-      setCidades(data || []) // Retorna dados reais ou array vazio
+      console.log('🔍 Carregando cidades para usuário:', {
+        userId: user.id,
+        email: user.email,
+        rota: rotaNome
+      })
+      
+      const cidadesData = await getCidadesCompleto(rotaNome === 'sem-rota' ? null : rotaNome || undefined)
+      console.log('✅ Cidades carregadas:', cidadesData)
+      
+      setCidades(cidadesData)
       
     } catch (error) {
       console.error('💥 Erro ao carregar cidades:', error)
-      setCidades([]) // Retorna vazio em caso de erro
+      setError(error instanceof Error ? error.message : 'Erro desconhecido')
+      setCidades([])
     } finally {
       setLoading(false)
     }
@@ -73,7 +58,7 @@ const Cidades: React.FC = () => {
   // Filtrar cidades baseado na busca
   const filteredCidades = cidades.filter(cidade => {
     const normalizedSearchTerm = normalizeText(searchTerm)
-    return normalizeText(cidade.cidades?.cidade || '').includes(normalizedSearchTerm)
+    return normalizeText(cidade.nome).includes(normalizedSearchTerm)
   })
 
   return (
@@ -111,6 +96,16 @@ const Cidades: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Breadcrumb */}
+        {rotaNome && (
+          <div className="mb-4 px-2">
+            <div className="flex items-center text-sm text-gray-600">
+              <span>Rota:</span>
+              <span className="ml-2 font-semibold text-primary">{rotaNome === 'sem-rota' ? 'Sem Rota' : rotaNome}</span>
+            </div>
+          </div>
+        )}
+        
         {/* Search Bar */}
         <div className="mb-6">
           <div className="relative">
@@ -131,27 +126,38 @@ const Cidades: React.FC = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             <span className="ml-2 text-gray-600">Carregando cidades...</span>
           </div>
+        ) : error ? (
+          <div className="text-center py-12 text-red-600">
+            <p className="text-lg mb-2">Erro ao carregar cidades</p>
+            <p className="text-sm">{error}</p>
+            <button 
+              onClick={carregarCidades}
+              className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Tentar novamente
+            </button>
+          </div>
         ) : (
           /* Cidades List */
           <div className="space-y-3">
             {filteredCidades.length > 0 ? (
               filteredCidades.map((cidade, index) => (
                 <div
-                  key={cidade.codigo_ibge_cidade || index}
+                  key={`${cidade.nome}-${index}`}
                   className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer"
-                  onClick={() => navigate('/clientes')}
+                  onClick={() => navigate(`/rotas/${encodeURIComponent(rotaNome || '')}/cidades/${encodeURIComponent(cidade.nome)}/clientes`)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1.5">
                         <MapPin className="h-4 w-4 text-primary" />
                         <h3 className="text-base font-semibold text-gray-900">
-                          {cidade.cidades?.cidade || 'Cidade sem nome'}
+                          {cidade.nome}
                         </h3>
                         <div className="flex items-center space-x-1">
                           <Building className="h-4 w-4 text-gray-500" />
                           <span className="text-xs text-gray-600">
-                            {cidade.cidades?.num_oticas || 0} óticas
+                            {cidade.totalClientes} óticas
                           </span>
                         </div>
                       </div>
@@ -159,25 +165,30 @@ const Cidades: React.FC = () => {
                       <div className="mb-2"></div>
                       
                       <div className="grid grid-cols-2 gap-2 text-xs leading-tight mb-2">
-                        <span className="text-green-600">População:</span>
-                        <p className="font-semibold text-green-700 text-right">
-                          {cidade.cidades?.populacao || 0}
-                        </p>
+                        <span className="text-green-600">Soma Oportunidade:</span>
+                        <p className="font-semibold text-green-700 text-right">{formatarMoeda(cidade.somaOportunidades)}</p>
                         
-                        <span className="text-blue-600">Meta Óticas:</span>
-                        <p className="font-semibold text-blue-700 text-right">
-                          {cidade.cidades?.meta_n_oticas || 0}
-                        </p>
+                        <span className="text-blue-600">Saldo de Metas:</span>
+                        <p className="font-semibold text-blue-700 text-right">{formatarMoeda(cidade.saldoMetas)}</p>
                         
-                        <span className="text-purple-600">Rota:</span>
-                        <p className="font-semibold text-purple-700 text-right">
-                          {cidade.rota || 'Sem rota'}
-                        </p>
+                        <span className="text-red-600">Sem Vendas +90d:</span>
+                        <p className="font-semibold text-red-700 text-right">{cidade.clientesSemVenda90d} {cidade.clientesSemVenda90d === 1 ? 'ótica' : 'óticas'}</p>
                         
-                        <span className="text-gray-600">Código IBGE:</span>
-                        <p className="font-semibold text-gray-700 text-right">
-                          {cidade.codigo_ibge_cidade || 'N/A'}
-                        </p>
+                        <span className="text-purple-600">N Lojas:</span>
+                        <div className="flex items-center justify-end space-x-2 text-xs">
+                          <div className="flex items-center space-x-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span className="text-gray-600">{cidade.clientes.AT} AT</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                            <span className="text-gray-600">{cidade.clientes.PEN} PEN</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                            <span className="text-gray-600">{cidade.clientes.INA} INA</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -185,9 +196,9 @@ const Cidades: React.FC = () => {
               ))
             ) : (
               <div className="text-center py-12 text-gray-500">
-                <p className="text-lg mb-2">Nenhuma cidade encontrada</p>
+                <p className="text-lg mb-2">{getEmptyStateMessage(user, 'cidades').title}</p>
                 <p className="text-sm">
-                  {searchTerm ? 'Tente ajustar o filtro de busca.' : 'Você não possui cidades ativas no momento.'}
+                  {searchTerm ? 'Tente ajustar o filtro de busca.' : getEmptyStateMessage(user, 'cidades').subtitle}
                 </p>
               </div>
             )}

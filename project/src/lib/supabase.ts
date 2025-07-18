@@ -262,7 +262,7 @@ export async function getCurrentUser(): Promise<{ user: User | null; error: stri
 export async function getClientes() {
   try {
     const { data, error } = await supabase
-      .from('tabela_clientes')
+      .from('vw_clientes_completo')
       .select('*')
     
     if (error) {

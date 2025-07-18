@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, MapPin } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
+import { getRotasCompleto, formatarMoeda, normalizeText, type RotaMapeada } from '../../lib/queries/rotas'
+import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import { supabase } from '../../lib/supabase'
 
 const Rotas: React.FC = () => {
@@ -10,18 +12,10 @@ const Rotas: React.FC = () => {
   const { user, logout } = useAuth()
   const { } = useUserData()
   const [searchTerm, setSearchTerm] = useState('')
-  const [rotas, setRotas] = useState<any[]>([])
+  const [rotas, setRotas] = useState<RotaMapeada[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Função para normalizar texto removendo acentos e caracteres especiais
-  const normalizeText = (text: string): string => {
-    return text
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/[^\w\s]/gi, '') // Remove caracteres especiais exceto espaços
-      .toLowerCase()
-      .trim()
-  }
 
   // Carregar rotas reais do usuário logado
   useEffect(() => {
@@ -31,38 +25,38 @@ const Rotas: React.FC = () => {
   async function carregarRotas() {
     try {
       setLoading(true)
-      console.log('🔍 Carregando rotas para usuário:', user?.id)
+      setError(null)
       
-      // Buscar rotas do vendedor logado respeitando RLS
-      const { data, error } = await supabase
-        .from('vendedor_rotas')
-        .select(`
-          rota,
-          ativo,
-          rotas_estado (
-            rota,
-            codigo_ibge_cidade,
-            cidades (
-              cidade,
-              codigo_ibge_cidade
-            )
-          )
-        `)
-        .eq('vendedor_id', user?.id)
-        .eq('ativo', true)
-      
-      if (error) {
-        console.error('❌ Erro ao carregar rotas:', error)
-        setRotas([]) // Retorna vazio se houver erro
+      // Verificar se usuário está autenticado antes de continuar
+      if (!user?.id) {
+        console.log('❌ Usuário não autenticado, aguardando...')
+        setLoading(false)
         return
       }
       
-      console.log('✅ Rotas carregadas:', data)
-      setRotas(data || []) // Retorna dados reais ou array vazio
+      console.log('🔍 Carregando rotas para usuário:', {
+        userId: user.id,
+        email: user.email
+      })
+      
+      // Aguardar um pouco para garantir que a sessão está sincronizada
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Verificar sessão dupla para garantir que RLS está ativo
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        console.log('❌ Sessão não encontrada, tentando novamente...')
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+      
+      const rotasData = await getRotasCompleto()
+      console.log('✅ Rotas carregadas:', rotasData)
+      setRotas(rotasData)
       
     } catch (error) {
       console.error('💥 Erro ao carregar rotas:', error)
-      setRotas([]) // Retorna vazio em caso de erro
+      setError(error instanceof Error ? error.message : 'Erro desconhecido')
+      setRotas([])
     } finally {
       setLoading(false)
     }
@@ -71,7 +65,7 @@ const Rotas: React.FC = () => {
   // Filtrar rotas baseado na busca
   const filteredRotas = rotas.filter(rota => {
     const normalizedSearchTerm = normalizeText(searchTerm)
-    return normalizeText(rota.rota || '').includes(normalizedSearchTerm)
+    return normalizeText(rota.nome).includes(normalizedSearchTerm)
   })
 
   return (
@@ -129,40 +123,56 @@ const Rotas: React.FC = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             <span className="ml-2 text-gray-600">Carregando rotas...</span>
           </div>
+        ) : error ? (
+          <div className="text-center py-12 text-red-600">
+            <p className="text-lg mb-2">Erro ao carregar rotas</p>
+            <p className="text-sm">{error}</p>
+            <button 
+              onClick={carregarRotas}
+              className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Tentar novamente
+            </button>
+          </div>
         ) : (
           /* Rotas List */
           <div className="space-y-3">
             {filteredRotas.length > 0 ? (
               filteredRotas.map((rota, index) => (
                 <div
-                  key={rota.rota || index}
+                  key={rota.nome || index}
                   className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer"
-                  onClick={() => navigate('/cidades')}
+                  onClick={() => navigate(`/rotas/${encodeURIComponent(rota.nome || 'sem-rota')}/cidades`)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1.5">
                         <MapPin className="h-4 w-4 text-primary" />
-                        <h3 className="text-base font-semibold text-gray-900">{rota.rota || 'Rota sem nome'}</h3>
+                        <h3 className="text-base font-semibold text-gray-900">{rota.nome || 'Sem Rota'}</h3>
                       </div>
                       
                       <div className="mb-2"></div>
                       
                       <div className="grid grid-cols-2 gap-2 text-xs leading-tight">
                         <div>
-                          <span className="text-green-600">Status:</span>
+                          <span className="text-green-600">Oportunidade:</span>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-green-700">{rota.ativo ? 'Ativo' : 'Inativo'}</p>
+                          <p className="font-semibold text-green-700">{formatarMoeda(rota.somaOportunidades)}</p>
                         </div>
                         <div>
                           <span className="text-blue-600">Cidades:</span>
-                          <span className="font-semibold text-blue-700 ml-1">
-                            {rota.rotas_estado?.length || 0}
-                          </span>
+                          <span className="font-semibold text-blue-700 ml-1">{rota.totalCidades}</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-purple-600">Dados reais</span>
+                          <span className="text-purple-600">Óticas:</span>
+                          <span className="font-semibold text-purple-700 ml-1">{rota.totalOticas}</span>
+                        </div>
+                        <div>
+                          <span className="text-red-600">Sem Vendas +90d:</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-semibold text-red-700">{rota.semVendas90d} {rota.semVendas90d === 1 ? 'ótica' : 'óticas'}</span>
                         </div>
                       </div>
                     </div>
@@ -171,9 +181,9 @@ const Rotas: React.FC = () => {
               ))
             ) : (
               <div className="text-center py-12 text-gray-500">
-                <p className="text-lg mb-2">Nenhuma rota encontrada</p>
+                <p className="text-lg mb-2">{getEmptyStateMessage(user, 'rotas').title}</p>
                 <p className="text-sm">
-                  {searchTerm ? 'Tente ajustar o filtro de busca.' : 'Você não possui rotas ativas no momento.'}
+                  {searchTerm ? 'Tente ajustar o filtro de busca.' : getEmptyStateMessage(user, 'rotas').subtitle}
                 </p>
               </div>
             )}
