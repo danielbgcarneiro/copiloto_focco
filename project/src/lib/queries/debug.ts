@@ -51,7 +51,7 @@ export async function diagnosticarRotasUsuario(userId: string) {
       { nome: 'vw_clientes_completo', query: supabase.from('vw_clientes_completo').select('*').limit(10) }
     ];
     
-    const resultadosTestes = {};
+    const resultadosTestes: Record<string, { sucesso: boolean; registros: number; erro: string | null }> = {};
     
     for (const teste of testes) {
       try {
@@ -66,7 +66,7 @@ export async function diagnosticarRotasUsuario(userId: string) {
         resultadosTestes[teste.nome] = {
           sucesso: false,
           registros: 0,
-          erro: err.message
+          erro: err instanceof Error ? err.message : 'Erro desconhecido'
         };
         console.error(`❌ Erro no teste ${teste.nome}:`, err);
       }
@@ -111,7 +111,7 @@ export async function obterInfoBasicaUsuario() {
       sucesso: true
     };
   } catch (error) {
-    return { error: 'Erro: ' + error.message };
+    return { error: 'Erro: ' + (error instanceof Error ? error.message : 'Erro desconhecido') };
   }
 }
 
@@ -218,7 +218,7 @@ export async function testarRLSPorView() {
   
   for (const view of viewsParaTestar) {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from(view.nome)
         .select('*')
         .limit(5);
