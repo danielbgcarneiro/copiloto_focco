@@ -9,6 +9,7 @@ Uma aplicação moderna e completa para gestão de representantes, rotas e ótic
 - ✅ **Frontend Completo**: Todas as páginas implementadas com dados reais
 - ✅ **Autenticação**: Sistema RLS funcionando perfeitamente
 - ✅ **Debug Avançado**: Sistema completo de logging e identificação de problemas
+- ✅ **Indicadores Visuais**: Alertas de urgência e sistema de classificação por estrelas
 - ⚠️ **Pendência Backend**: RPC `get_cliente_detalhes` precisa ser corrigida para retornar quantidades de compras
 
 ## 🚀 Funcionalidades
@@ -35,6 +36,8 @@ Uma aplicação moderna e completa para gestão de representantes, rotas e ótic
 - **DSV (Dias Sem Vendas)**: Indicador crítico visível em todas as telas
 - **Filtros Avançados**: Por bairro, valor de oportunidade (maior/menor), ordem alfabética
 - **Detalhes Completos**: Mix de produtos, dados financeiros 2024/2025
+- **Indicador de Urgência**: Alerta visual para clientes com meta <50%
+- **Classificação por Estrelas**: Rating de 1-5 estrelas baseado em análise RFM
 
 ### Sistema de Inadimplência
 - **Dashboard Específico**: Total de inadimplentes, valor total, clientes críticos
@@ -94,6 +97,8 @@ A aplicação possui três níveis de acesso:
 - **Sem Vendas +90d**: Indicador em dashboard, rotas e cidades
 - **Classificação de Risco**: Automática baseada em dias de atraso
 - **Status Dinâmico**: Cálculo em tempo real de dias de atraso
+- **Meta em Risco**: Alerta visual automático para clientes com <50% de atingimento
+- **Rating de Performance**: Sistema de estrelas (1-5) baseado em análise RFM
 
 ## 🎨 Design System
 

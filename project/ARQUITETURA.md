@@ -64,7 +64,12 @@ src/
 - **Inclui**: Dados básicos, financeiros, métricas, status
 - **RLS**: Filtrada por vendedor logado
 
-#### 4. vendedor_rotas
+#### 4. analise_rfm
+- **Função**: Análise RFM (Recency, Frequency, Monetary) dos clientes
+- **Campos**: percentual_atingimento, estrelas, acao_recomendada, meta_ano_atual
+- **Uso**: Indicadores de urgência e classificação por estrelas
+
+#### 5. vendedor_rotas
 - **Função**: Relacionamento vendedor-rota
 - **Campos**: vendedor_id, rota, ativo
 - **RLS**: Usuário só vê próprias rotas
@@ -148,6 +153,8 @@ DetalhesCliente → getClienteDetalhes → Multiple Queries → Data Consolidati
 2. **SERVICE_ROLE vs ANON_KEY**: Migrado para ANON_KEY respeitando RLS
 3. **Dados Mockados**: Removidos de todas as páginas
 4. **Error 406**: Identificado como problema de RPC no backend
+5. **Indicador de Urgência**: Implementado alerta visual para clientes com meta <50%
+6. **Classificação por Estrelas**: Exibição de rating do cliente na página de detalhes
 
 ### ⚠️ Pendências
 1. **RPC get_cliente_detalhes**: Backend precisa retornar qtd_compras_2024/2025
@@ -179,6 +186,8 @@ VITE_SUPABASE_ANON_KEY=sua_chave_anonima
 - **Percentual de Meta**: Atingimento em tempo real
 - **Mix de Produtos**: Distribuição por categoria
 - **Status Financeiro**: Classificação automática
+- **Indicador de Urgência**: Alerta visual para clientes com meta <50%
+- **Rating por Estrelas**: Classificação de 1-5 estrelas baseada na análise RFM
 
 ### Dashboards
 - **Executivo**: Visão consolidada para tomada de decisão

@@ -4,6 +4,7 @@ import { ArrowLeft, User, LogOut, Phone, MessageCircle, Mic } from 'lucide-react
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
 import { supabase } from '../../lib/supabase' // MUDANÇA 1: Adicionar import
+import { getHistoricoVisitas } from '../../lib/queries/clientes'
 
 // Funções de formatação
 const formatarMoeda = (valor: number) => {
@@ -84,6 +85,8 @@ const DetalhesCliente: React.FC = () => {
   const [cliente, setCliente] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [historicoVisitas, setHistoricoVisitas] = useState<any[]>([])
+  const [loadingVisitas, setLoadingVisitas] = useState(false)
 
   // Determinar qual ID usar (hierárquico ou direto)
   const codigoCliente = clienteId || id
@@ -158,6 +161,18 @@ const DetalhesCliente: React.FC = () => {
   //   
   //   testSupabaseAccess()
   // }, [])
+
+  async function carregarHistoricoVisitas(clienteIdNumerico: number) {
+    try {
+      setLoadingVisitas(true);
+      const visitas = await getHistoricoVisitas(clienteIdNumerico);
+      setHistoricoVisitas(visitas);
+    } catch (error) {
+      console.error('Erro ao carregar histórico de visitas:', error);
+    } finally {
+      setLoadingVisitas(false);
+    }
+  }
 
   useEffect(() => {
     async function carregarCliente() {
@@ -250,6 +265,9 @@ const DetalhesCliente: React.FC = () => {
         };
         
         setCliente(dadosCompletos);
+        
+        // Carregar histórico de visitas
+        await carregarHistoricoVisitas(clienteIdNumerico);
         
         console.log('🔍 DEBUG - Dados carregados:', {
           codigo_cliente: dadosCompletos.codigo_cliente,
@@ -344,6 +362,7 @@ const DetalhesCliente: React.FC = () => {
     percentualMeta: cliente.percentual_atingimento,
     acaoRecomendada: cliente.acao_recomendada,
     celular: cliente.celular || '',  // Com fallback
+    estrelas: cliente.estrelas || 0,
     statusErp: cliente.status_erp,
     statusErpDesc: cliente.status_erp_desc,
     statusComercial: cliente.status_comercial,
@@ -436,7 +455,43 @@ const DetalhesCliente: React.FC = () => {
                 <span className="text-xs font-semibold text-red-600">{dadosCliente.dsv}d</span>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-2 leading-tight">Cód: {dadosCliente.codigo}</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-600 leading-tight">Cód: {dadosCliente.codigo}</p>
+              {dadosCliente.estrelas > 0 && (
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-bold text-gray-900">{dadosCliente.estrelas}</span>
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <linearGradient id="starGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#fbbf24" />
+                        <stop offset="100%" stopColor="#f59e0b" />
+                      </linearGradient>
+                      <filter id="starShadow">
+                        <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.3" />
+                      </filter>
+                    </defs>
+                    <path
+                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                      fill="url(#starGradient)"
+                      stroke="#d97706"
+                      strokeWidth="1"
+                      strokeLinejoin="round"
+                      filter="url(#starShadow)"
+                    />
+                    <path
+                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                      fill="url(#starGradient)"
+                      opacity="0.9"
+                    />
+                  </svg>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Dados Financeiros */}
@@ -472,6 +527,18 @@ const DetalhesCliente: React.FC = () => {
                 <span className="text-gray-600">Ating: {formatarPercentual(dadosCliente.percentualMeta)}</span>
               </div>
             </div>
+            
+            {/* Indicador de Urgência - Meta em risco */}
+            {dadosCliente.percentualMeta < 50 && (
+              <div className="mt-3 flex items-start gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-alert h-4 w-4 mt-0.5 flex-shrink-0 text-gray-600" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" x2="12" y1="8" y2="12"></line>
+                  <line x1="12" x2="12.01" y1="16" y2="16"></line>
+                </svg>
+                <p className="text-xs font-medium text-gray-900 leading-tight">URGENTE - Meta em risco (&lt;50%)</p>
+              </div>
+            )}
           </div>
 
           {/* Mix de Produtos */}
@@ -569,6 +636,40 @@ const DetalhesCliente: React.FC = () => {
                 <span className="text-sm">Gravar Áudio (Em breve)</span>
               </button>
             </div>
+          </div>
+
+          {/* Seção de Visitas Recentes */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">Visitas Recentes</h3>
+            
+            {loadingVisitas ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <span className="ml-2 text-sm text-gray-600">Carregando visitas...</span>
+              </div>
+            ) : historicoVisitas.length > 0 ? (
+              <div className="max-h-32 overflow-y-auto">
+                <ul className="space-y-1">
+                  {historicoVisitas.slice(0, 4).map((visita, index) => (
+                    <li key={index} className="flex items-center justify-between py-1">
+                      <span className={`text-xs ${visita.status === 'cancelado' ? 'line-through opacity-50' : ''}`}>
+                        • {new Date(visita.data_visita).toLocaleDateString('pt-BR')} {new Date(visita.data_visita).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {visita.status === 'cancelado' && (
+                        <span className="text-xs text-red-500">Cancelado</span>
+                      )}
+                    </li>
+                  ))}
+                  {historicoVisitas.length > 4 && (
+                    <li className="text-xs text-gray-500 italic pt-1">
+                      + {historicoVisitas.length - 4} visitas anteriores
+                    </li>
+                  )}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 py-2">Nenhuma visita registrada</p>
+            )}
           </div>
         </div>
       </main>

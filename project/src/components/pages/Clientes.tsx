@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Search, Filter, User, LogOut, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Search, Filter, User, LogOut, AlertCircle, Check } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
-import { getClientesPorVendedor, getCorPrioridade } from '../../lib/queries/clientes'
+import { getClientesPorVendedor, getCorPrioridade, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 
 const Clientes: React.FC = () => {
@@ -17,6 +17,9 @@ const Clientes: React.FC = () => {
   const sortMenuRef = useRef<HTMLDivElement>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('nome')
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [clienteParaCancelar, setClienteParaCancelar] = useState<number | null>(null)
+  const [processandoVisita, setProcessandoVisita] = useState<number | null>(null)
 
   // Decodificar parâmetros da URL
   const rotaNome = rotaId ? decodeURIComponent(rotaId) : null
@@ -100,6 +103,75 @@ const Clientes: React.FC = () => {
       }
     })
 
+  // Função para lidar com click no check button
+  const handleCheckClick = async (cliente: any, event: React.MouseEvent) => {
+    event.stopPropagation() // Evita navegação para detalhes do cliente
+    
+    if (processandoVisita === cliente.codigo_cliente) {
+      return // Já está processando
+    }
+
+    if (cliente.visitado) {
+      // Se já visitado, mostrar modal de confirmação para cancelar
+      setClienteParaCancelar(cliente.codigo_cliente)
+      setShowConfirmModal(true)
+    } else {
+      // Se não visitado, fazer check-in
+      await realizarCheckIn(cliente.codigo_cliente)
+    }
+  }
+
+  // Função para realizar check-in
+  const realizarCheckIn = async (codigoCliente: number) => {
+    try {
+      setProcessandoVisita(codigoCliente)
+      await fazerCheckInVisita(codigoCliente)
+      
+      // Atualizar estado local imediatamente
+      setClientes(prev => prev.map(c => 
+        c.codigo_cliente === codigoCliente 
+          ? { ...c, visitado: true }
+          : c
+      ))
+      
+      // Mensagem de sucesso
+      alert('✅ Visita registrada com sucesso!')
+    } catch (error) {
+      console.error('Erro ao fazer check-in:', error)
+      const message = error instanceof Error ? error.message : 'Erro ao registrar visita. Tente novamente.'
+      alert('❌ ' + message)
+    } finally {
+      setProcessandoVisita(null)
+    }
+  }
+
+  // Função para confirmar cancelamento
+  const confirmarCancelamento = async () => {
+    if (!clienteParaCancelar) return
+
+    try {
+      setProcessandoVisita(clienteParaCancelar)
+      await cancelarVisita(clienteParaCancelar)
+      
+      // Atualizar estado local imediatamente
+      setClientes(prev => prev.map(c => 
+        c.codigo_cliente === clienteParaCancelar 
+          ? { ...c, visitado: false }
+          : c
+      ))
+      
+      // Mensagem de sucesso
+      alert('✅ Visita cancelada com sucesso!')
+    } catch (error) {
+      console.error('Erro ao cancelar visita:', error)
+      const message = error instanceof Error ? error.message : 'Erro ao cancelar visita. Tente novamente.'
+      alert('❌ ' + message)
+    } finally {
+      setProcessandoVisita(null)
+      setShowConfirmModal(false)
+      setClienteParaCancelar(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -215,7 +287,7 @@ const Clientes: React.FC = () => {
         </div>
 
         {/* Clientes List */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {clientesFiltrados.map((cliente) => {
             const corPrioridade = getCorPrioridade(cliente.acao_recomendada)
             
@@ -233,7 +305,7 @@ const Clientes: React.FC = () => {
                 }}
               >
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center space-x-2">
                       <h3 className="text-base font-semibold text-gray-900">{cliente.nome_fantasia}</h3>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -249,7 +321,7 @@ const Clientes: React.FC = () => {
                       <span className="text-xs font-semibold text-red-600">{cliente.dias_sem_comprar || 0}d</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-600 mb-2 leading-tight">Código: {cliente.codigo_cliente}</p>
+                  <p className="text-xs text-gray-600 mb-1.5 leading-tight">Código: {cliente.codigo_cliente}</p>
 
                   
                   <div className="grid grid-cols-2 gap-2 text-xs leading-tight">
@@ -279,12 +351,35 @@ const Clientes: React.FC = () => {
                   
                   {/* Ação Recomendada */}
                   {cliente.acao_recomendada && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-gray-600" />
-                        <p className="text-xs font-medium text-gray-900 leading-tight">
-                          {cliente.acao_recomendada}
-                        </p>
+                    <div className="mt-1.5 pt-1.5 border-t border-gray-200">
+                      <div className="flex items-start gap-2 justify-between">
+                        <div className="flex items-start gap-2 flex-1">
+                          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-gray-600" />
+                          <p className="text-xs font-medium text-gray-900 leading-tight">
+                            {cliente.acao_recomendada}
+                          </p>
+                        </div>
+                        
+                        {/* Check Button */}
+                        <button
+                          onClick={(e) => handleCheckClick(cliente, e)}
+                          disabled={processandoVisita === cliente.codigo_cliente}
+                          className={`
+                            min-w-[44px] min-h-[44px] p-2 rounded-lg transition-all duration-200 ease-in-out flex items-center justify-center
+                            ${cliente.visitado 
+                              ? 'bg-green-500 text-white shadow-md hover:bg-green-600' 
+                              : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                            }
+                            ${processandoVisita === cliente.codigo_cliente ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                          `}
+                          title={cliente.visitado ? 'Cliente visitado - Clique para cancelar' : 'Registrar visita'}
+                        >
+                          {processandoVisita === cliente.codigo_cliente ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                          ) : (
+                            <Check className="h-5 w-5" />
+                          )}
+                        </button>
                       </div>
                     </div>
                   )}
@@ -304,6 +399,34 @@ const Clientes: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Modal de Confirmação */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cancelar Visita</h3>
+            <p className="text-gray-600 mb-6">Deseja cancelar esta visita?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false)
+                  setClienteParaCancelar(null)
+                }}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Não
+              </button>
+              <button
+                onClick={confirmarCancelamento}
+                disabled={processandoVisita !== null}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {processandoVisita ? 'Cancelando...' : 'Sim'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

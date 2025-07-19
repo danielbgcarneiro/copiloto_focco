@@ -21,28 +21,6 @@ export interface ClienteInadimplente {
   titulos: TituloAberto[];
 }
 
-// Função auxiliar para buscar valor de inadimplência específico por cliente
-async function getValorInadimplenciaCliente(codigoCliente: number, userId: string): Promise<number> {
-  try {
-    const { data, error } = await supabase
-      .from('vw_titulos_vencidos_detalhado')
-      .select('valor_saldo')
-      .eq('codigo_cliente', codigoCliente)
-      .eq('vendedor_uuid', userId);
-    
-    if (error) {
-      console.warn(`⚠️ Erro ao buscar valor de inadimplência para cliente ${codigoCliente}:`, error);
-      return 0;
-    }
-    
-    // Somar todos os valores de títulos do cliente
-    const valorTotal = (data || []).reduce((sum, titulo) => sum + (titulo.valor_saldo || 0), 0);
-    return valorTotal;
-  } catch (error) {
-    console.warn(`⚠️ Erro ao buscar valor de inadimplência para cliente ${codigoCliente}:`, error);
-    return 0;
-  }
-}
 
 export async function getClientesInadimplentes(): Promise<ClienteInadimplente[]> {
   try {
