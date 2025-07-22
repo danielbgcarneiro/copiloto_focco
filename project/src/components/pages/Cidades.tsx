@@ -144,7 +144,7 @@ const Cidades: React.FC = () => {
               filteredCidades.map((cidade, index) => (
                 <div
                   key={`${cidade.nome}-${index}`}
-                  className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer"
+                  className="bg-white rounded-lg shadow-md border border-gray-200 p-3 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer"
                   onClick={() => navigate(`/rotas/${encodeURIComponent(rotaNome || '')}/cidades/${encodeURIComponent(cidade.nome)}/clientes`)}
                 >
                   <div className="flex items-center justify-between">
@@ -162,32 +162,50 @@ const Cidades: React.FC = () => {
                         </div>
                       </div>
                       
-                      <div className="mb-2"></div>
+                      <div className="mb-1"></div>
                       
-                      <div className="grid grid-cols-2 gap-2 text-xs leading-tight mb-2">
-                        <span className="text-green-600">Soma Oportunidade:</span>
-                        <p className="font-semibold text-green-700 text-right">{formatarMoeda(cidade.somaOportunidades)}</p>
+                      <div className="space-y-0.5 mb-3">
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-blue-700 font-medium">Meta da Cidade:</span>
+                          <p className="text-xs font-bold text-blue-800">{formatarMoeda(cidade.somaMetas)}</p>
+                        </div>
                         
-                        <span className="text-blue-600">Saldo de Metas:</span>
-                        <p className="font-semibold text-blue-700 text-right">{formatarMoeda(cidade.saldoMetas)}</p>
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-green-700 font-medium">Saldo:</span>
+                          <p className="text-xs font-bold text-green-800">{formatarMoeda(cidade.vendasAnoAtual)}</p>
+                        </div>
                         
-                        <span className="text-red-600">Sem Vendas +90d:</span>
-                        <p className="font-semibold text-red-700 text-right">{cidade.clientesSemVenda90d} {cidade.clientesSemVenda90d === 1 ? 'ótica' : 'óticas'}</p>
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-orange-700 font-medium">Soma das Oportunidades:</span>
+                          <p className="text-xs font-bold text-orange-800">{formatarMoeda(cidade.somaOportunidades)}</p>
+                        </div>
                         
-                        <span className="text-purple-600">N Lojas:</span>
-                        <div className="flex items-center justify-end space-x-2 text-xs">
-                          <div className="flex items-center space-x-1">
-                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            <span className="text-gray-600">{cidade.clientes.AT} AT</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                            <span className="text-gray-600">{cidade.clientes.PEN} PEN</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                            <span className="text-gray-600">{cidade.clientes.INA} INA</span>
-                          </div>
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-purple-700 font-medium">nº de Lojas:</span>
+                          <p className="text-xs font-bold text-purple-800">{cidade.totalClientes}</p>
+                        </div>
+                        
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-red-700 font-medium">Lojas s/ venda +90d:</span>
+                          <p className="text-xs font-bold text-red-800">{cidade.clientesSemVenda90d}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2">
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span className="text-xs text-gray-600">Atingimento</span>
+                          <span className="text-xs font-semibold text-gray-800">{cidade.atingimento.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              cidade.atingimento >= 100 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                              cidade.atingimento >= 80 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                              cidade.atingimento >= 60 ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
+                              'bg-gradient-to-r from-red-400 to-red-600'
+                            }`}
+                            style={{ width: `${Math.min(Math.max(cidade.atingimento, 0), 100)}%` }}
+                          ></div>
                         </div>
                       </div>
                     </div>

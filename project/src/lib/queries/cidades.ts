@@ -19,6 +19,23 @@ export interface CidadeCompleta {
   saldo_metas: number;
 }
 
+// Interface para dados da vw_metricas_por_cidade
+export interface MetricasCidade {
+  codigo_ibge_cidade: string;
+  cidade: string;
+  estado: string;
+  total_clientes: number;
+  soma_oportunidades: number;
+  soma_metas: number;
+  vendas_ano_atual: number;
+  clientes_sem_venda_90d: number;
+  clientes_ativos: number;
+  clientes_inativos: number;
+  clientes_pendencia: number;
+  saldo_meta: number;
+  atingimento: number;
+}
+
 export interface CidadeMapeada {
   nome: string;
   rota: string;
@@ -31,11 +48,14 @@ export interface CidadeMapeada {
   saldoMetas: number;
   clientesSemVenda90d: number;
   totalClientes: number;
+  somaMetas: number;
+  vendasAnoAtual: number;
+  atingimento: number;
 }
 
 export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMapeada[]> {
   try {
-    console.log('🏙️ Buscando cidades via vw_cidades_completo...', { rota });
+    console.log('🏙️ Buscando cidades...', { rota });
     
     // Verificar sessão antes de fazer consulta
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -55,63 +75,71 @@ export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMa
       email: session.user.email
     });
     
-    // Construir query com filtro POR VENDEDOR (padrão das outras queries)
-    let query = supabase
+    // Buscar dados da vw_cidades_completo com filtro por rota
+    let queryCidades = supabase
       .from('vw_cidades_completo')
       .select('*')
-      .eq('vendedor_uuid', session.user.id); // ✅ FILTRO AUSENTE ADICIONADO!
+      .eq('vendedor_uuid', session.user.id);
     
     // Aplicar filtro por rota se especificado
     if (rota === null) {
       // Filtrar cidades sem rota mas com clientes
-      query = query.is('rota', null).gt('total_oticas', 0);
+      queryCidades = queryCidades.is('rota', null).gt('total_oticas', 0);
     } else if (rota) {
-      query = query.eq('rota', rota);
+      queryCidades = queryCidades.eq('rota', rota);
     }
     
-    const { data, error } = await query.order('cidade', { ascending: true });
+    const { data: cidadesCompleto, error: errorCidades } = await queryCidades.order('cidade', { ascending: true });
     
-    console.log('🏙️ Resposta da view vw_cidades_completo:', { 
-      dadosCount: data?.length || 0, 
-      primeirosDados: data?.slice(0, 3),
-      error 
-    });
-    
-    if (error) {
-      console.error('❌ Erro ao buscar cidades:', error);
-      throw error;
+    if (errorCidades) {
+      console.error('❌ Erro ao buscar cidades:', errorCidades);
+      throw errorCidades;
     }
     
-    if (!data || data.length === 0) {
-      console.log('⚠️ View vw_cidades_completo retornou dados vazios - possível problema de RLS');
+    if (!cidadesCompleto || cidadesCompleto.length === 0) {
+      console.log('⚠️ Nenhuma cidade encontrada para esta rota');
       return [];
     }
     
-    // Validação de integridade dos dados
-    data.forEach(cidade => {
-      const somaStatus = (cidade.status_ativo || 0) + (cidade.status_pendente || 0) + 
-                         (cidade.status_inativo || 0) + (cidade.status_inadimplente || 0);
+    // Buscar dados adicionais da vw_metricas_por_cidade
+    const cidades = cidadesCompleto.map(c => c.cidade);
+    const { data: metricas, error: errorMetricas } = await supabase
+      .from('vw_metricas_por_cidade')
+      .select('*')
+      .in('cidade', cidades);
+    
+    if (errorMetricas) {
+      console.error('❌ Erro ao buscar métricas:', errorMetricas);
+      // Não vamos lançar erro aqui, apenas logar
+    }
+    
+    // Criar um mapa de métricas por cidade
+    const metricasMap = new Map<string, MetricasCidade>();
+    if (metricas) {
+      metricas.forEach(m => metricasMap.set(m.cidade, m));
+    }
+    
+    // Mapear dados combinando as duas views
+    const cidadesMapeadas: CidadeMapeada[] = cidadesCompleto.map((cidade: CidadeCompleta) => {
+      const metricaCidade = metricasMap.get(cidade.cidade);
       
-      if (somaStatus !== (cidade.total_oticas || 0)) {
-        console.warn(`🔍 Inconsistência em ${cidade.cidade}: Total=${cidade.total_oticas}, Soma=${somaStatus}`);
-      }
+      return {
+        nome: cidade.cidade,
+        rota: cidade.rota || 'SEM ROTA',
+        clientes: {
+          AT: cidade.status_ativo || 0,
+          PEN: cidade.status_pendente || 0,
+          INA: (cidade.status_inativo || 0) + (cidade.status_inadimplente || 0)
+        },
+        somaOportunidades: cidade.soma_oportunidades || 0,
+        saldoMetas: cidade.saldo_metas || 0,
+        clientesSemVenda90d: metricaCidade?.clientes_sem_venda_90d || ((cidade.total_oticas || 0) - (cidade.oticas_ativas || 0)),
+        totalClientes: cidade.total_oticas || 0,
+        somaMetas: metricaCidade?.soma_metas || 0,
+        vendasAnoAtual: metricaCidade?.saldo_meta || 0,
+        atingimento: metricaCidade?.atingimento || 0
+      };
     });
-
-    // Mapear dados da view para formato esperado pelo componente
-    const cidadesMapeadas: CidadeMapeada[] = data.map((cidade: CidadeCompleta) => ({
-      nome: cidade.cidade,
-      rota: cidade.rota || 'SEM ROTA',
-      clientes: {
-        AT: cidade.status_ativo || 0,
-        PEN: cidade.status_pendente || 0,
-        INA: (cidade.status_inativo || 0) + (cidade.status_inadimplente || 0) // Agrupa inativos e inadimplentes
-      },
-      somaOportunidades: cidade.soma_oportunidades || 0,
-      saldoMetas: cidade.saldo_metas || 0,
-      // Para manter compatibilidade, usar campos antigos para cálculo
-      clientesSemVenda90d: (cidade.total_oticas || 0) - (cidade.oticas_ativas || 0),
-      totalClientes: cidade.total_oticas || 0
-    }));
     
     return cidadesMapeadas;
   } catch (error) {
