@@ -97,7 +97,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
         totalOticas: rota.total_clientes || 0,
         somaOportunidades: rota.soma_oportunidades || 0,
         semVendas90d: rota.clientes_sem_venda_90d || 0,
-        status: 'Ativo'
+        status: 'Ativo' as 'Ativo' | 'Inativo'
       }))
       // Filtrar rotas "Sem Rota" que não têm clientes
       .filter(rota => {
@@ -158,7 +158,7 @@ export async function getMetricasDetalhadasPorRota(): Promise<RotaMapeada[]> {
           totalOticas: 0,
           somaOportunidades: 0,
           semVendas90d: 0,
-          status: 'Ativo'
+          status: 'Ativo' as 'Ativo' | 'Inativo'
         };
       }
       
