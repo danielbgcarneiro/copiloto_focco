@@ -90,16 +90,30 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
     }
     
     // Mapear dados da view para formato esperado pelo componente
-    const rotasMapeadas: RotaMapeada[] = data.map((rota: RotaCompleta) => ({
-      nome: rota.rota,
-      totalCidades: rota.total_cidades || 0,
-      totalOticas: rota.total_clientes || 0,
-      somaOportunidades: rota.soma_oportunidades || 0,
-      semVendas90d: rota.clientes_sem_venda_90d || 0,
-      status: 'Ativo'
-    }));
+    const rotasMapeadas: RotaMapeada[] = data
+      .map((rota: RotaCompleta) => ({
+        nome: rota.rota,
+        totalCidades: rota.total_cidades || 0,
+        totalOticas: rota.total_clientes || 0,
+        somaOportunidades: rota.soma_oportunidades || 0,
+        semVendas90d: rota.clientes_sem_venda_90d || 0,
+        status: 'Ativo'
+      }))
+      // Filtrar rotas "Sem Rota" que não têm clientes
+      .filter(rota => {
+        // IMPORTANTE: "Sem Rota" só deve aparecer se houver CLIENTES (não apenas cidades)
+        if (rota.nome === 'Sem Rota' || rota.nome === null || rota.nome === '') {
+          const temClientes = rota.totalOticas > 0;
+          if (!temClientes) {
+            console.log('🚫 Filtrando rota "Sem Rota" porque não há clientes (apenas cidades vazias)');
+            return false;
+          }
+          console.log(`✅ Mantendo rota "Sem Rota" porque tem ${rota.totalOticas} clientes`);
+        }
+        return true;
+      });
     
-    console.log(`✅ ${rotasMapeadas.length} rotas processadas`);
+    console.log(`✅ ${rotasMapeadas.length} rotas processadas (após filtrar rotas vazias)`);
     return rotasMapeadas;
   } catch (error) {
     console.error('💥 Erro ao buscar rotas completo:', error);

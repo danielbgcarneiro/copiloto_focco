@@ -520,7 +520,9 @@ const Dashboard: React.FC = () => {
               <div>
                 {/* Layout limpo sem escala de valores */}
                 <div className="space-y-2 px-2 sm:px-4">
-                  {dashboardData.rankingRotas.map((rota) => (
+                  {dashboardData.rankingRotas
+                    .filter(rota => rota.rota && rota.rota.trim() !== '')
+                    .map((rota) => (
                     <div key={rota.rota} className="">
                       {/* Nome da rota sem número de ranking */}
                       <div className="mb-1">
