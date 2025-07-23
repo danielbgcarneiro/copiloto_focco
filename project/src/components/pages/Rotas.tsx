@@ -170,7 +170,7 @@ const Rotas: React.FC = () => {
                         </div>
                         
                         <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
-                          <span className="text-xs text-orange-700 font-medium">Soma das Oportunidades:</span>
+                          <span className="text-xs text-orange-700 font-medium">Oport. de Venda:</span>
                           <p className="text-xs font-bold text-orange-800">{formatarMoeda(rota.somaOportunidades)}</p>
                         </div>
                         

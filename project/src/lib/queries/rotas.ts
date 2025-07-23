@@ -168,7 +168,10 @@ export async function getMetricasDetalhadasPorRota(): Promise<RotaMapeada[]> {
           totalOticas: 0,
           somaOportunidades: 0,
           semVendas90d: 0,
-          status: 'Ativo' as 'Ativo' | 'Inativo'
+          status: 'Ativo' as 'Ativo' | 'Inativo',
+          metaAnoAtual: 0,
+          saldoMeta: 0,
+          percentualMeta: 0
         };
       }
       
