@@ -362,8 +362,6 @@ const Clientes: React.FC = () => {
         {/* Clientes List */}
         <div className="space-y-2">
           {clientesFiltrados.map((cliente) => {
-            const corPrioridade = getCorPrioridade(cliente.acao_recomendada)
-            
             return (
               <div
                 key={cliente.codigo_cliente}
