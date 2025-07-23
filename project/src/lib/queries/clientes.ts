@@ -7,72 +7,59 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
     throw new Error('Usuário não autenticado');
   }
 
-  console.log('👥 Buscando clientes para vendedor:', { userId: user.id, cidade });
-
-  // Se há filtro por cidade, buscar TODOS os clientes da cidade
-  // Se não há filtro, buscar apenas Top 20
-  const viewName = cidade ? 'vw_clientes_completo' : 'vw_top20_clientes';
-  
-  console.log('🔍 DECISÃO DA VIEW:', { 
+  console.log('👥 Buscando clientes para vendedor:', { 
+    userId: user.id, 
+    userIdType: typeof user.id,
     cidade, 
-    temCidade: !!cidade, 
-    viewEscolhida: viewName 
+    cidadeOriginal: cidade 
   });
-  
-  let query;
-  
+
+  // Sempre usar vw_clientes_completo - RLS cuida do filtro
+  let query = supabase
+    .from('vw_clientes_completo')
+    .select(`
+      codigo_cliente,
+      nome_fantasia,
+      cidade,
+      bairro,
+      rota,
+      vendedor_uuid,
+      valor_vendas_ano_atual,
+      meta_ano_atual,
+      percentual_atingimento,
+      status_financeiro,
+      dias_sem_comprar,
+      oportunidade,
+      saldo_meta,
+      valor_limite_credito,
+      acao_recomendada,
+      ultima_visita_data
+    `)
+    .eq('vendedor_uuid', user.id)
+    .not('vendedor_uuid', 'is', null); // Garantir que tem vendedor
+
+  // Adicionar filtro por cidade se especificado (case-insensitive)
   if (cidade) {
-    query = supabase
-      .from(viewName)
-      .select(`
-        codigo_cliente,
-        nome_fantasia,
-        cidade,
-        bairro,
-        rota,
-        vendedor_uuid,
-        valor_vendas_2025,
-        meta_2025,
-        percentual_atingimento,
-        status_financeiro,
-        dias_sem_comprar,
-        oportunidade,
-        valor_limite_credito,
-        acao_recomendada
-      `)
-      .eq('vendedor_uuid', user.id);
-  } else {
-    query = supabase
-      .from(viewName)
-      .select(`
-        codigo_cliente,
-        nome_fantasia,
-        cidade,
-        bairro,
-        rota,
-        vendedor_uuid,
-        valor_vendas_2025,
-        meta_2025,
-        percentual_atingimento,
-        ranking
-      `)
-      .eq('vendedor_uuid', user.id);
+    query = query.ilike('cidade', cidade);
   }
 
-  // Adicionar filtro por cidade se especificado
-  if (cidade) {
-    query = query.eq('cidade', cidade);
-  }
+  console.log('🚀 EXECUTANDO QUERY...', { temFiltoCidade: !!cidade });
 
-  console.log('🚀 EXECUTANDO QUERY...', { viewName, temFiltoCidade: !!cidade });
-
-  const { data, error } = await query.order(cidade ? 'nome_fantasia' : 'ranking');
+  const { data, error } = await query.order('nome_fantasia');
+  
+  const vendedoresUnicos = data ? [...new Set(data.map(c => c.vendedor_uuid))] : [];
+  const matchUsuario = data ? data.filter(c => c.vendedor_uuid === user.id).length : 0;
+  const outrosVendedores = data ? data.filter(c => c.vendedor_uuid !== user.id).length : 0;
   
   console.log('📊 RESULTADO DA QUERY:', { 
-    viewName, 
     error, 
     dataCount: data?.length || 0, 
-    primeirosDados: data?.slice(0, 2) 
+    primeirosDados: data?.slice(0, 2),
+    vendedoresUnicos,
+    usuarioAtual: user.id,
+    matchUsuario,
+    outrosVendedores,
+    rlsStatus: outrosVendedores === 0 ? '✅ RLS OK' : '❌ RLS FALHOU'
   });
   
   if (error) {

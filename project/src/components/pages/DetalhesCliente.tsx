@@ -498,6 +498,14 @@ const DetalhesCliente: React.FC = () => {
           <div className="mb-4 pb-4 border-b border-gray-200">
             <div className="grid grid-cols-2 gap-2 text-xs leading-tight">
               <div className="leading-tight">
+                <span className="text-blue-600">Meta: </span>
+                <span className="font-semibold text-blue-700">{formatarMoeda(dadosCliente.meta)}</span>
+              </div>
+              <div className="text-right leading-tight">
+                <span className="text-gray-600">Ating: {formatarPercentual(dadosCliente.percentualMeta)}</span>
+              </div>
+              
+              <div className="leading-tight">
                 <span className="text-gray-600">2025: </span>
                 <span className="font-semibold">{formatarMoeda(dadosCliente.vendas2025)}</span>
               </div>
@@ -511,20 +519,6 @@ const DetalhesCliente: React.FC = () => {
               </div>
               <div className="text-right leading-tight">
                 <span className="text-gray-600">Qnt: {dadosCliente.qtdVendas2024}</span>
-              </div>
-              
-              <div className="leading-tight">
-                <span className="text-green-600">Oport: </span>
-                <span className="font-semibold text-green-700">{formatarMoeda(dadosCliente.oportunidade)}</span>
-              </div>
-              <div></div>
-              
-              <div className="leading-tight">
-                <span className="text-blue-600">Meta: </span>
-                <span className="font-semibold text-blue-700">{formatarMoeda(dadosCliente.meta)}</span>
-              </div>
-              <div className="text-right leading-tight">
-                <span className="text-gray-600">Ating: {formatarPercentual(dadosCliente.percentualMeta)}</span>
               </div>
             </div>
             

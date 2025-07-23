@@ -79,15 +79,76 @@ const Clientes: React.FC = () => {
     }).format(valor || 0)
   }
 
+  // Função para formatar data da última visita
+  const formatarUltimaVisita = (dataVisita: string | null) => {
+    if (!dataVisita) return 'Sem Registro'
+    
+    try {
+      const data = new Date(dataVisita)
+      return data.toLocaleDateString('pt-BR')
+    } catch {
+      return 'sem registro de visita'
+    }
+  }
+
+  // Função para determinar cor do texto da ação recomendada
+  const getCorTextoAcao = (acaoRecomendada: string): string => {
+    if (!acaoRecomendada) return 'text-gray-900';
+    
+    const acao = acaoRecomendada.toLowerCase();
+    
+    // Vermelho - Ações urgentes
+    if (
+      acao.includes('urgente') ||
+      acao.includes('bloqueio') ||
+      acao.includes('vai perder') ||
+      acao.includes('cobrança') ||
+      acao.includes('última tentativa') ||
+      acao.includes('resolver situação')
+    ) {
+      return 'text-red-700';
+    }
+    
+    // Amarelo - Ações de atenção
+    if (
+      acao.includes('reconquistar') ||
+      acao.includes('aumentar frequência') ||
+      acao.includes('reativar') ||
+      acao.includes('desenvolver') ||
+      acao.includes('ação de reativação') ||
+      acao.includes('avaliar manutenção')
+    ) {
+      return 'text-yellow-700';
+    }
+    
+    // Verde - Ações de manutenção
+    if (
+      acao.includes('manter') ||
+      acao.includes('foco total') ||
+      acao.includes('foco em') ||
+      acao.includes('primeira venda') ||
+      acao.includes('novo')
+    ) {
+      return 'text-green-700';
+    }
+    
+    return 'text-gray-900';
+  }
+
   // Filtrar e ordenar clientes
   const clientesFiltrados = clientes
     .filter(cliente => {
       const normalizedSearchTerm = normalizeText(searchTerm)
       return normalizeText(cliente.nome_fantasia).includes(normalizedSearchTerm) ||
-             normalizeText(cliente.codigo_cliente.toString()).includes(normalizedSearchTerm)
+             normalizeText(cliente.codigo_cliente.toString()).includes(normalizedSearchTerm) ||
+             normalizeText(cliente.bairro || '').includes(normalizedSearchTerm)
     })
     .sort((a, b) => {
       switch (sortBy) {
+        case 'nome':
+          return a.nome_fantasia.localeCompare(b.nome_fantasia)
+        case 'nome-za':
+          return b.nome_fantasia.localeCompare(a.nome_fantasia)
         case 'bairro-az':
           return (a.bairro || '').localeCompare(b.bairro || '')
         case 'bairro-za':
@@ -236,7 +297,7 @@ const Clientes: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar Óticas..."
+              placeholder="Buscar óticas / bairro..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -253,21 +314,27 @@ const Clientes: React.FC = () => {
               <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-36">
                 <button
                   className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
+                  onClick={() => { setSortBy('nome'); setShowSortMenu(false) }}
+                >
+                  Nome A-Z
+                </button>
+                <button
+                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
+                  onClick={() => { setSortBy('nome-za'); setShowSortMenu(false) }}
+                >
+                  Nome Z-A
+                </button>
+                <button
+                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
                   onClick={() => { setSortBy('bairro-az'); setShowSortMenu(false) }}
                 >
-                  A-Z
+                  Bairro A-Z
                 </button>
                 <button
                   className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
                   onClick={() => { setSortBy('bairro-za'); setShowSortMenu(false) }}
                 >
-                  Z-A
-                </button>
-                <button
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
-                  onClick={() => { setSortBy('bairro'); setShowSortMenu(false) }}
-                >
-                  Bairro
+                  Bairro Z-A
                 </button>
                 <button
                   className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
@@ -276,10 +343,16 @@ const Clientes: React.FC = () => {
                   Maior Oport
                 </button>
                 <button
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50"
+                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
                   onClick={() => { setSortBy('menor-oportunidade'); setShowSortMenu(false) }}
                 >
                   Menor Oport
+                </button>
+                <button
+                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50"
+                  onClick={() => { setSortBy('dsv'); setShowSortMenu(false) }}
+                >
+                  Maior DSV
                 </button>
               </div>
             )}
@@ -294,7 +367,7 @@ const Clientes: React.FC = () => {
             return (
               <div
                 key={cliente.codigo_cliente}
-                className={`bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer ${corPrioridade}`}
+                className="bg-white rounded-lg shadow-md border border-gray-200 p-3 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer"
                 onClick={() => {
                   console.log('Clicou no cliente:', cliente.codigo_cliente);
                   const rotaPath = rotaNome ? encodeURIComponent(rotaNome) : 'sem-rota';
@@ -324,38 +397,43 @@ const Clientes: React.FC = () => {
                   <p className="text-xs text-gray-600 mb-1.5 leading-tight">Código: {cliente.codigo_cliente}</p>
 
                   
-                  <div className="grid grid-cols-2 gap-2 text-xs leading-tight">
-                    <div>
-                      <span className="text-green-600">Oportunidade:</span>
-                      <span className="ml-1 font-semibold text-green-700">{formatarMoeda(cliente.oportunidade)}</span>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs leading-none mb-2">
+                    <div className="bg-gray-100 px-2 py-1.5 rounded">
+                      <span className="text-blue-700 font-medium">Meta:</span>
+                      <span className="ml-1 font-bold text-blue-800">{formatarMoeda(cliente.meta_ano_atual)}</span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-gray-600">Limit Créd:</span>
-                      <span className="ml-1 font-semibold text-gray-800">{formatarMoeda(cliente.valor_limite_credito)}</span>
+                    <div className="bg-gray-100 px-2 py-1.5 rounded text-right">
+                      <span className="text-gray-700 font-medium">Limit Créd:</span>
+                      <span className="ml-1 font-bold text-gray-800">{formatarMoeda(cliente.valor_limite_credito)}</span>
                     </div>
-                    <div>
-                      <span className="text-blue-600">Meta:</span>
-                      <span className="ml-1 font-semibold text-blue-700">{formatarMoeda(cliente.meta_2025)}</span>
+                    
+                    <div className="bg-gray-100 px-2 py-1.5 rounded">
+                      <span className="text-green-700 font-medium">Saldo:</span>
+                      <span className="ml-1 font-bold text-green-800">{formatarMoeda(cliente.saldo_meta)}</span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-gray-600">Bairro:</span>
-                      <span className="ml-1 font-semibold text-gray-800">{cliente.bairro || '-'}</span>
+                    <div className="bg-gray-100 px-2 py-1.5 rounded text-right">
+                      <span className="text-gray-700 font-medium">Bairro:</span>
+                      <span className="ml-1 font-bold text-gray-800">{cliente.bairro || '-'}</span>
                     </div>
-                    <div>
-                      <span className="text-purple-600">Vendido:</span>
-                      <span className="ml-1 font-semibold text-purple-700">{formatarMoeda(cliente.valor_vendas_2025)}</span>
+                    
+                    <div className="bg-gray-100 px-2 py-1.5 rounded">
+                      <span className="text-orange-700 font-medium">Oportunidade:</span>
+                      <span className="ml-1 font-bold text-orange-800">{formatarMoeda(cliente.oportunidade)}</span>
                     </div>
-                    <div></div>
+                    <div className="bg-gray-100 px-2 py-1.5 rounded text-right">
+                      <span className="text-gray-700 font-medium">Última visita:</span>
+                      <span className="ml-1 font-bold text-gray-800">{formatarUltimaVisita(cliente.ultima_visita_data)}</span>
+                    </div>
                   </div>
 
                   
                   {/* Ação Recomendada */}
                   {cliente.acao_recomendada && (
                     <div className="mt-1.5 pt-1.5 border-t border-gray-200">
-                      <div className="flex items-start gap-2 justify-between">
-                        <div className="flex items-start gap-2 flex-1">
-                          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-gray-600" />
-                          <p className="text-xs font-medium text-gray-900 leading-tight">
+                      <div className="flex items-center gap-2 justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <AlertCircle className="h-4 w-4 flex-shrink-0 text-gray-600" />
+                          <p className={`text-xs font-medium leading-tight ${getCorTextoAcao(cliente.acao_recomendada)}`}>
                             {cliente.acao_recomendada}
                           </p>
                         </div>

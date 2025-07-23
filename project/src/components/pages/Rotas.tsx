@@ -141,38 +141,70 @@ const Rotas: React.FC = () => {
               filteredRotas.map((rota, index) => (
                 <div
                   key={rota.nome || index}
-                  className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer"
+                  className="bg-white rounded-lg shadow-md border border-gray-200 p-3 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer"
                   onClick={() => navigate(`/rotas/${encodeURIComponent(rota.nome || 'sem-rota')}/cidades`)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1.5">
                         <MapPin className="h-4 w-4 text-primary" />
-                        <h3 className="text-base font-semibold text-gray-900">{rota.nome || 'Sem Rota'}</h3>
+                        <h3 className="text-base font-semibold text-gray-900">
+                          {rota.nome || 'Sem Rota'}
+                        </h3>
+                        <span className="text-xs text-gray-600">
+                          - {rota.totalOticas} óticas
+                        </span>
                       </div>
                       
-                      <div className="mb-2"></div>
+                      <div className="mb-1"></div>
                       
-                      <div className="grid grid-cols-2 gap-2 text-xs leading-tight">
-                        <div>
-                          <span className="text-green-600">Oportunidade:</span>
+                      <div className="space-y-0.5 mb-3">
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-blue-700 font-medium">Meta da Rota:</span>
+                          <p className="text-xs font-bold text-blue-800">{formatarMoeda(rota.metaAnoAtual)}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-green-700">{formatarMoeda(rota.somaOportunidades)}</p>
+                        
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-green-700 font-medium">Saldo:</span>
+                          <p className="text-xs font-bold text-green-800">{formatarMoeda(rota.saldoMeta)}</p>
                         </div>
-                        <div>
-                          <span className="text-blue-600">Cidades:</span>
-                          <span className="font-semibold text-blue-700 ml-1">{rota.totalCidades}</span>
+                        
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-orange-700 font-medium">Soma das Oportunidades:</span>
+                          <p className="text-xs font-bold text-orange-800">{formatarMoeda(rota.somaOportunidades)}</p>
                         </div>
-                        <div className="text-right">
-                          <span className="text-purple-600">Óticas:</span>
-                          <span className="font-semibold text-purple-700 ml-1">{rota.totalOticas}</span>
+                        
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-purple-700 font-medium">Total de Lojas:</span>
+                          <p className="text-xs font-bold text-purple-800">{rota.totalOticas}</p>
                         </div>
-                        <div>
-                          <span className="text-red-600">Sem Vendas +90d:</span>
+                        
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-indigo-700 font-medium">nº de Cidades:</span>
+                          <p className="text-xs font-bold text-indigo-800">{rota.totalCidades}</p>
                         </div>
-                        <div className="text-right">
-                          <span className="font-semibold text-red-700">{rota.semVendas90d} {rota.semVendas90d === 1 ? 'ótica' : 'óticas'}</span>
+                        
+                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
+                          <span className="text-xs text-red-700 font-medium">Lojas s/ venda +90d:</span>
+                          <p className="text-xs font-bold text-red-800">{rota.semVendas90d}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2">
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span className="text-xs text-gray-600">Atingimento</span>
+                          <span className="text-xs font-semibold text-gray-800">{rota.percentualMeta.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              rota.percentualMeta >= 100 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                              rota.percentualMeta >= 80 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                              rota.percentualMeta >= 60 ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
+                              'bg-gradient-to-r from-red-400 to-red-600'
+                            }`}
+                            style={{ width: `${Math.min(Math.max(rota.percentualMeta, 0), 100)}%` }}
+                          ></div>
                         </div>
                       </div>
                     </div>

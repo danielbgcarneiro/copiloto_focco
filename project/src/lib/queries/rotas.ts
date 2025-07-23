@@ -8,7 +8,11 @@ export interface RotaCompleta {
   total_clientes: number;
   soma_oportunidades: number;
   clientes_sem_venda_90d: number;
-  vendedor_responsavel: string;
+  vendido_ano_atual: number;
+  meta_ano_atual: number;
+  saldo_meta: number;
+  percentual_meta: number;
+  ranking: number;
 }
 
 export interface RotaMapeada {
@@ -18,11 +22,14 @@ export interface RotaMapeada {
   somaOportunidades: number;
   semVendas90d: number;
   status: 'Ativo' | 'Inativo';
+  metaAnoAtual: number;
+  saldoMeta: number;
+  percentualMeta: number;
 }
 
 export async function getRotasCompleto(): Promise<RotaMapeada[]> {
   try {
-    console.log('🛣️ Buscando rotas via vw_metricas_por_rota...');
+    console.log('🛣️ Buscando rotas via vw_v2_metricas_por_rota...');
     
     // Verificar sessão antes de fazer consulta
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -44,12 +51,12 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
     
     // Buscar métricas diretamente da view usando vendedor_uuid (campo correto da view)
     const { data, error: metricsError } = await supabase
-      .from('vw_metricas_por_rota')
+      .from('vw_v2_metricas_por_rota')
       .select('*')
       .eq('vendedor_uuid', session.user.id)
-      .order('rota', { ascending: true });
+      .order('percentual_meta', { ascending: false });
     
-    console.log('🛣️ Resposta da view vw_metricas_por_rota:', { 
+    console.log('🛣️ Resposta da view vw_v2_metricas_por_rota:', { 
       dadosCount: data?.length || 0, 
       primeirosDados: data?.slice(0, 3),
       error: metricsError 
@@ -61,7 +68,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
     }
     
     if (!data || data.length === 0) {
-      console.log('⚠️ View vw_metricas_por_rota retornou dados vazios - possível problema de RLS');
+      console.log('⚠️ View vw_v2_metricas_por_rota retornou dados vazios - possível problema de RLS');
       return [];
     }
     
@@ -97,7 +104,10 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
         totalOticas: rota.total_clientes || 0,
         somaOportunidades: rota.soma_oportunidades || 0,
         semVendas90d: rota.clientes_sem_venda_90d || 0,
-        status: 'Ativo' as 'Ativo' | 'Inativo'
+        status: 'Ativo' as 'Ativo' | 'Inativo',
+        metaAnoAtual: rota.meta_ano_atual || 0,
+        saldoMeta: rota.saldo_meta || 0,
+        percentualMeta: rota.percentual_meta || 0
       }))
       // Filtrar rotas "Sem Rota" que não têm clientes
       .filter(rota => {
