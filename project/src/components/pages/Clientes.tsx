@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Search, Filter, User, LogOut, AlertCircle, Check } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
-import { getClientesPorVendedor, getCorPrioridade, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
+import { getClientesPorVendedor, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 
 const Clientes: React.FC = () => {
