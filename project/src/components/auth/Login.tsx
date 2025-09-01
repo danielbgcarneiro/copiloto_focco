@@ -17,7 +17,12 @@ const Login: React.FC = () => {
   // Redirecionar se já estiver logado
   useEffect(() => {
     if (user) {
-      navigate('/dashboard')
+      // Redirecionar diretores para dashboard de gestão
+      if (user.cargo === 'diretor') {
+        navigate('/dashboard-gestao')
+      } else {
+        navigate('/dashboard')
+      }
     }
   }, [user, navigate])
 
@@ -41,7 +46,12 @@ const Login: React.FC = () => {
       
       if (result.success) {
         console.log('✅ Login bem-sucedido, redirecionando...')
-        navigate('/dashboard')
+        // O redirecionamento será feito pelo useEffect que monitora mudanças no user
+        // Aguardar um momento para o contexto atualizar
+        setTimeout(() => {
+          // Se o useEffect não redirecionar, usar fallback
+          navigate('/dashboard')
+        }, 100)
       } else {
         console.error('❌ Falha no login:', result.error)
         setError(result.error || 'Erro desconhecido')

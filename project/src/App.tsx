@@ -8,6 +8,10 @@ import Rotas from './components/pages/Rotas'
 import Cidades from './components/pages/Cidades'
 import DetalhesCliente from './components/pages/DetalhesCliente'
 import Inadimplentes from './components/pages/Inadimplentes'
+import DashboardGestao from './components/pages/DashboardGestao'
+import PagAcumuladoAno from './components/pages/PagAcumuladoAno'
+import DashboardRotas from './components/pages/DashboardRotas'
+import TopClientes from './components/pages/TopClientes'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 const router = createBrowserRouter([
@@ -21,6 +25,46 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <UserDataProvider>
           <Dashboard />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/dashboard-gestao",
+    element: (
+      <ProtectedRoute>
+        <UserDataProvider>
+          <DashboardGestao />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/acumulado-ano",
+    element: (
+      <ProtectedRoute>
+        <UserDataProvider>
+          <PagAcumuladoAno />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/dashboard-rotas",
+    element: (
+      <ProtectedRoute>
+        <UserDataProvider>
+          <DashboardRotas />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/top-clientes",
+    element: (
+      <ProtectedRoute>
+        <UserDataProvider>
+          <TopClientes />
         </UserDataProvider>
       </ProtectedRoute>
     )
