@@ -168,18 +168,29 @@ const DashboardGestao: React.FC = () => {
   }, [dashboardData]);
 
   const rankingSemanal = useMemo<VendedorRankingSemanal[]>(() => {
+    console.log('DEBUG: Calculando rankingSemanal...');
+    console.log('DEBUG: allVendedores:', allVendedores);
+    console.log('DEBUG: vendasSemanais:', vendasSemanais);
+
     // Garantir que allVendedores esteja carregado
-    if (!allVendedores || allVendedores.length === 0) return [];
+    if (!allVendedores || allVendedores.length === 0) {
+      console.log('DEBUG: allVendedores está vazio, retornando array vazio para rankingSemanal.');
+      return [];
+    }
 
     const semanasDoMes = [...new Set(vendasSemanais.map(v => v.semana))].sort((a, b) => a - b);
+    console.log('DEBUG: semanasDoMes (from vendasSemanais):', semanasDoMes);
+
     const mapaSemanasRelativas = semanasDoMes.reduce((acc, semana, index) => {
         acc[semana] = index + 1;
         return acc;
     }, {} as Record<number, number>);
+    console.log('DEBUG: mapaSemanasRelativas:', mapaSemanasRelativas);
 
     // Iterar sobre todos os vendedores
-    return allVendedores.map((vendedor) => {
-      const vendasVendedor = vendasSemanais.filter((v: any) => v.nome_vendedor === vendedor.nome_completo || v.nome_vendedor === vendedor.apelido); // Corresponder por nome_completo ou apelido
+    const result = allVendedores.map((vendedor) => {
+      const vendasVendedor = vendasSemanais.filter((v: any) => v.codigo_vendedor === vendedor.cod_vendedor); // Corresponder por codigo_vendedor
+      console.log(`DEBUG: Vendas para ${vendedor.apelido || vendedor.nome_completo}:`, vendasVendedor);
 
       const getVendasPorSemanaRelativa = (semanaRelativa: number) => {
         return vendasVendedor
@@ -196,6 +207,9 @@ const DashboardGestao: React.FC = () => {
 
       return { nome: vendedor.apelido || vendedor.nome_completo, semana1, semana2, semana3, semana4, semana5, totalSemanal };
     }).sort((a, b) => b.totalSemanal - a.totalSemanal);
+
+    console.log('DEBUG: Resultado final do rankingSemanal:', result);
+    return result;
   }, [vendasSemanais, allVendedores]); // Adicionar allVendedores às dependências
 
   useEffect(() => {
