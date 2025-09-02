@@ -1,14 +1,8 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { User } from '../../lib/supabase';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  allowedRoles: Array<User['cargo']>;
-}
-
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
+const HomeRedirect: React.FC = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -26,14 +20,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     return <Navigate to="/" replace />;
   }
 
-  if (!allowedRoles.includes(user.cargo)) {
-    if (user.cargo === 'diretor') {
-      return <Navigate to="/dashboard-gestao" replace />;
-    }
-    return <Navigate to="/dashboard" replace />;
+  if (user.cargo === 'diretor') {
+    return <Navigate to="/dashboard-gestao" replace />;
   }
 
-  return <>{children}</>;
+  return <Navigate to="/dashboard" replace />;
 };
 
-export default ProtectedRoute;
+export default HomeRedirect;
