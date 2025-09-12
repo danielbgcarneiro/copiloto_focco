@@ -372,7 +372,7 @@ const DashboardGestao: React.FC = () => {
                   <Line type="monotone" dataKey="vendasAcumuladas" name="Vendas Acumuladas" stroke="#10b981" strokeWidth={3} dot={{ r: 5 }} />
                   <Bar dataKey="vendas" name="Vendas da Semana" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                   <Line type="monotone" dataKey="meta" name="Meta Acumulada" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
-                </ComposedChart>
+                </ComposedChart> 
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500">Sem dados de vendas semanais para o período selecionado.</div>
