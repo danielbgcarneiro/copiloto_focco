@@ -6,6 +6,7 @@ import { useUserData } from '../../contexts/VendedorDataContext'
 import { getDashboardCompleto, formatarMoeda, formatarValorGrande, type DashboardData, type Top20Cliente } from '../../lib/queries/dashboard'
 import { getVendedorRanking, type VendedorRanking } from '../../lib/queries/vendedores'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
+import { TestViews } from '../../utils/test-views'
 import '../../styles/dashboard.css'
 
 const Dashboard: React.FC = () => {
@@ -24,6 +25,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isCarregando, setIsCarregando] = useState(false)
+  const [showTestViews, setShowTestViews] = useState(false)
   
   // Carregar dados reais de clientes e dashboard do usuário logado
   useEffect(() => {
@@ -165,6 +167,8 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Modal de teste de views */}
+      {showTestViews && <TestViews />}
       {/* Header */}
       <header className="bg-primary text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -230,6 +234,12 @@ const Dashboard: React.FC = () => {
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
             <p className="text-red-600 text-sm">Erro ao carregar métricas: {error}</p>
+            <button 
+              onClick={() => setShowTestViews(true)}
+              className="mt-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+            >
+              Testar Views do Supabase
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -246,7 +256,7 @@ const Dashboard: React.FC = () => {
                   {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.vendas_mes || 0) : 'N/A'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Obj: {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.meta_mes || 0) : 'N/A'} | {dashboardData?.metricas ? `${Math.round(dashboardData.metricas.percentual_meta || 0)}%` : 'N/A'}
+                  Obj: {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.meta_mes || 0) : 'N/A'} | {dashboardData?.metricas ? `${(dashboardData.metricas.percentual_meta || 0).toFixed(1)}%` : 'N/A'}
                 </p>
               </div>
             </div>

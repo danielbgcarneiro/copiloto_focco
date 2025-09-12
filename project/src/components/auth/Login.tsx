@@ -1,63 +1,52 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react'
-import { useAuth } from '../../contexts/AuthContext'
-import { testConnection } from '../../lib/supabase'
-import logoFocco from '../../assets/logos/Logo Focco Brasil.png'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { testConnection } from '../../lib/supabase';
+import logoFocco from '../../assets/logos/Logo Focco Brasil.png';
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const navigate = useNavigate()
-  const { login, user } = useAuth()
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, user } = useAuth();
+  const navigate = useNavigate();
 
-  // Redirecionar se já estiver logado
+  // Navega para a home se o usuário já estiver logado ou após o login
   useEffect(() => {
     if (user) {
-      navigate('/dashboard')
+      navigate('/home');
     }
-  }, [user, navigate])
+  }, [user, navigate]);
 
-  // Testar conexão ao montar o componente
   useEffect(() => {
-    testConnection()
-  }, [])
+    testConnection();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsLoading(true)
-
-    console.log('🔑 Iniciando processo de login...')
-    console.log('👤 Email:', email)
-    console.log('🔒 Senha tem', password.length, 'caracteres')
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
 
     try {
-      const result = await login(email, password)
-      console.log('📋 Resultado do login:', result)
+      const result = await login(email, password);
       
-      if (result.success) {
-        console.log('✅ Login bem-sucedido, redirecionando...')
-        navigate('/dashboard')
-      } else {
-        console.error('❌ Falha no login:', result.error)
-        setError(result.error || 'Erro desconhecido')
+      if (!result.success) {
+        setError(result.error || 'Erro desconhecido');
       }
+      // A navegação será feita pelo useEffect acima
     } catch (error) {
-      console.error('💥 Erro crítico:', error)
-      setError('Erro na conexão com o servidor')
+      setError('Erro na conexão com o servidor');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-gray-100">
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <img 
             src={logoFocco} 
@@ -67,10 +56,7 @@ const Login: React.FC = () => {
           <h1 className="text-2xl font-semibold text-primary mb-2">Bem-vindo</h1>
           <p className="text-gray-600">Acesse sua plataforma de vendas</p>
         </div>
-
-        {/* Formulário */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Campo Login */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               E-mail
@@ -85,8 +71,6 @@ const Login: React.FC = () => {
               disabled={isLoading}
             />
           </div>
-
-          {/* Campo Senha */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Senha
@@ -110,16 +94,12 @@ const Login: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {/* Exibição de Erro */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-600" />
               <span className="text-red-700 text-sm">{error}</span>
             </div>
           )}
-
-          {/* Botão de Submit */}
           <button
             type="submit"
             disabled={isLoading}
@@ -138,14 +118,12 @@ const Login: React.FC = () => {
             )}
           </button>
         </form>
-
-        {/* Footer */}
         <div className="text-center mt-8 text-sm text-gray-500">
           <p>Plataforma de Gestão Comercial</p>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

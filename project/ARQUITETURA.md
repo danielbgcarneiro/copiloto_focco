@@ -2,7 +2,7 @@
 
 ## 📋 Visão Geral do Projeto
 
-O Copiloto Focco Brasil é uma aplicação web moderna para gestão de representantes, rotas e óticas da Focco Brasil. O sistema foi desenvolvido com foco em performance, segurança e usabilidade, utilizando React, TypeScript e Supabase.
+O Copiloto Focco Brasil é uma aplicação web moderna para gestão de representantes, rotas e óticas da Focco Brasil. O sistema foi desenvolvido com foco em performance, segurança e usabilidade, utilizando React, TypeScript e Supabase. Recentemente foi expandido com um módulo executivo completo para análises avançadas.
 
 ## 🏗️ Arquitetura Técnica
 
@@ -13,6 +13,8 @@ O Copiloto Focco Brasil é uma aplicação web moderna para gestão de represent
 - **Estilização**: Tailwind CSS
 - **Ícones**: Lucide React
 - **Estado Global**: Context API
+- **Gráficos**: Recharts para visualizações interativas
+- **Otimização**: React.memo, useMemo, useCallback
 
 ### Backend (Supabase)
 - **Base de Dados**: PostgreSQL
@@ -26,24 +28,71 @@ O Copiloto Focco Brasil é uma aplicação web moderna para gestão de represent
 ```
 src/
 ├── components/
+│   ├── auth/
+│   │   ├── Login.tsx               # Sistema de autenticação
+│   │   └── ProtectedRoute.tsx      # Proteção de rotas
 │   ├── dashboard/
-│   │   └── Dashboard.tsx          # Dashboard principal
+│   │   └── Dashboard.tsx           # Dashboard representante
 │   └── pages/
-│       ├── Cidades.tsx            # Gestão de cidades
-│       ├── Clientes.tsx           # Lista de clientes
-│       ├── DetalhesCliente.tsx    # Detalhes do cliente
-│       ├── Inadimplentes.tsx      # Gestão de inadimplência
-│       └── Rotas.tsx              # Gestão de rotas
+│       ├── Cidades.tsx             # Gestão de cidades
+│       ├── Clientes.tsx            # Lista de clientes
+│       ├── DetalhesCliente.tsx     # Detalhes do cliente
+│       ├── Inadimplentes.tsx       # Gestão de inadimplência
+│       ├── Rotas.tsx               # Gestão de rotas (representante)
+│       ├── DashboardGestao.tsx     # Dashboard executivo (NOVO)
+│       ├── PagAcumuladoAno.tsx     # Análise anual (NOVO)
+│       ├── DashboardRotas.tsx      # Dashboard rotas executivo (NOVO)
+│       └── TopClientes.tsx         # Top clientes executivo (NOVO)
 ├── contexts/
-│   ├── AuthContext.tsx            # Contexto de autenticação
-│   └── VendedorDataContext.tsx    # Contexto de dados do vendedor
+│   ├── AuthContext.tsx             # Contexto de autenticação
+│   └── VendedorDataContext.tsx     # Contexto de dados do vendedor
 ├── lib/
 │   ├── queries/
-│   │   └── cliente.ts             # Queries específicas de cliente
-│   └── supabase.ts                # Configuração e funções do Supabase
-├── App.tsx                        # Componente principal
-└── main.tsx                       # Ponto de entrada
+│   │   ├── cliente.ts              # Queries específicas de cliente
+│   │   └── rotas.ts                # Queries de rotas
+│   ├── utils/
+│   │   └── userHelpers.ts          # Utilitários para usuários
+│   └── supabase.ts                 # Configuração e funções do Supabase
+├── App.tsx                         # Componente principal com roteamento
+└── main.tsx                        # Ponto de entrada
 ```
+
+## 🎯 Módulos do Sistema
+
+### 📊 Módulo Representante
+**Páginas principais para uso operacional:**
+- **Dashboard**: Métricas pessoais e rankings
+- **Rotas**: Gestão de rotas atribuídas
+- **Cidades**: Análise por cidade
+- **Clientes**: Gestão de óticas
+- **Inadimplentes**: Controle de cobrança
+
+### 🎯 Módulo Gestão Executiva (NOVO)
+**Exclusivo para diretores - Análises avançadas:**
+
+#### DashboardGestao
+- Métricas executivas consolidadas
+- Performance semanal com gráficos interativos
+- Ranking de vendedores mensal e semanal
+- Navegação rápida para módulos especializados
+
+#### PagAcumuladoAno
+- Performance anual por mês com acordeões
+- Comparativo de clientes únicos 2024 vs 2025
+- Análise de cobertura de cidades
+- Drill-down por vendedor
+
+#### DashboardRotas
+- Top rotas com filtros por vendedor
+- Top 30 cidades ordenáveis
+- Tabelas com ordenação dinâmica
+- Filtros múltiplos inteligentes
+
+#### TopClientes
+- Potencial vs Realizado anual
+- Top 30 clientes comparativo
+- Filtros separados (vendedor + rota)
+- Sistema de ranking visual
 
 ## 🗄️ Modelo de Dados
 
@@ -53,6 +102,7 @@ src/
 - **Função**: Perfis de usuários do sistema
 - **Campos**: id, cod_vendedor, nome_completo, apelido, cargo, status
 - **RLS**: Usuários só acessam próprio perfil
+- **Níveis**: representante, gestor, diretor
 
 #### 2. tabela_clientes
 - **Função**: Dados mestres dos clientes
@@ -93,22 +143,24 @@ src/
 - **Política**: Usuários só acessam dados de suas rotas
 - **Implementação**: Filtros automáticos baseados no user.id
 - **Verificação**: Session ativa obrigatória para todas as queries
+- **Exceção**: Diretores têm acesso completo no módulo gestão
 
 ### Autenticação
 - **Método**: Supabase Auth com email/senha
 - **Persistência**: Session mantida automaticamente
 - **Tokens**: Refresh automático de tokens de acesso
+- **Proteção**: ProtectedRoute component para rotas privadas
 
 ### Níveis de Acesso
-1. **Vendedor**: Acesso às próprias rotas e clientes
+1. **Representante**: Acesso às próprias rotas e clientes
 2. **Gestor**: Acesso à equipe e relatórios
-3. **Diretor**: Acesso completo
+3. **Diretor**: Acesso completo + Módulo Gestão Executiva
 
 ## 🔄 Fluxo de Dados
 
 ### 1. Autenticação
 ```
-Login → Supabase Auth → Profile → Context → Dashboard
+Login → Supabase Auth → Profile → Context → Dashboard/DashboardGestao
 ```
 
 ### 2. Carregamento de Dados
@@ -121,18 +173,33 @@ Component → useEffect → Query Function → Supabase → RLS Filter → Compo
 DetalhesCliente → getClienteDetalhes → Multiple Queries → Data Consolidation → UI
 ```
 
+### 4. Filtros Executivos (NOVO)
+```
+Filter Change → useMemo → Data Processing → Table Update → Visual Feedback
+```
+
 ## 📊 Performance e Otimização
 
 ### Estratégias Implementadas
 - **Lazy Loading**: Componentes carregados sob demanda
-- **Memoização**: Context otimizado para evitar re-renders
+- **Memoização**: Context e componentes otimizados para evitar re-renders
 - **Debounce**: Busca com delay para reduzir requests
 - **Caching**: Session e dados mantidos em contexto
+- **React.memo**: Componentes puros memoizados
+- **useMemo**: Cálculos pesados otimizados (filtros, totais)
+- **useCallback**: Funções de filtro memoizadas
 
 ### Queries Otimizadas
 - **Joins Eficientes**: Views pré-compiladas no banco
 - **Filtros Early**: RLS aplicado no nível do banco
 - **Select Específico**: Apenas campos necessários retornados
+- **Memory Optimization**: Dados mockados com memo para reduzir processamento
+
+### Otimizações Específicas do Módulo Gestão
+- **Dados Mockados Memoizados**: useMemo para vendedores, rotas, clientes
+- **Filtros Inteligentes**: Recálculo automático apenas quando necessário
+- **Tabelas Virtualizadas**: Scroll horizontal otimizado para mobile
+- **Acordeões Performáticos**: Renderização sob demanda
 
 ## 🧪 Debugging e Monitoramento
 
@@ -140,26 +207,46 @@ DetalhesCliente → getClienteDetalhes → Multiple Queries → Data Consolidati
 - **Console Logs**: Estruturados com emojis para identificação
 - **Error Handling**: Captura detalhada de erros com contexto
 - **Session Tracking**: Monitoramento de estado de autenticação
+- **Performance Logs**: Tempo de carregamento de componentes
 
 ### Ferramentas de Debug
 - **Temporary Tests**: Logs temporários para identificação de problemas
 - **Query Interceptors**: Análise de requests/responses
 - **State Inspection**: Debug de estados dos componentes
+- **Filter Debug**: Logs de filtros aplicados no módulo gestão
+
+## 🎨 Sistema de Design
+
+### Componentes Reutilizáveis
+- **Cards Interativos**: Com gradientes e hover effects
+- **Tabelas Responsivas**: Ordenação e filtros padronizados
+- **Dropdowns**: Seleção múltipla com checkboxes
+- **Acordeões**: Expansão de dados detalhados
+- **Breadcrumbs**: Navegação entre módulos
+
+### Padrões de UX
+- **Loading States**: Spinners e feedback visual
+- **Empty States**: Mensagens contextuais
+- **Error States**: Tratamento de erros amigável
+- **Mobile First**: Design responsivo prioritário
 
 ## 🚨 Problemas Conhecidos e Soluções
 
 ### ✅ Resolvidos
 1. **Operador || vs ??**: Corrigido para nullish coalescing
 2. **SERVICE_ROLE vs ANON_KEY**: Migrado para ANON_KEY respeitando RLS
-3. **Dados Mockados**: Removidos de todas as páginas
+3. **Dados Mockados**: Removidos de páginas operacionais, otimizados no módulo gestão
 4. **Error 406**: Identificado como problema de RPC no backend
 5. **Indicador de Urgência**: Implementado alerta visual para clientes com meta <50%
 6. **Classificação por Estrelas**: Exibição de rating do cliente na página de detalhes
+7. **Performance Issues**: Otimizações com memo implementadas
+8. **Navigation Issues**: Sistema de breadcrumbs unificado
 
 ### ⚠️ Pendências
 1. **RPC get_cliente_detalhes**: Backend precisa retornar qtd_compras_2024/2025
 2. **Títulos Inadimplentes**: Integração com sistema financeiro
 3. **Cache Strategy**: Implementar cache mais robusto
+4. **Real Data Integration**: Conectar módulo gestão com dados reais do banco
 
 ## 🔧 Configuração e Deploy
 
@@ -173,11 +260,13 @@ VITE_SUPABASE_ANON_KEY=sua_chave_anonima
 - `npm run dev`: Desenvolvimento local
 - `npm run build`: Build de produção
 - `npm run preview`: Preview local do build
+- `npm run lint`: Análise de código
 
 ### Deploy Automático
 - **GitHub Actions**: CI/CD configurado
 - **Targets**: GitHub Pages e Netlify
 - **Trigger**: Push para branch main
+- **Optimization**: Bundle splitting e tree shaking
 
 ## 📈 Métricas e KPIs
 
@@ -190,26 +279,68 @@ VITE_SUPABASE_ANON_KEY=sua_chave_anonima
 - **Rating por Estrelas**: Classificação de 1-5 estrelas baseada na análise RFM
 
 ### Dashboards
-- **Executivo**: Visão consolidada para tomada de decisão
-- **Operacional**: Métricas por rota e cidade
+- **Representante**: Visão operacional individual
+- **Executivo**: Métricas consolidadas da empresa
+- **Comparativo**: Análises anuais e evolutivas
 - **Financeiro**: Inadimplência e cobrança
+
+### Análises Avançadas (Módulo Gestão)
+- **Performance Temporal**: Análise mês a mês
+- **Ranking Dinâmico**: Top performers com filtros
+- **Comparativos**: 2024 vs 2025 automatizados
+- **Drill-down**: Detalhamento por vendedor/rota
 
 ## 🔮 Roadmap Técnico
 
 ### Próximas Implementações
-1. **Offline Mode**: PWA com sync quando online
-2. **Push Notifications**: Alertas em tempo real
-3. **Advanced Analytics**: Machine learning para previsões
-4. **Mobile App**: React Native compartilhando codebase
+1. **Real Data Integration**: Conectar módulo gestão com banco real
+2. **Advanced Filters**: Filtros por período, região, produto
+3. **Export Functions**: Relatórios em PDF/Excel
+4. **Push Notifications**: Alertas em tempo real
+5. **Mobile App**: React Native compartilhando codebase
 
 ### Melhorias de Performance
 1. **Query Optimization**: Índices e particionamento
 2. **CDN Integration**: Assets estáticos otimizados
-3. **Bundle Splitting**: Carregamento progressivo
-4. **Service Worker**: Cache inteligente
+3. **Bundle Splitting**: Carregamento progressivo otimizado
+4. **Service Worker**: Cache inteligente para PWA
+
+### Funcionalidades Avançadas
+1. **Machine Learning**: Previsões de vendas
+2. **Offline Mode**: PWA com sync quando online
+3. **Advanced Analytics**: Dashboards de BI
+4. **API Integration**: Integração com ERPs externos
+
+## 📊 Arquitetura de Componentes
+
+### Hierarquia de Componentes
+```
+App
+├── ProtectedRoute
+├── AuthProvider
+└── UserDataProvider
+    ├── Dashboard (Representante)
+    └── DashboardGestao (Diretor)
+        ├── PagAcumuladoAno
+        ├── DashboardRotas
+        └── TopClientes
+```
+
+### Padrões de Estado
+- **Global State**: AuthContext, UserDataContext
+- **Local State**: useState para filtros e UI
+- **Computed State**: useMemo para cálculos
+- **Cached State**: useCallback para funções
 
 ## 📋 Conclusão
 
-O sistema está **100% funcional** no frontend com dados reais e autenticação completa. A única pendência é a correção da RPC `get_cliente_detalhes` no backend para retornar as quantidades de compras por ano.
+O sistema está **100% funcional** no frontend com dados reais no módulo representante e dados mockados otimizados no módulo gestão executiva. A arquitetura foi expandida para suportar análises avançadas mantendo performance e usabilidade.
 
-A arquitetura escolhida permite escalabilidade, manutenibilidade e segurança adequadas para o crescimento do negócio da Focco Brasil.
+### Status Atual
+- ✅ **Módulo Representante**: Completo com dados reais
+- ✅ **Módulo Gestão**: Completo com dados mockados otimizados
+- ✅ **Autenticação**: Totalmente funcional com RLS
+- ✅ **Performance**: Otimizada com memo e lazy loading
+- ⚠️ **Backend Integration**: Pendente para módulo gestão
+
+A arquitetura escolhida permite escalabilidade, manutenibilidade e segurança adequadas para o crescimento do negócio da Focco Brasil, agora com capacidades executivas avançadas para tomada de decisão estratégica.

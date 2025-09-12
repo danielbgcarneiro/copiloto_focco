@@ -8,7 +8,12 @@ import Rotas from './components/pages/Rotas'
 import Cidades from './components/pages/Cidades'
 import DetalhesCliente from './components/pages/DetalhesCliente'
 import Inadimplentes from './components/pages/Inadimplentes'
+import DashboardGestao from './components/pages/DashboardGestao'
+import PagAcumuladoAno from './components/pages/PagAcumuladoAno'
+import DashboardRotas from './components/pages/DashboardRotas'
+import TopClientes from './components/pages/TopClientes'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import HomeRedirect from './components/auth/HomeRedirect'
 
 const router = createBrowserRouter([
   {
@@ -16,9 +21,17 @@ const router = createBrowserRouter([
     element: <Login />
   },
   {
+    path: "/home",
+    element: (
+      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
+        <HomeRedirect />
+      </ProtectedRoute>
+    )
+  },
+  {
     path: "/dashboard",
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
         <UserDataProvider>
           <Dashboard />
         </UserDataProvider>
@@ -26,9 +39,49 @@ const router = createBrowserRouter([
     )
   },
   {
+    path: "/dashboard-gestao",
+    element: (
+      <ProtectedRoute allowedRoles={['diretor']}>
+        <UserDataProvider>
+          <DashboardGestao />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/acumulado-ano",
+    element: (
+      <ProtectedRoute allowedRoles={['diretor']}>
+        <UserDataProvider>
+          <PagAcumuladoAno />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/dashboard-rotas",
+    element: (
+      <ProtectedRoute allowedRoles={['diretor']}>
+        <UserDataProvider>
+          <DashboardRotas />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/top-clientes",
+    element: (
+      <ProtectedRoute allowedRoles={['diretor']}>
+        <UserDataProvider>
+          <TopClientes />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
     path: "/rotas",
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
         <UserDataProvider>
           <Rotas />
         </UserDataProvider>
@@ -38,7 +91,7 @@ const router = createBrowserRouter([
   {
     path: "/rotas/:rotaId/cidades",
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
         <UserDataProvider>
           <Cidades />
         </UserDataProvider>
@@ -48,7 +101,7 @@ const router = createBrowserRouter([
   {
     path: "/rotas/:rotaId/cidades/:cidadeNome/clientes",
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
         <UserDataProvider>
           <Clientes />
         </UserDataProvider>
@@ -58,7 +111,7 @@ const router = createBrowserRouter([
   {
     path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes",
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
         <UserDataProvider>
           <DetalhesCliente />
         </UserDataProvider>
@@ -68,7 +121,7 @@ const router = createBrowserRouter([
   {
     path: "/clientes/detalhes/:id",
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
         <UserDataProvider>
           <DetalhesCliente />
         </UserDataProvider>
@@ -78,7 +131,7 @@ const router = createBrowserRouter([
   {
     path: "/inadimplentes",
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
         <UserDataProvider>
           <Inadimplentes />
         </UserDataProvider>

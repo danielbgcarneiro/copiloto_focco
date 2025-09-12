@@ -1,5 +1,43 @@
 import { supabase } from '../supabase';
 
+export interface VendedorProfile {
+  id: string;
+  cod_vendedor: number | null;
+  nome_completo: string;
+  apelido: string | null;
+  cargo: string | null;
+  status: string | null;
+  vendedor_responsavel: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export async function getAllVendedores(): Promise<VendedorProfile[] | null> {
+  try {
+    console.log('👥 Buscando todos os vendedores...');
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, cod_vendedor, nome_completo, apelido, cargo, status, vendedor_responsavel, created_at, updated_at')
+      .eq('cargo', 'vendedor');
+
+    if (error) {
+      console.error('❌ Erro ao buscar todos os vendedores:', error);
+      throw error;
+    }
+
+    if (!data) {
+      console.log('⚠️ Nenhum vendedor encontrado.');
+      return null;
+    }
+
+    console.log('✅ Vendedores encontrados:', data.length);
+    return data as VendedorProfile[];
+  } catch (error) {
+    console.error('💥 Erro ao buscar todos os vendedores:', error);
+    throw error;
+  }
+}
+
 export interface VendedorRanking {
   vendedor_uuid: string;
   cod_vendedor: string;
