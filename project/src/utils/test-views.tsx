@@ -29,7 +29,6 @@ export const TestViews: React.FC = () => {
       'vw_dashboard_metricas',
       'vw_top10_cidades',
       'vw_ranking_rotas',
-      'vw_top20_clientes',
       'vw_dashboard_gestao_completo',
       'vw_performance_semanal',
       'vw_vendas_semanais'
@@ -51,7 +50,7 @@ export const TestViews: React.FC = () => {
       let query = supabase.from(viewName).select('*', { count: 'exact' });
       
       // Aplicar filtro de usuário para views específicas
-      if (userId && ['vw_dashboard_metricas', 'vw_top10_cidades', 'vw_ranking_rotas', 'vw_top20_clientes'].includes(viewName)) {
+      if (userId && ['vw_dashboard_metricas', 'vw_top10_cidades', 'vw_ranking_rotas'].includes(viewName)) {
         if (viewName === 'vw_dashboard_metricas') {
           query = query.eq('vendedor_id', userId);
         } else {

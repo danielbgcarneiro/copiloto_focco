@@ -21,20 +21,7 @@ async function testViews() {
     console.log('Amostra:', top10?.slice(0, 2));
   }
   
-  // Test vw_top20_clientes
-  console.log('\n📊 Testando vw_top20_clientes:');
-  const { data: top20, error: top20Error } = await supabase
-    .from('vw_top20_clientes')
-    .select('*')
-    .eq('vendedor_uuid', user?.id)
-    .limit(5);
-    
-  if (top20Error) {
-    console.error('❌ Erro:', top20Error);
-  } else {
-    console.log('✅ Dados encontrados:', top20?.length || 0);
-    console.log('Amostra:', top20?.slice(0, 2));
-  }
+  // vw_top20_clientes foi removida do backend; teste omitido.
 }
 
 // Execute o teste

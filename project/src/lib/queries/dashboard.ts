@@ -25,20 +25,29 @@ export interface RankingRota {
   saldo_restante: number;
 }
 
-export interface Top20Cliente {
-  nome: string;
-  rota: string;
-  meta: number;
-  vendido: number;
+export interface ClientePerfil {
+  codigo_cliente: number;
+  nome_fantasia: string;
+  cidade_uf: string;
+  objetivo: number;
+  vendas: number;
   percentual: number;
-  codigo_cliente: string;
+}
+
+export interface TabelaPerfil {
+  perfil: 'ouro' | 'prata' | 'bronze';
+  totalClientes: number;
+  somaObjetivo: number;
+  somaVendas: number;
+  percentualGeral: number;
+  clientes: ClientePerfil[];
 }
 
 export interface DashboardData {
   metricas: DashboardMetricas;
   top10Cidades: Top10Cidade[];
   rankingRotas: RankingRota[];
-  top20Clientes: Top20Cliente[];
+  tabelasPerfil: TabelaPerfil[];
 }
 
 export async function getDashboardMetricas(): Promise<DashboardMetricas> {
@@ -103,8 +112,9 @@ export async function getTop10Cidades(): Promise<Top10Cidade[]> {
     });
     
     if (error) {
-      console.error('❌ Erro ao buscar top 10 cidades:', error);
-      throw error;
+      // Se a view foi removida ou a coluna não existe, log e retornar lista vazia
+      console.warn('❌ Erro ao buscar top 10 cidades (retornando lista vazia):', error);
+      return [];
     }
     
     if (!data || data.length === 0) {
@@ -176,55 +186,9 @@ export async function getRankingRotas(): Promise<RankingRota[]> {
   }
 }
 
-export async function getTop20Clientes(): Promise<Top20Cliente[]> {
-  try {
-    console.log('🏢 Iniciando busca de top 20 clientes...');
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('Usuário não autenticado');
-    }
-
-    const { data, error } = await supabase
-      .from('vw_top20_clientes')
-      .select('*')
-      .eq('vendedor_uuid', user.id)
-      .order('valor_vendas_2025', { ascending: false })
-      .limit(20);
-    
-    console.log('🏢 Resposta da view vw_top20_clientes:', { 
-      dadosCount: data?.length || 0, 
-      primeirosDados: data?.slice(0, 3),
-      error,
-      userId: user.id
-    });
-    
-    if (error) {
-      console.error('❌ Erro ao buscar top 20 clientes:', error);
-      throw error;
-    }
-    
-    if (!data || data.length === 0) {
-      console.log('⚠️ Nenhum cliente encontrado');
-      return [];
-    }
-    
-    const clientesTop20: Top20Cliente[] = data.map(cliente => ({
-      nome: cliente.nome_fantasia,
-      rota: cliente.rota || 'Sem rota',
-      meta: Number(cliente.meta_2025 || 0),
-      vendido: Number(cliente.valor_vendas_2025 || 0),
-      percentual: Number(cliente.percentual_atingimento || 0),
-      codigo_cliente: cliente.codigo_cliente
-    }));
-    
-    console.log('✅ Top 20 clientes processados:', clientesTop20.length);
-    return clientesTop20;
-  } catch (error) {
-    console.error('💥 Erro ao buscar top 20 clientes:', error);
-    throw error;
-  }
-}
+// Note: top20 clientes view was removed from the backend; related client-side logic
+// was simplified. If in future a replacement data source is provided, reintroduce
+// appropriate queries here.
 
 // Função para validar consistência dos dados
 export function validarConsistenciaDados(dashboardData: DashboardData): {
@@ -273,22 +237,9 @@ export function validarConsistenciaDados(dashboardData: DashboardData): {
     });
   }
   
-  // Validar clientes
-  if (dashboardData.top20Clientes.length === 0) {
-    problemas.push('Top 20 clientes: lista vazia');
-  } else {
-    dashboardData.top20Clientes.forEach((cliente, index) => {
-      if (!cliente.nome) {
-        problemas.push(`Cliente ${index + 1}: nome indefinido`);
-      }
-      if (cliente.meta < 0) {
-        problemas.push(`Cliente ${cliente.nome}: meta negativa`);
-      }
-      if (cliente.vendido < 0) {
-        problemas.push(`Cliente ${cliente.nome}: vendido negativo`);
-      }
-    });
-  }
+  // Note: Top20 clientes view was removed from backend; client-specific
+  // validations were omitted. If a replacement is added, reintroduce checks
+  // here.
   
   return {
     valido: problemas.length === 0,
@@ -296,23 +247,218 @@ export function validarConsistenciaDados(dashboardData: DashboardData): {
   };
 }
 
+// Função para buscar clientes de um perfil específico (Ouro, Prata, Bronze)
+// Máscaras: Ouro = 30, Prata = 10, Bronze = 5
+export async function getTabelaPerfil(perfil: 'ouro' | 'prata' | 'bronze'): Promise<TabelaPerfil> {
+  try {
+    console.log(`📋 Buscando clientes perfil ${perfil.toUpperCase()}...`);
+    
+    // Mapear perfil para número
+    const perfilMap = {
+      ouro: 30,
+      prata: 10,
+      bronze: 5
+    };
+    const numeroMascara = perfilMap[perfil];
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    console.log(`🔐 User.id (UUID): ${user.id}`);
+
+    // 1) PRIMEIRO: Buscar o cod_vendedor do perfil do usuário
+    console.log(`📋 Buscando profiles para usuário ${user.id}...`);
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('cod_vendedor, apelido')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('❌ Erro ao buscar profiles:', profileError);
+      return {
+        perfil,
+        totalClientes: 0,
+        somaObjetivo: 0,
+        somaVendas: 0,
+        percentualGeral: 0,
+        clientes: []
+      };
+    }
+
+    if (!profileData) {
+      console.warn(`⚠️ Perfil não encontrado para user.id: ${user.id}`);
+      return {
+        perfil,
+        totalClientes: 0,
+        somaObjetivo: 0,
+        somaVendas: 0,
+        percentualGeral: 0,
+        clientes: []
+      };
+    }
+
+    const codigoVendedor = (profileData as any).cod_vendedor;
+    const apelidoVendedor = (profileData as any).apelido;
+    console.log(`✅ Código vendedor encontrado: ${codigoVendedor} (${apelidoVendedor})`);
+
+    // 2) SEGUNDO: Buscar clientes do vendedor usando o cod_vendedor
+    console.log(`📋 Buscando clientes para cod_vendedor ${codigoVendedor}...`);
+    const { data: clientesInfo, error: clientesInfoError } = await supabase
+      .from('tabela_clientes')
+      .select('codigo_cliente, nome_fantasia, cidade')
+      .eq('cod_vendedor', codigoVendedor);
+
+    if (clientesInfoError) {
+      console.error(`❌ Erro ao buscar tabela_clientes:`, {
+        code: (clientesInfoError as any).code,
+        message: (clientesInfoError as any).message
+      });
+      return {
+        perfil,
+        totalClientes: 0,
+        somaObjetivo: 0,
+        somaVendas: 0,
+        percentualGeral: 0,
+        clientes: []
+      };
+    }
+
+    if (clientesInfoError) {
+      console.error(`❌ Erro ao buscar tabela_clientes:`, {
+        code: (clientesInfoError as any).code,
+        message: (clientesInfoError as any).message
+      });
+      return {
+        perfil,
+        totalClientes: 0,
+        somaObjetivo: 0,
+        somaVendas: 0,
+        percentualGeral: 0,
+        clientes: []
+      };
+    }
+
+    if (!clientesInfo || clientesInfo.length === 0) {
+      console.log(`ℹ️ Nenhum cliente encontrado para cod_vendedor ${codigoVendedor}`);
+      return {
+        perfil,
+        totalClientes: 0,
+        somaObjetivo: 0,
+        somaVendas: 0,
+        percentualGeral: 0,
+        clientes: []
+      };
+    }
+
+    console.log(`✅ ${clientesInfo.length} clientes encontrados para ${apelidoVendedor}`);
+
+    const codigosClientes = (clientesInfo as any[]).map((c: any) => c.codigo_cliente);
+
+    // 3) TERCEIRO: Buscar registros em analise_rfm apenas para esses clientes e para o perfil
+    console.log(`📊 Buscando dados RFM para perfil ${numeroMascara}...`);
+    const { data: rfmData, error: rfmError } = await supabase
+      .from('analise_rfm')
+      .select('codigo_cliente, meta_ano_atual, valor_ano_atual, percentual_atingimento, perfil')
+      .in('codigo_cliente', codigosClientes)
+      .eq('perfil', String(numeroMascara))
+      .order('valor_ano_atual', { ascending: false });
+
+    if (rfmError) {
+      console.error(`❌ Erro ao buscar analise_rfm para perfis (perfil=${numeroMascara}):`, 
+        { code: (rfmError as any).code, message: (rfmError as any).message }
+      );
+      return {
+        perfil,
+        totalClientes: 0,
+        somaObjetivo: 0,
+        somaVendas: 0,
+        percentualGeral: 0,
+        clientes: []
+      };
+    }
+
+    if (!rfmData || rfmData.length === 0) {
+      console.log(`ℹ️ Nenhum registro em analise_rfm para os clientes do vendedor ${user.id} com perfil ${perfil}`);
+      return {
+        perfil,
+        totalClientes: 0,
+        somaObjetivo: 0,
+        somaVendas: 0,
+        percentualGeral: 0,
+        clientes: []
+      };
+    }
+
+    // Mapear dados para o formato esperado juntando com info dos clientes
+    const clientesMap = new Map<number, any>();
+    (clientesInfo as any[]).forEach(c => clientesMap.set(c.codigo_cliente, c));
+
+    const clientesPerfil: ClientePerfil[] = (rfmData as any[]).map(rfm => {
+      const info = clientesMap.get(rfm.codigo_cliente);
+      const objetivo = Number(rfm.meta_ano_atual || 0);
+      const vendas = Number(rfm.valor_ano_atual || 0);
+      const percentual = objetivo > 0 ? (vendas / objetivo) * 100 : 0;
+
+      return {
+        codigo_cliente: rfm.codigo_cliente,
+        nome_fantasia: info?.nome_fantasia || 'N/A',
+        // tabela_clientes may not have 'uf' column; show cidade only as fallback
+        cidade_uf: info ? `${info.cidade || 'N/A'}` : 'N/A',
+        objetivo,
+        vendas,
+        percentual: Math.round(percentual * 100) / 100 // 2 casas decimais
+      };
+    });
+
+    // Calcular totalizadores
+    const totalClientes = clientesPerfil.length;
+    const somaObjetivo = clientesPerfil.reduce((acc, c) => acc + c.objetivo, 0);
+    const somaVendas = clientesPerfil.reduce((acc, c) => acc + c.vendas, 0);
+    const percentualGeral = somaObjetivo > 0 ? (somaVendas / somaObjetivo) * 100 : 0;
+
+    console.log(`✅ Perfil ${perfil} carregado:`, {
+      totalClientes,
+      somaObjetivo,
+      somaVendas,
+      percentualGeral: Math.round(percentualGeral * 100) / 100
+    });
+
+    return {
+      perfil,
+      totalClientes,
+      somaObjetivo,
+      somaVendas,
+      percentualGeral: Math.round(percentualGeral * 100) / 100,
+      clientes: clientesPerfil
+    };
+  } catch (error) {
+    console.error(`💥 Erro ao carregar perfil ${perfil}:`, error);
+    throw error;
+  }
+}
+
 export async function getDashboardCompleto(): Promise<DashboardData> {
   try {
     console.log('🔍 Carregando dados completos do dashboard...');
     
     // Executar todas as queries em paralelo
-    const [metricas, top10Cidades, rankingRotas, top20Clientes] = await Promise.all([
+    const [metricas, top10Cidades, rankingRotas, perfilOuro, perfilPrata, perfilBronze] = await Promise.all([
       getDashboardMetricas(),
       getTop10Cidades(),
       getRankingRotas(),
-      getTop20Clientes()
+      getTabelaPerfil('ouro'),
+      getTabelaPerfil('prata'),
+      getTabelaPerfil('bronze')
     ]);
     
     const dashboardData: DashboardData = {
       metricas,
       top10Cidades,
       rankingRotas,
-      top20Clientes
+      tabelasPerfil: [perfilOuro, perfilPrata, perfilBronze]
     };
     
     // Validar consistência
@@ -326,7 +472,9 @@ export async function getDashboardCompleto(): Promise<DashboardData> {
       metricas,
       cidadesCount: top10Cidades.length,
       rotasCount: rankingRotas.length,
-      clientesCount: top20Clientes.length,
+      perfilOuro: perfilOuro.totalClientes,
+      perfilPrata: perfilPrata.totalClientes,
+      perfilBronze: perfilBronze.totalClientes,
       validacao: validacao.valido ? 'Válido' : 'Com problemas'
     });
     
