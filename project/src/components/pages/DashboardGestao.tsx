@@ -287,18 +287,6 @@ const DashboardGestao: React.FC = () => {
           </div>
         </div>
 
-        {/* Seletor de Período */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Período</h3>
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <select value={mesAtual} onChange={(e) => setMesAtual(Number(e.target.value))} className="px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-w-0" disabled={carregandoDados}>{meses.map(m => <option key={m.valor} value={m.valor}>{m.nome.substring(0,3)}</option>)}</select>
-              <select value={anoAtual} onChange={(e) => setAnoAtual(Number(e.target.value))} className="px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-w-0" disabled={carregandoDados}>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select>
-              <button onClick={atualizarDados} disabled={carregandoDados} className="flex items-center justify-center p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><RefreshCw className={`h-4 w-4 ${carregandoDados ? 'animate-spin' : ''}`} /></button>
-            </div>
-          </div>
-        </div>
-
         {/* Performance Individual - Vendas */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Mensal</h3>

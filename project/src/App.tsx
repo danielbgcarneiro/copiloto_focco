@@ -14,6 +14,7 @@ import DashboardRotas from './components/pages/DashboardRotas'
 import TopClientes from './components/pages/TopClientes'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import HomeRedirect from './components/auth/HomeRedirect'
+import PedidosVendedor from './components/pages/PedidosVendedor'
 
 const router = createBrowserRouter([
   {
@@ -134,6 +135,16 @@ const router = createBrowserRouter([
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
         <UserDataProvider>
           <Inadimplentes />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/meus-pedidos",
+    element: (
+      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
+        <UserDataProvider>
+          <PedidosVendedor />
         </UserDataProvider>
       </ProtectedRoute>
     )

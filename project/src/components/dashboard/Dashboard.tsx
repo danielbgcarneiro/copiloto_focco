@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Target, User, LogOut, Map as MapIcon, Building, AlertTriangle } from 'lucide-react'
+import { TrendingUp, Target, User, LogOut, Map as MapIcon, Building, AlertTriangle, ClipboardList } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getDashboardCompleto, formatarMoeda, type DashboardData, type TabelaPerfil as TabelaPerfilType } from '../../lib/queries/dashboard'
 import { getVendedorRanking, type VendedorRanking } from '../../lib/queries/vendedores'
@@ -268,7 +268,14 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-8">
+            <button 
+              onClick={() => navigate('/meus-pedidos')}
+              className="bg-green-600 text-white p-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
+            >
+              <ClipboardList className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+              <span>Pedidos</span>
+            </button>
             <button 
               onClick={() => navigate('/rotas')}
               className="bg-primary text-white p-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center justify-center"
@@ -288,8 +295,6 @@ const Dashboard: React.FC = () => {
         {/* Tabelas de Perfil - Ouro, Prata, Bronze */}
         {!loading && dashboardData?.tabelasPerfil && (
           <div className="space-y-6 mt-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Clientes por Perfil</h2>
-            
             <div className="grid grid-cols-1 gap-6">
               {dashboardData.tabelasPerfil.map((tabela) => (
                 <TabelaPerfil key={tabela.perfil} dados={tabela} />
