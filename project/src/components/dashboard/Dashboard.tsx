@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, Target, User, LogOut, Map as MapIcon, Building, AlertTriangle, ClipboardList, Search } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { getDashboardCompleto, formatarMoeda, type DashboardData, type TabelaPerfil as TabelaPerfilType, getPercentualMetaAnual } from '../../lib/queries/dashboard'
+import { getDashboardCompleto, formatarMoeda, type DashboardData, getPercentualMetaAnual } from '../../lib/queries/dashboard'
 import { getVendedorRanking, type VendedorRanking, getOticasSemVendas180d } from '../../lib/queries/vendedores'
 import { TestViews } from '../../utils/test-views'
 import TabelaPerfil from './TabelaPerfil'
@@ -223,7 +223,7 @@ const Dashboard: React.FC = () => {
               <div className="pr-12">
                 <p className="text-xs font-medium text-gray-600">Obj Anual</p>
                 <p className="text-xl font-bold text-gray-900 mt-1">
-                  {objAnualData?.percentual_anual !== null ? `${objAnualData?.percentual_anual.toFixed(1)}%` : 'N/A'}
+                  {objAnualData?.percentual_anual ? `${objAnualData.percentual_anual.toFixed(1)}%` : 'N/A'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   Obj: {objAnualData?.total_metas_ano ? formatarMoeda(objAnualData.total_metas_ano) : 'N/A'}
