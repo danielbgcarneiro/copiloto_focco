@@ -11,6 +11,7 @@ interface PedidoAgrupado {
   valor_total: number;
 }
 
+
 const PedidosVendedor: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -45,8 +46,8 @@ const PedidosVendedor: React.FC = () => {
       setPedidos([]);
     } else {
       // A RPC já retorna os dados filtrados, então podemos processá-los diretamente
-      const pedidosAgrupados = (data || []).reduce((acc, pedido) => {
-        const clienteExistente = acc.find(p => p.codigo_cliente === pedido.codigo_cliente);
+      const pedidosAgrupados = (data || []).reduce((acc: PedidoAgrupado[], pedido: any) => {
+        const clienteExistente = acc.find((p: PedidoAgrupado) => p.codigo_cliente === pedido.codigo_cliente);
         if (clienteExistente) {
           clienteExistente.valor_total += (pedido.valor_faturado || 0) + (pedido.valor_aberto || 0);
           if (new Date(pedido.data_criacao) > new Date(clienteExistente.data_criacao)) {
@@ -62,7 +63,7 @@ const PedidosVendedor: React.FC = () => {
         }
         return acc;
       }, [] as PedidoAgrupado[]);
-      setPedidos(pedidosAgrupados.sort((a, b) => b.valor_total - a.valor_total));
+      setPedidos(pedidosAgrupados.sort((a: PedidoAgrupado, b: PedidoAgrupado) => b.valor_total - a.valor_total));
     }
     setLoading(false);
   };

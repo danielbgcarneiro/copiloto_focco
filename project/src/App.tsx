@@ -12,6 +12,7 @@ import DashboardGestao from './components/pages/DashboardGestao'
 import PagAcumuladoAno from './components/pages/PagAcumuladoAno'
 import DashboardRotas from './components/pages/DashboardRotas'
 import TopClientes from './components/pages/TopClientes'
+import MetasPorCliente from './components/pages/MetasPorCliente' // New import
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import HomeRedirect from './components/auth/HomeRedirect'
 import PedidosVendedor from './components/pages/PedidosVendedor'
@@ -75,6 +76,16 @@ const router = createBrowserRouter([
       <ProtectedRoute allowedRoles={['diretor']}>
         <UserDataProvider>
           <TopClientes />
+        </UserDataProvider>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/metas-por-cliente", // New route
+    element: (
+      <ProtectedRoute allowedRoles={['diretor']}>
+        <UserDataProvider>
+          <MetasPorCliente />
         </UserDataProvider>
       </ProtectedRoute>
     )

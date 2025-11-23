@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Target, User, LogOut, Map as MapIcon, Building, AlertTriangle, ClipboardList } from 'lucide-react'
+import { TrendingUp, Target, User, LogOut, Map as MapIcon, Building, AlertTriangle, ClipboardList, Search } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { getDashboardCompleto, formatarMoeda, type DashboardData, type TabelaPerfil as TabelaPerfilType } from '../../lib/queries/dashboard'
-import { getVendedorRanking, type VendedorRanking } from '../../lib/queries/vendedores'
+import { getDashboardCompleto, formatarMoeda, type DashboardData, type TabelaPerfil as TabelaPerfilType, getPercentualMetaAnual } from '../../lib/queries/dashboard'
+import { getVendedorRanking, type VendedorRanking, getOticasSemVendas180d } from '../../lib/queries/vendedores'
 import { TestViews } from '../../utils/test-views'
 import TabelaPerfil from './TabelaPerfil'
 import '../../styles/dashboard.css'
@@ -15,10 +15,13 @@ const Dashboard: React.FC = () => {
   // Estados para dados reais
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [vendedorRanking, setVendedorRanking] = useState<VendedorRanking | null>(null)
+  const [oticasSemVendas180d, setOticasSemVendas180d] = useState<number | null>(null);
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isCarregando, setIsCarregando] = useState(false)
   const [showTestViews, setShowTestViews] = useState(false)
+  const [filtroCidade, setFiltroCidade] = useState('');
+  const [objAnualData, setObjAnualData] = useState<{ total_vendas_ano: number; total_metas_ano: number; percentual_anual: number; clientes_atendidos_ano: number; } | null>(null);
   
   // Carregar dados reais de clientes e dashboard do usuário logado
   useEffect(() => {
@@ -38,7 +41,11 @@ const Dashboard: React.FC = () => {
         });
         
         // Carregar dados completos do dashboard
-        const dashboardCompleto = await getDashboardCompleto();
+        const [dashboardCompleto, metaAnualData, semVendas180dData] = await Promise.all([
+          getDashboardCompleto(),
+          getPercentualMetaAnual(new Date().getFullYear()),
+          getOticasSemVendas180d()
+        ]);
         
         // Tentar carregar ranking do vendedor separadamente (não-blocking)
         let rankingVendedor = null;
@@ -55,7 +62,8 @@ const Dashboard: React.FC = () => {
             cidadesCount: dashboardCompleto.top10Cidades.length,
             rotasCount: dashboardCompleto.rankingRotas.length
           },
-          vendedorRanking: rankingVendedor
+          vendedorRanking: rankingVendedor,
+          oticasSemVendas180d: semVendas180dData?.count
         });
 
         // Verificar se há dados suficientes
@@ -103,6 +111,9 @@ const Dashboard: React.FC = () => {
         }
 
         setDashboardData(dashboardCompleto);
+        setObjAnualData(metaAnualData);
+        setVendedorRanking(rankingVendedor);
+        setOticasSemVendas180d(semVendas180dData?.count || 0);
         
       } catch (error) {
         console.error('💥 Erro ao carregar dados do dashboard:', {
@@ -230,7 +241,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Meta Geral */}
+            {/* Objetivo Anual */}
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
               <div className="absolute top-3 right-3">
                 <div className="bg-yellow-50 p-2 rounded-full">
@@ -238,17 +249,17 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div className="pr-12">
-                <p className="text-xs font-medium text-gray-600">Meta Geral</p>
+                <p className="text-xs font-medium text-gray-600">Obj Anual</p>
                 <p className="text-xl font-bold text-gray-900 mt-1">
-                  {dashboardData?.metricas ? Math.round(dashboardData.metricas.percentual_meta || 0) : 0}%
+                  {objAnualData?.percentual_anual !== null ? `${objAnualData?.percentual_anual.toFixed(1)}%` : 'N/A'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Média dos clientes
+                  Obj: {objAnualData?.total_metas_ano ? formatarMoeda(objAnualData.total_metas_ano) : 'N/A'}
                 </p>
               </div>
             </div>
 
-            {/* Óticas Sem Vendas +90d */}
+            {/* Óticas Sem Vendas +180d */}
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
               <div className="absolute top-3 right-3">
                 <div className="bg-red-50 p-2 rounded-full">
@@ -256,19 +267,19 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div className="pr-12">
-                <p className="text-xs font-medium text-gray-600">Sem Vendas +90d</p>
+                <p className="text-xs font-medium text-gray-600">Sem Vendas +180d</p>
                 <p className="text-xl font-bold text-red-600 mt-1">
-                  {vendedorRanking?.clientes_sem_vendas_90d || 0} óticas
+                  {oticasSemVendas180d || 0} óticas
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  De {vendedorRanking?.total_clientes || 0} total
+                  VD: {objAnualData?.clientes_atendidos_ano || 0} | De {vendedorRanking?.total_clientes || 0}
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
             <button 
               onClick={() => navigate('/meus-pedidos')}
               className="bg-green-600 text-white p-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
@@ -295,9 +306,21 @@ const Dashboard: React.FC = () => {
         {/* Tabelas de Perfil - Ouro, Prata, Bronze */}
         {!loading && dashboardData?.tabelasPerfil && (
           <div className="space-y-6 mt-12">
+            <div className="my-4">
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Filtrar por Cidade/UF..."
+                        value={filtroCidade}
+                        onChange={(e) => setFiltroCidade(e.target.value)}
+                        className="w-full pl-10 pr-4 py-1 border rounded-lg text-sm shadow-sm"
+                    />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+            </div>
             <div className="grid grid-cols-1 gap-6">
               {dashboardData.tabelasPerfil.map((tabela) => (
-                <TabelaPerfil key={tabela.perfil} dados={tabela} />
+                <TabelaPerfil key={tabela.perfil} dados={tabela} filtroCidade={filtroCidade} />
               ))}
             </div>
           </div>

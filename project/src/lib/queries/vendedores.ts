@@ -102,3 +102,45 @@ export async function getVendedorRanking(): Promise<VendedorRanking | null> {
     throw error;
   }
 }
+
+export interface OticasSemVendas180d {
+  count: number;
+}
+
+export async function getOticasSemVendas180d(): Promise<OticasSemVendas180d | null> {
+  try {
+    console.log('📉 Buscando óticas sem vendas +180 dias...');
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('Usuário não autenticado para buscar óticas sem vendas.');
+    }
+
+    const { data, error } = await supabase
+      .from('vw_oticas_sem_vendas_180d')
+      .select('count')
+      .eq('vendedor_uuid', user.id) // Filtro adicionado
+      .single();
+
+    if (error) {
+      // Not found is not a critical error, can mean 0
+      if (error.code === 'PGRST116') { 
+        console.log('⚠️ Nenhum dado encontrado para óticas sem vendas +180d para este vendedor, retornando 0.');
+        return { count: 0 };
+      }
+      console.error('❌ Erro ao buscar óticas sem vendas +180d:', error);
+      throw error;
+    }
+
+    if (!data) {
+      return { count: 0 };
+    }
+    
+    console.log(`✅ Total de óticas sem vendas +180d: ${data.count}`);
+    return { count: Number(data.count || 0) };
+
+  } catch (error) {
+    console.error('💥 Erro na função getOticasSemVendas180d:', error);
+    throw error;
+  }
+}

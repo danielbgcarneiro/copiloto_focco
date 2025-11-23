@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, Users, LogOut, User, Shield, DollarSign, Target, Calendar, RefreshCw } from 'lucide-react'
+import { BarChart3, Users, LogOut, User, Shield, DollarSign, Target, Calendar, RefreshCw, Search } from 'lucide-react'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores' // Importar a nova função e tipo
+import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores'
+import { getTabelaPerfil, TabelaPerfil } from '../../lib/queries/dashboard'
 
 // Tipos para os dados
 interface MetricasExecutivas {
@@ -40,6 +41,11 @@ interface VendedorRankingSemanal {
   totalSemanal: number
 }
 
+const formatarMoedaSemDecimais = (valor: number) => {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+};
+
+
 const DashboardGestao: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
@@ -50,7 +56,8 @@ const DashboardGestao: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<any[]>([])
   const [vendasSemanais, setVendasSemanais] = useState<any[]>([])
   const [metasData, setMetasData] = useState<any[]>([])
-  const [allVendedores, setAllVendedores] = useState<VendedorProfile[]>([]) // Novo estado para todos os vendedores
+  const [allVendedores, setAllVendedores] = useState<VendedorProfile[]>([])
+
 
   const fetchDashboardData = async (ano: number, mes: number) => {
     setCarregandoDados(true);
@@ -73,7 +80,6 @@ const DashboardGestao: React.FC = () => {
       setMetasData(metasError ? [] : (metas || []));
       if(metasError) console.error('Erro ao buscar metas_vendedores:', metasError);
 
-      // Buscar todos os vendedores
       const vendedores = await getAllVendedores();
       setAllVendedores(vendedores || []);
 
@@ -82,12 +88,14 @@ const DashboardGestao: React.FC = () => {
       setDashboardData([]);
       setVendasSemanais([]);
       setMetasData([]);
-      setAllVendedores([]); // Limpar em caso de erro
+      setAllVendedores([]);
     } finally {
       setCarregandoDados(false);
       setLoading(false);
     }
   };
+
+
 
   useEffect(() => {
     fetchDashboardData(anoAtual, mesAtual);
@@ -168,29 +176,19 @@ const DashboardGestao: React.FC = () => {
   }, [dashboardData]);
 
   const rankingSemanal = useMemo<VendedorRankingSemanal[]>(() => {
-    console.log('DEBUG: Calculando rankingSemanal...');
-    console.log('DEBUG: allVendedores:', allVendedores);
-    console.log('DEBUG: vendasSemanais:', vendasSemanais);
-
-    // Garantir que allVendedores esteja carregado
     if (!allVendedores || allVendedores.length === 0) {
-      console.log('DEBUG: allVendedores está vazio, retornando array vazio para rankingSemanal.');
       return [];
     }
 
     const semanasDoMes = [...new Set(vendasSemanais.map(v => v.semana))].sort((a, b) => a - b);
-    console.log('DEBUG: semanasDoMes (from vendasSemanais):', semanasDoMes);
 
     const mapaSemanasRelativas = semanasDoMes.reduce((acc, semana, index) => {
         acc[semana] = index + 1;
         return acc;
     }, {} as Record<number, number>);
-    console.log('DEBUG: mapaSemanasRelativas:', mapaSemanasRelativas);
 
-    // Iterar sobre todos os vendedores
     const result = allVendedores.map((vendedor) => {
-      const vendasVendedor = vendasSemanais.filter((v: any) => v.codigo_vendedor === vendedor.cod_vendedor); // Corresponder por codigo_vendedor
-      console.log(`DEBUG: Vendas para ${vendedor.apelido || vendedor.nome_completo}:`, vendasVendedor);
+      const vendasVendedor = vendasSemanais.filter((v: any) => v.codigo_vendedor === vendedor.cod_vendedor);
 
       const getVendasPorSemanaRelativa = (semanaRelativa: number) => {
         return vendasVendedor
@@ -208,16 +206,18 @@ const DashboardGestao: React.FC = () => {
       return { nome: vendedor.apelido || vendedor.nome_completo, semana1, semana2, semana3, semana4, semana5, totalSemanal };
     }).sort((a, b) => b.totalSemanal - a.totalSemanal);
 
-    console.log('DEBUG: Resultado final do rankingSemanal:', result);
     return result;
-  }, [vendasSemanais, allVendedores]); // Adicionar allVendedores às dependências
+  }, [vendasSemanais, allVendedores]);
 
   useEffect(() => {
     if (!user) navigate('/login');
     else if (user.cargo !== 'diretor') navigate('/dashboard');
   }, [user, navigate]);
 
-  const atualizarDados = () => fetchDashboardData(anoAtual, mesAtual);
+  const atualizarDados = () => {
+      fetchDashboardData(anoAtual, mesAtual);
+      fetchTabelasPerfil();
+  }
 
   const meses = Array.from({ length: 12 }, (_, i) => ({ valor: i + 1, nome: new Date(0, i).toLocaleString('pt-BR', { month: 'long' }) }));
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
@@ -225,6 +225,8 @@ const DashboardGestao: React.FC = () => {
   if (loading) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
   }
+
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -247,7 +249,6 @@ const DashboardGestao: React.FC = () => {
           <p className="text-sm sm:text-base text-gray-600">Painel executivo com visão geral de toda a operação</p>
         </div>
 
-        {/* Seletor de Período */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900">Período</h3>
@@ -259,7 +260,6 @@ const DashboardGestao: React.FC = () => {
           </div>
         </div>
 
-        {/* Métricas Executivas */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Vendas Totais</p><p className="text-base sm:text-xl font-bold text-gray-900 truncate">R$ {formatarMoeda(metricas.vendasTotais)}</p></div><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" /></div></div>
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Faturadas</p><p className="text-base sm:text-xl font-bold text-blue-900 truncate">R$ {formatarMoeda(metricas.vendasFaturadas)}</p></div><BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" /></div></div>
@@ -268,10 +268,13 @@ const DashboardGestao: React.FC = () => {
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Atingimento</p><p className={`text-base sm:text-xl font-bold truncate ${metricas.atingimentoPercent >= 100 ? 'text-green-900' : 'text-red-900'}`}>{metricas.atingimentoPercent.toFixed(1)}%</p></div><Target className={`h-5 w-5 sm:h-6 sm:w-6 ${metricas.atingimentoPercent >= 100 ? 'text-green-500' : 'text-red-500'}`} /></div></div>
         </div>
 
-        {/* Navegação Rápida para Módulos de Gestão */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Módulos de Gestão</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <button onClick={() => navigate('/metas-por-cliente')} className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg shadow hover:bg-orange-600 transition-colors">
+              <Target className="h-5 w-5 mr-2" />
+              Metas por Cliente
+            </button>
             <button onClick={() => navigate('/acumulado-ano')} className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-colors">
               <Calendar className="h-5 w-5 mr-2" />
               Acumulado do Ano
@@ -287,7 +290,6 @@ const DashboardGestao: React.FC = () => {
           </div>
         </div>
 
-        {/* Performance Individual - Vendas */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Mensal</h3>
           <div className="space-y-4">
@@ -307,7 +309,6 @@ const DashboardGestao: React.FC = () => {
           </div>
         </div>
 
-        {/* Ranking de Vendedores */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Tabela Vendas Mensal</h3>
           <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -336,7 +337,6 @@ const DashboardGestao: React.FC = () => {
           </div>
         </div>
 
-        {/* Gráfico do Mês */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-8 mt-6 sm:mt-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Performance Semanal</h3>
           <div className="h-80">
@@ -368,7 +368,6 @@ const DashboardGestao: React.FC = () => {
           </div>
         </div>
 
-        {/* Ranking Semanal */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Semanal</h3>
           <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -400,6 +399,8 @@ const DashboardGestao: React.FC = () => {
             </table>
           </div>
         </div>
+
+
 
       </main>
     </div>

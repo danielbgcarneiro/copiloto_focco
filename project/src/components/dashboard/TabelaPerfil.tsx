@@ -3,7 +3,8 @@ import { TabelaPerfil as TabelaPerfilType } from '../../lib/queries/dashboard'
 import { formatarMoeda } from '../../lib/queries/dashboard'
 
 interface TabelaPerfilProps {
-  dados: TabelaPerfilType
+  dados: TabelaPerfilType;
+  filtroCidade: string;
 }
 
 const corPerfil = {
@@ -14,14 +15,23 @@ const corPerfil = {
 
 type SortKey = keyof TabelaPerfilType['clientes'][0];
 
-export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados }) => {
+export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados, filtroCidade }) => {
   const cores = corPerfil[dados.perfil]
   const nomeCapitalizado = dados.perfil.charAt(0).toUpperCase() + dados.perfil.slice(1)
 
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' } | null>({ key: 'percentual', direction: 'descending' });
 
+  const filteredClientes = useMemo(() => {
+    if (!filtroCidade) {
+      return dados.clientes;
+    }
+    return dados.clientes.filter(cliente =>
+      cliente.cidade_uf.toLowerCase().includes(filtroCidade.toLowerCase())
+    );
+  }, [dados.clientes, filtroCidade]);
+
   const sortedClientes = useMemo(() => {
-    let sortableItems = [...dados.clientes];
+    let sortableItems = [...filteredClientes];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         if (a[sortConfig.key] < b[sortConfig.key]) {
@@ -34,7 +44,7 @@ export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados }) => {
       });
     }
     return sortableItems;
-  }, [dados.clientes, sortConfig]);
+  }, [filteredClientes, sortConfig]);
 
   const requestSort = (key: SortKey) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -75,7 +85,7 @@ export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados }) => {
                 <tr className="border-b-2 border-gray-300">
                   <th className="px-2 py-0.5 text-left font-normal"></th>
                   <th className="px-2 py-0.5 text-left font-normal">
-                    <p className="text-[0.65rem] sm:text-xs font-bold">{dados.totalClientes} clientes</p>
+                    <p className="text-[0.65rem] sm:text-xs font-bold">{sortedClientes.length} clientes</p>
                   </th>
                   <th className="px-2 py-0.5 text-left font-normal"></th>
                   <th className="px-2 py-0.5 text-right font-normal">

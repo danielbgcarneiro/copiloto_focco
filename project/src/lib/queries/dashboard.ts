@@ -32,6 +32,8 @@ export interface ClientePerfil {
   objetivo: number;
   vendas: number;
   percentual: number;
+  cod_vendedor?: number; // Changed to number
+  apelido_vendedor?: string; // Added for filtering in Gestao
 }
 
 export interface TabelaPerfil {
@@ -440,6 +442,133 @@ export async function getTabelaPerfil(perfil: 'ouro' | 'prata' | 'bronze'): Prom
   }
 }
 
+// Helper function to fetch all records with pagination
+async function fetchAll(query: any) {
+  const BATCH_SIZE = 1000;
+  let allData: any[] = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await query.range(offset, offset + BATCH_SIZE - 1);
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      allData = allData.concat(data);
+      offset += BATCH_SIZE;
+    } else {
+      hasMore = false;
+    }
+  }
+  return allData;
+}
+
+export async function getTabelasPerfilParaGestao(): Promise<TabelaPerfil[]> {
+  try {
+    console.log('📋 Buscando todos os clientes para gestão com paginação...');
+
+    // 1) Buscar todos os perfis de vendedores
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('cod_vendedor, apelido');
+
+    if (profilesError) {
+      console.error('❌ Erro ao buscar profiles:', profilesError);
+      return [];
+    }
+    const vendedoresMap = new Map<string, string>();
+    profilesData.forEach(p => vendedoresMap.set(p.cod_vendedor, p.apelido));
+
+    // 2) Buscar todos os clientes com paginação
+    console.log('📋 Buscando tabela_clientes com paginação...');
+    const clientesInfo = await fetchAll(
+      supabase.from('tabela_clientes').select('codigo_cliente, nome_fantasia, cidade, cod_vendedor')
+    );
+    console.log(`✅ ${clientesInfo.length} registros de clientes encontrados.`);
+
+    const clientesMap = new Map<number, any>();
+    clientesInfo.forEach(c => clientesMap.set(c.codigo_cliente, c));
+
+    // 3) Buscar todos os registros em analise_rfm com paginação
+    console.log('📋 Buscando analise_rfm com paginação...');
+    const rfmData = await fetchAll(
+      supabase.from('analise_rfm').select('codigo_cliente, meta_ano_atual, valor_ano_atual, percentual_atingimento, perfil')
+    );
+    console.log(`✅ ${rfmData.length} registros de RFM encontrados.`);
+
+    const ouroClientes: ClientePerfil[] = [];
+    const prataClientes: ClientePerfil[] = [];
+    const bronzeClientes: ClientePerfil[] = [];
+
+    let somaObjetivoOuro = 0;
+    let somaVendasOuro = 0;
+    let somaObjetivoPrata = 0;
+    let somaVendasPrata = 0;
+    let somaObjetivoBronze = 0;
+    let somaVendasBronze = 0;
+
+    rfmData.forEach(rfm => {
+      const info = clientesMap.get(rfm.codigo_cliente);
+      if (!info) return; // Skip if client info not found
+
+      const objetivo = Number(rfm.meta_ano_atual || 0);
+      const vendas = Number(rfm.valor_ano_atual || 0);
+      const percentual = objetivo > 0 ? (vendas / objetivo) * 100 : 0;
+
+      const clientePerfil: ClientePerfil = {
+        codigo_cliente: rfm.codigo_cliente,
+        nome_fantasia: info.nome_fantasia || 'N/A',
+        cidade_uf: info.cidade || 'N/A',
+        objetivo,
+        vendas,
+        percentual: Math.round(percentual * 100) / 100,
+        cod_vendedor: Number(info.cod_vendedor), // Ensure it's a number
+        apelido_vendedor: vendedoresMap.get(info.cod_vendedor) || 'N/A', // Add apelido_vendedor
+      };
+
+      if (rfm.perfil === '30') { // Ouro
+        ouroClientes.push(clientePerfil);
+        somaObjetivoOuro += objetivo;
+        somaVendasOuro += vendas;
+      } else if (rfm.perfil === '10') { // Prata
+        prataClientes.push(clientePerfil);
+        somaObjetivoPrata += objetivo;
+        somaVendasPrata += vendas;
+      } else if (rfm.perfil === '5') { // Bronze
+        bronzeClientes.push(clientePerfil);
+        somaObjetivoBronze += objetivo;
+        somaVendasBronze += vendas;
+      }
+    });
+
+    const calcularTabelaPerfil = (perfil: 'ouro' | 'prata' | 'bronze', clientes: ClientePerfil[], somaObjetivo: number, somaVendas: number): TabelaPerfil => {
+      const totalClientes = clientes.length;
+      const percentualGeral = somaObjetivo > 0 ? (somaVendas / somaObjetivo) * 100 : 0;
+      return {
+        perfil,
+        totalClientes,
+        somaObjetivo,
+        somaVendas,
+        percentualGeral: Math.round(percentualGeral * 100) / 100,
+        clientes,
+      };
+    };
+
+    const tabelas: TabelaPerfil[] = [
+      calcularTabelaPerfil('ouro', ouroClientes, somaObjetivoOuro, somaVendasOuro),
+      calcularTabelaPerfil('prata', prataClientes, somaObjetivoPrata, somaVendasPrata),
+      calcularTabelaPerfil('bronze', bronzeClientes, somaObjetivoBronze, somaVendasBronze),
+    ];
+
+    console.log('✅ Todos os clientes para gestão carregados e categorizados.');
+    return tabelas;
+
+  } catch (error) {
+    console.error('💥 Erro ao buscar todos os clientes para gestão:', error);
+    throw error;
+  }
+}
+
 export async function getDashboardCompleto(): Promise<DashboardData> {
   try {
     console.log('🔍 Carregando dados completos do dashboard...');
@@ -483,6 +612,17 @@ export async function getDashboardCompleto(): Promise<DashboardData> {
     console.error('💥 Erro ao carregar dashboard completo:', error);
     throw error;
   }
+}
+
+export async function getPercentualMetaAnual(ano: number): Promise<{ total_vendas_ano: number; total_metas_ano: number; percentual_anual: number } | null> {
+  const { data, error } = await supabase.rpc('get_percentual_meta_anual', { ano_param: ano });
+
+  if (error) {
+    console.error('Erro ao buscar percentual da meta anual:', error);
+    return null;
+  }
+
+  return data && data.length > 0 ? data[0] : null;
 }
 
 // Função auxiliar para formatação de moeda
