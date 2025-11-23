@@ -21,7 +21,7 @@ const Dashboard: React.FC = () => {
   const [isCarregando, setIsCarregando] = useState(false)
   const [showTestViews, setShowTestViews] = useState(false)
   const [filtroCidade, setFiltroCidade] = useState('');
-  const [objAnualData, setObjAnualData] = useState<{ total_vendas_ano: number; total_metas_ano: number; percentual_anual: number; clientes_atendidos_ano: number; } | null>(null);
+  const [objAnualData, setObjAnualData] = useState<{ total_vendas_ano?: number; total_metas_ano?: number; percentual_anual?: number; clientes_atendidos_ano: number; } | null>(null);
   
   // Carregar dados reais de clientes e dashboard do usuário logado
   useEffect(() => {
