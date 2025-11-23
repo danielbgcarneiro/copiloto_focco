@@ -111,7 +111,10 @@ const Dashboard: React.FC = () => {
         }
 
         setDashboardData(dashboardCompleto);
-        setObjAnualData(metaAnualData);
+        setObjAnualData({
+          ...metaAnualData, // Mantém os campos existentes de metaAnualData
+          clientes_atendidos_ano: semVendas180dData?.clientesAtendidosAnoCount || 0, // Adiciona o novo campo
+        });
         setVendedorRanking(rankingVendedor);
         setOticasSemVendas180d(semVendas180dData?.count || 0);
         
