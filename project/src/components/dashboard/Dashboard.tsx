@@ -40,6 +40,8 @@ const Dashboard: React.FC = () => {
           cargo: user?.cargo
         });
         
+
+        
         // Carregar dados completos do dashboard
         const [dashboardCompleto, metaAnualData, semVendas180dData] = await Promise.all([
           getDashboardCompleto(),
@@ -72,49 +74,16 @@ const Dashboard: React.FC = () => {
           console.warn('⚠️ Nenhum dado encontrado - possível problema com RLS');
         }
 
-        // Mock temporário para desenvolvimento: quando o usuário for o vendedor
-        // Misterclaudio (id '16') e não houver dados nos perfis, injetamos um
-        // exemplo de 1 linha para facilitar testes locais.
-        try {
-          if (process.env.NODE_ENV === 'development' && user?.id === '16') {
-            const hasPerfilData = Array.isArray(dashboardCompleto.tabelasPerfil) &&
-              dashboardCompleto.tabelasPerfil.some(t => t.totalClientes && t.totalClientes > 0);
 
-            if (!hasPerfilData) {
-              const mockOuro = {
-                perfil: 'ouro',
-                totalClientes: 1,
-                somaObjetivo: 120000,
-                somaVendas: 90000,
-                percentualGeral: 75,
-                clientes: [
-                  {
-                    codigo_cliente: 100476,
-                    nome_fantasia: 'Ótica Exemplo LTDA',
-                    cidade_uf: 'Fortaleza/CE',
-                    objetivo: 120000,
-                    vendas: 90000,
-                    percentual: 75
-                  }
-                ]
-              } as TabelaPerfilType;
-
-              const emptyPrata = { perfil: 'prata', totalClientes: 0, somaObjetivo: 0, somaVendas: 0, percentualGeral: 0, clientes: [] } as TabelaPerfilType;
-              const emptyBronze = { perfil: 'bronze', totalClientes: 0, somaObjetivo: 0, somaVendas: 0, percentualGeral: 0, clientes: [] } as TabelaPerfilType;
-
-              dashboardCompleto.tabelasPerfil = [mockOuro, emptyPrata, emptyBronze];
-              console.log('🧪 Mock de perfil injetado para Misterclaudio (dev)');
-            }
-          }
-        } catch (mockErr) {
-          console.warn('⚠️ Falha ao injetar mock temporário:', mockErr);
-        }
 
         setDashboardData(dashboardCompleto);
         setObjAnualData({
           ...metaAnualData, // Mantém os campos existentes de metaAnualData
           clientes_atendidos_ano: semVendas180dData?.clientesAtendidosAnoCount || 0, // Adiciona o novo campo
         });
+
+        setOticasSemVendas180d(semVendas180dData?.count || 0); // CORREÇÃO: Atualiza o estado com os dados do ranking do vendedor
+        setVendedorRanking(rankingVendedor); // CORREÇÃO: Atualiza o estado com os dados do ranking do vendedor
 
         
       } catch (error) {
@@ -146,6 +115,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+
       {/* Modal de teste de views */}
       {showTestViews && <TestViews />}
       {/* Header */}
