@@ -91,18 +91,19 @@ const Inadimplentes: React.FC = () => {
   const filteredInadimplentes = inadimplentes
     .filter(inadimplente => {
       const normalizedSearchTerm = normalizeText(searchTerm)
-      return normalizeText(inadimplente.nome).includes(normalizedSearchTerm) ||
+      return normalizedSearchTerm === '' || // Permite que a busca vazia retorne todos os resultados
+             normalizeText(inadimplente.nome).includes(normalizedSearchTerm) ||
              normalizeText(inadimplente.codigo).includes(normalizedSearchTerm) ||
-             normalizeText(inadimplente.rota).includes(normalizedSearchTerm)
+             // normalizedSearchTerm(inadimplente.rota).includes(normalizedSearchTerm) || // Rota removida
+             normalizeText(inadimplente.cidade).includes(normalizedSearchTerm)
     })
     .sort((a, b) => {
       switch (sortBy) {
-        case 'rota':
-          return a.rota.localeCompare(b.rota)
+        // case 'rota': -- Rota removida como critério de ordenação
         case 'valor-maior':
           return parseFloat(b.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.')) - parseFloat(a.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.'))
         case 'valor-menor':
-          return parseFloat(a.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.')) - parseFloat(b.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.'))
+          return parseFloat(a.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.')) - parseFloat(a.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.'))
         case 'az':
           return a.nome.localeCompare(b.nome)
         case 'za':
@@ -181,7 +182,7 @@ const Inadimplentes: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar inadimplentes..."
+              placeholder="Nome / Código / Cidade"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -198,7 +199,7 @@ const Inadimplentes: React.FC = () => {
               <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-32">
                 <button
                   className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
-                  onClick={() => { setSortBy('rota'); setShowFilterMenu(false) }}
+                  onClick={(e) => { e.stopPropagation(); setSortBy('rota'); setShowFilterMenu(false) }}
                 >
                   Rota
                 </button>
