@@ -237,7 +237,7 @@ const MetasPorCliente: React.FC = () => {
                     >
                         <option value="">Todos os Vendedores</option>
                         {allVendedores.map(vendedor => (
-                            <option key={vendedor.cod_vendedor} value={vendedor.cod_vendedor}>
+                            <option key={vendedor.cod_vendedor ?? ""} value={vendedor.cod_vendedor ?? ""}>
                                 {vendedor.apelido || vendedor.nome_completo}
                             </option>
                         ))}

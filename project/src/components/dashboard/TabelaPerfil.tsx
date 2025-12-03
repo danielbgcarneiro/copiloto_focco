@@ -34,12 +34,16 @@ export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados, filtroCidade 
     let sortableItems = [...filteredClientes];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'ascending' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'ascending' ? 1 : -1;
-        }
+        if (!sortConfig?.key) return 0;
+
+        const key = sortConfig.key;
+
+        // valores garantidos com fallback
+        const av = a?.[key] ?? 0;
+        const bv = b?.[key] ?? 0;
+
+        if (av < bv) return sortConfig.direction === "ascending" ? -1 : 1;
+        if (av > bv) return sortConfig.direction === "ascending" ? 1 : -1;
         return 0;
       });
     }

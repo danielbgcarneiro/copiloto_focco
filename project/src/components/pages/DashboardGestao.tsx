@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, Users, LogOut, User, Shield, DollarSign, Target, Calendar, RefreshCw, Search } from 'lucide-react'
+import { BarChart3, Users, LogOut, User, Shield, DollarSign, Target, Calendar, RefreshCw } from 'lucide-react'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores'
-import { getTabelaPerfil, TabelaPerfil } from '../../lib/queries/dashboard'
 
 // Tipos para os dados
 interface MetricasExecutivas {
@@ -13,6 +12,8 @@ interface MetricasExecutivas {
   vendasFaturadas: number
   vendasAFaturar: number
   clientesAtendidos: number
+  clientesFaturados: number
+  clientesAFaturar: number
   atingimentoPercent: number
 }
 
@@ -41,10 +42,6 @@ interface VendedorRankingSemanal {
   totalSemanal: number
 }
 
-const formatarMoedaSemDecimais = (valor: number) => {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-};
-
 
 const DashboardGestao: React.FC = () => {
   const navigate = useNavigate()
@@ -57,6 +54,7 @@ const DashboardGestao: React.FC = () => {
   const [vendasSemanais, setVendasSemanais] = useState<any[]>([])
   const [metasData, setMetasData] = useState<any[]>([])
   const [allVendedores, setAllVendedores] = useState<VendedorProfile[]>([])
+  const [detailedClientCounts, setDetailedClientCounts] = useState({ faturados: 0, aberto: 0 });
 
 
   const fetchDashboardData = async (ano: number, mes: number) => {
@@ -83,12 +81,31 @@ const DashboardGestao: React.FC = () => {
       const vendedores = await getAllVendedores();
       setAllVendedores(vendedores || []);
 
+      // Nova consulta para detailedClientCounts da tabela vendas_mes
+      const startDate = new Date(ano, mes - 1, 1).toISOString();
+      const endDate = new Date(ano, mes, 0).toISOString();
+      const { data: vendasMesData, error: vendasMesError } = await supabase
+        .from('vendas_mes')
+        .select('qtd_clientes_faturados, qtd_clientes_aberto')
+        .gte('mes_referencia', startDate)
+        .lte('mes_referencia', endDate);
+
+      if(vendasMesError) {
+        console.error('Erro ao buscar detailedClientCounts de vendas_mes:', vendasMesError);
+        setDetailedClientCounts({ faturados: 0, aberto: 0 });
+      } else {
+        const totalFaturados = vendasMesData.reduce((sum, item) => sum + (item.qtd_clientes_faturados || 0), 0);
+        const totalAberto = vendasMesData.reduce((sum, item) => sum + (item.qtd_clientes_aberto || 0), 0);
+        setDetailedClientCounts({ faturados: totalFaturados, aberto: totalAberto });
+      }
+
     } catch (error) {
       console.error('Erro geral ao buscar dados do dashboard:', error);
       setDashboardData([]);
       setVendasSemanais([]);
       setMetasData([]);
       setAllVendedores([]);
+      setDetailedClientCounts({ faturados: 0, aberto: 0 }); // Resetar também em caso de erro geral
     } finally {
       setCarregandoDados(false);
       setLoading(false);
@@ -113,7 +130,7 @@ const DashboardGestao: React.FC = () => {
 
   const metricas = useMemo<MetricasExecutivas>(() => {
     if (!dashboardData || dashboardData.length === 0) {
-      return { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, atingimentoPercent: 0 };
+      return { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, clientesFaturados: 0, clientesAFaturar: 0, atingimentoPercent: 0 };
     }
     const totais = dashboardData.reduce((acc, vendedor) => {
       acc.vendasTotais += vendedor.total_vendas || 0;
@@ -123,9 +140,14 @@ const DashboardGestao: React.FC = () => {
       acc.metaTotal += vendedor.meta_mensal || 0;
       return acc;
     }, { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, metaTotal: 0 });
+    
+    // Estas contagens específicas de clientes vêm do estado detailedClientCounts separado
+    totais.clientesFaturados = detailedClientCounts.faturados;
+    totais.clientesAFaturar = detailedClientCounts.aberto;
+
     const atingimentoGeral = totais.metaTotal > 0 ? (totais.vendasFaturadas / totais.metaTotal) * 100 : 0;
     return { ...totais, atingimentoPercent: atingimentoGeral };
-  }, [dashboardData]);
+  }, [dashboardData, detailedClientCounts]); // Adicionar detailedClientCounts às dependências
 
   const dadosSemanas = useMemo<DadosSemana[]>(() => {
     const metaMensalTotal = metasData.reduce((sum, meta) => sum + (meta.meta_valor || 0), 0);
@@ -216,7 +238,7 @@ const DashboardGestao: React.FC = () => {
 
   const atualizarDados = () => {
       fetchDashboardData(anoAtual, mesAtual);
-      fetchTabelasPerfil();
+      // fetchTabelasPerfil(); // Removido: função inexistente e não utilizada neste componente
   }
 
   const meses = Array.from({ length: 12 }, (_, i) => ({ valor: i + 1, nome: new Date(0, i).toLocaleString('pt-BR', { month: 'long' }) }));
@@ -262,8 +284,8 @@ const DashboardGestao: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Vendas Totais</p><p className="text-base sm:text-xl font-bold text-gray-900 truncate">R$ {formatarMoeda(metricas.vendasTotais)}</p></div><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" /></div></div>
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Faturadas</p><p className="text-base sm:text-xl font-bold text-blue-900 truncate">R$ {formatarMoeda(metricas.vendasFaturadas)}</p></div><BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" /></div></div>
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">A Faturar</p><p className="text-base sm:text-xl font-bold text-orange-900 truncate">R$ {formatarMoeda(metricas.vendasAFaturar)}</p></div><Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" /></div></div>
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Faturadas</p><p className="text-base sm:text-xl font-bold text-blue-900 truncate">R$ {formatarMoeda(metricas.vendasFaturadas)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesFaturados}</p></div><BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" /></div></div>
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">A Faturar</p><p className="text-base sm:text-xl font-bold text-orange-900 truncate">R$ {formatarMoeda(metricas.vendasAFaturar)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesAFaturar}</p></div><Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" /></div></div>
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Clientes</p><p className="text-base sm:text-xl font-bold text-purple-900 truncate">{metricas.clientesAtendidos}</p></div><Users className="h-5 w-5 sm:h-6 sm:w-6 text-purple-500" /></div></div>
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Atingimento</p><p className={`text-base sm:text-xl font-bold truncate ${metricas.atingimentoPercent >= 100 ? 'text-green-900' : 'text-red-900'}`}>{metricas.atingimentoPercent.toFixed(1)}%</p></div><Target className={`h-5 w-5 sm:h-6 sm:w-6 ${metricas.atingimentoPercent >= 100 ? 'text-green-500' : 'text-red-500'}`} /></div></div>
         </div>
