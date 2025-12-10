@@ -60,25 +60,46 @@ const DashboardGestao: React.FC = () => {
   const fetchDashboardData = async (ano: number, mes: number) => {
     setCarregandoDados(true);
     try {
+      console.log(`📥 [fetchDashboardData] Iniciando busca para ${mes}/${ano}`);
+
+      // 1. Buscar dados históricos
       const { data: dashData, error: dashError } = await supabase
         .from('vw_gestao_historico_mensal')
         .select('*').eq('ano', ano).eq('mes', mes);
       setDashboardData(dashError ? [] : (dashData || []));
       if(dashError) console.error('Erro ao buscar vw_gestao_historico_mensal:', dashError);
+      else console.log(`✅ vw_gestao_historico_mensal: ${dashData?.length || 0} registros`);
 
+      // 2. Buscar vendas semanais
       const { data: vendasData, error: vendasError } = await supabase
         .from('vendas_semanais')
         .select('*').eq('ano', ano).eq('mes', mes);
+      console.log(`📊 vendas_semanais retornou:`, { count: vendasData?.length || 0, erro: vendasError, primeiroRegistro: vendasData?.[0] });
+      console.log(`🔍 ESTRUTURA DO PRIMEIRO REGISTRO:`, Object.keys(vendasData?.[0] || {}));
+      console.log(`💾 VALORES DISPONÍVEIS:`, {
+        valor_total: vendasData?.[0]?.valor_total,
+        valor_vendas: vendasData?.[0]?.valor_vendas,
+        valor: vendasData?.[0]?.valor,
+        vendas: vendasData?.[0]?.vendas,
+        semana: vendasData?.[0]?.semana,
+        codigo_vendedor: vendasData?.[0]?.codigo_vendedor,
+        allKeys: vendasData?.[0]
+      });
       setVendasSemanais(vendasError ? [] : (vendasData || []));
       if(vendasError) console.error('Erro ao buscar vendas_semanais:', vendasError);
 
+      // 3. Buscar metas
       const { data: metas, error: metasError } = await supabase
         .from('metas_vendedores')
         .select('meta_valor').eq('ano', ano).eq('mes', mes);
       setMetasData(metasError ? [] : (metas || []));
       if(metasError) console.error('Erro ao buscar metas_vendedores:', metasError);
+      else console.log(`✅ metas_vendedores: ${metas?.length || 0} registros`);
 
+      // 4. Buscar TODOS os vendedores (IMPORTANTE: isso atualiza allVendedores)
+      console.log(`📍 Buscando vendedores ANTES de atualizar estado...`);
       const vendedores = await getAllVendedores();
+      console.log(`👥 getAllVendedores retornou:`, { count: vendedores?.length || 0, primeiro: vendedores?.[0] });
       setAllVendedores(vendedores || []);
 
       // Nova consulta para detailedClientCounts da tabela vendas_mes
@@ -198,36 +219,63 @@ const DashboardGestao: React.FC = () => {
   }, [dashboardData]);
 
   const rankingSemanal = useMemo<VendedorRankingSemanal[]>(() => {
+    console.log('🔍 [rankingSemanal] Reconstruindo ranking...', {
+      vendedoresCount: allVendedores?.length || 0,
+      vendasSemanaisCount: vendasSemanais?.length || 0,
+      primeiroVendedor: allVendedores?.[0],
+      primeiraVenda: vendasSemanais?.[0]
+    });
+
     if (!allVendedores || allVendedores.length === 0) {
+      console.warn('⚠️ [rankingSemanal] Sem vendedores disponíveis');
       return [];
     }
-
-    const semanasDoMes = [...new Set(vendasSemanais.map(v => v.semana))].sort((a, b) => a - b);
-
-    const mapaSemanasRelativas = semanasDoMes.reduce((acc, semana, index) => {
-        acc[semana] = index + 1;
-        return acc;
-    }, {} as Record<number, number>);
 
     const result = allVendedores.map((vendedor) => {
       const vendasVendedor = vendasSemanais.filter((v: any) => v.codigo_vendedor === vendedor.cod_vendedor);
 
-      const getVendasPorSemanaRelativa = (semanaRelativa: number) => {
-        return vendasVendedor
-          .filter(v => mapaSemanasRelativas[v.semana] === semanaRelativa)
-          .reduce((sum, v) => sum + v.valor_total, 0);
+      // Extrair número da semana (\"1ª Semana\" -> 1, \"2ª Semana\" -> 2, etc.)
+      const extrairNumeroDaSemana = (semana: string | number): number => {
+        if (typeof semana === 'number') return semana;
+        const match = String(semana).match(/^(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
       }
 
-      const semana1 = getVendasPorSemanaRelativa(1);
-      const semana2 = getVendasPorSemanaRelativa(2);
-      const semana3 = getVendasPorSemanaRelativa(3);
-      const semana4 = getVendasPorSemanaRelativa(4);
-      const semana5 = getVendasPorSemanaRelativa(5);
+      console.log(`📊 [rankingSemanal] ${vendedor.apelido}:`, {
+        cod_vendedor: vendedor.cod_vendedor,
+        vendasEncontradas: vendasVendedor.length,
+        primeiraVenda: vendasVendedor[0],
+        semanasExtraidas: vendasVendedor.map(v => ({ original: v.semana, numero: extrairNumeroDaSemana(v.semana) }))
+      });
+
+      // Tentar encontrar o campo correto de valor
+      const getCampoValor = (venda: any) => {
+        return venda.valor_total ?? venda.valor_vendas ?? venda.valor ?? venda.vendas ?? 0;
+      }
+
+      // Usar o número real da semana do banco de dados
+      const getVendasPorSemana = (numeroSemana: number) => {
+        const vendas = vendasVendedor
+          .filter(v => extrairNumeroDaSemana(v.semana) === numeroSemana)
+          .reduce((sum, v) => sum + getCampoValor(v), 0);
+        return vendas;
+      }
+
+      const semana1 = getVendasPorSemana(1);
+      const semana2 = getVendasPorSemana(2);
+      const semana3 = getVendasPorSemana(3);
+      const semana4 = getVendasPorSemana(4);
+      const semana5 = getVendasPorSemana(5);
       const totalSemanal = semana1 + semana2 + semana3 + semana4 + semana5;
+
+      if (totalSemanal > 0) {
+        console.log(`  ✅ ${vendedor.apelido}: s1=${semana1}, s2=${semana2}, s3=${semana3}, s4=${semana4}, s5=${semana5}, total=${totalSemanal}`);
+      }
 
       return { nome: vendedor.apelido || vendedor.nome_completo, semana1, semana2, semana3, semana4, semana5, totalSemanal };
     }).sort((a, b) => b.totalSemanal - a.totalSemanal);
 
+    console.log('✅ [rankingSemanal] Final:', result);
     return result;
   }, [vendasSemanais, allVendedores]);
 
