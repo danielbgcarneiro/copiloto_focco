@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, User, Shield, ChevronDown, ChevronUp, TrendingUp, MapPin, UserCheck, Home, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -37,9 +37,21 @@ const PagAcumuladoAno: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [expandidoRealizado, setExpandidoRealizado] = useState<string | null>(null)
-  const [expandidoClientes, setExpandidoClientes] = useState<string | null>(null)
   const [anoAtual] = useState(new Date().getFullYear())
+  const [selectedAno, setSelectedAno] = useState(2025)
+  const [selectedVendedores, setSelectedVendedores] = useState<string[]>([
+    'João Silva',
+    'Maria Santos',
+    'Pedro Costa',
+    'Ana Oliveira',
+    'Carlos Lima'
+  ])
+  const [expandidoVendedores, setExpandidoVendedores] = useState(false)
+  const [expandidoVendedoresClientes, setExpandidoVendedoresClientes] = useState(false)
+
+  // Refs para detectar cliques fora dos dropdowns
+  const dropdownVendedoresRef = useRef<HTMLDivElement>(null)
+  const dropdownVendedoresClientesRef = useRef<HTMLDivElement>(null)
 
   const [dadosRealizados] = useState<DadosMensal[]>([
     {
@@ -229,19 +241,68 @@ const PagAcumuladoAno: React.FC = () => {
   })
 
   const calcularTotaisAno = () => {
-    const totalMeta = dadosRealizados.reduce((acc, mes) => acc + mes.meta, 0)
-    const totalVendas = dadosRealizados.reduce((acc, mes) => acc + mes.vendas, 0)
+    const totalMeta = filteredDadosRealizados.reduce((acc, mes) => acc + mes.meta, 0)
+    const totalVendas = filteredDadosRealizados.reduce((acc, mes) => acc + mes.vendas, 0)
     const atingimentoGeral = (totalVendas / totalMeta) * 100
 
     return { totalMeta, totalVendas, atingimentoGeral }
   }
 
   const calcularTotaisClientesAno = () => {
-    const total2024 = dadosClientesUnicos.reduce((acc, mes) => acc + mes.total2024, 0)
-    const total2025 = dadosClientesUnicos.reduce((acc, mes) => acc + mes.total2025, 0)
+    const total2024 = filteredDadosClientesUnicos.reduce((acc, mes) => acc + mes.total2024, 0)
+    const total2025 = filteredDadosClientesUnicos.reduce((acc, mes) => acc + mes.total2025, 0)
 
     return { total2024, total2025 }
   }
+
+  // Filtering logic for Realizado
+  const filteredDadosRealizados = useMemo(() => {
+    return dadosRealizados.map((mes) => ({
+      ...mes,
+      vendedores: mes.vendedores.filter((v) => selectedVendedores.includes(v.nome)),
+      meta: mes.vendedores
+        .filter((v) => selectedVendedores.includes(v.nome))
+        .reduce((acc, v) => acc + v.meta, 0),
+      vendas: mes.vendedores
+        .filter((v) => selectedVendedores.includes(v.nome))
+        .reduce((acc, v) => acc + v.vendas, 0),
+      atingimento: (() => {
+        const filteredVendedores = mes.vendedores.filter((v) => selectedVendedores.includes(v.nome))
+        const totalMeta = filteredVendedores.reduce((acc, v) => acc + v.meta, 0)
+        const totalVendas = filteredVendedores.reduce((acc, v) => acc + v.vendas, 0)
+        return totalMeta > 0 ? (totalVendas / totalMeta) * 100 : 0
+      })()
+    }))
+  }, [dadosRealizados, selectedVendedores])
+
+  // Filtering logic for Clientes Únicos
+  const filteredDadosClientesUnicos = useMemo(() => {
+    return dadosClientesUnicos.map((mes) => ({
+      ...mes,
+      vendedores: mes.vendedores.filter((v) => selectedVendedores.includes(v.nome)),
+      total2024: mes.vendedores
+        .filter((v) => selectedVendedores.includes(v.nome))
+        .reduce((acc, v) => acc + v.clientes2024, 0),
+      total2025: mes.vendedores
+        .filter((v) => selectedVendedores.includes(v.nome))
+        .reduce((acc, v) => acc + v.clientes2025, 0)
+    }))
+  }, [dadosClientesUnicos, selectedVendedores])
+
+  // Fechar dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownVendedoresRef.current && !dropdownVendedoresRef.current.contains(event.target as Node)) {
+        setExpandidoVendedores(false)
+      }
+      if (dropdownVendedoresClientesRef.current && !dropdownVendedoresClientesRef.current.contains(event.target as Node)) {
+        setExpandidoVendedoresClientes(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     if (!user) {
@@ -359,7 +420,79 @@ const PagAcumuladoAno: React.FC = () => {
 
         {/* Realizado 2025 */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Realizado ({anoAtual})</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Realizado ({anoAtual})</h3>
+            
+            {/* Filtros dentro da tabela */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full sm:w-auto">
+              {/* Ano Filter */}
+              <div>
+                <select
+                  value={selectedAno}
+                  onChange={(e) => setSelectedAno(parseInt(e.target.value))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm"
+                >
+                  <option value={2024}>2024</option>
+                  <option value={2025}>2025</option>
+                </select>
+              </div>
+
+              {/* Vendedor Filter */}
+              {expandidoVendedores ? (
+                <div className="relative" ref={dropdownVendedoresRef}>
+                  <button
+                    onClick={() => setExpandidoVendedores(!expandidoVendedores)}
+                    className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm flex items-center justify-between"
+                  >
+                    <span>
+                      <span className="font-semibold">Vendedores</span>
+                      <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
+                        {selectedVendedores.length}/{5}
+                      </span>
+                    </span>
+                    <ChevronUp className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
+                  </button>
+
+                  <div className="absolute top-full left-0 right-0 mt-1 border border-gray-300 rounded-lg bg-white p-3 space-y-2 z-10 shadow-lg">
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                      {['João Silva', 'Maria Santos', 'Pedro Costa', 'Ana Oliveira', 'Carlos Lima'].map((vendedor) => (
+                        <label key={vendedor} className="flex items-center cursor-pointer group text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedVendedores.includes(vendedor)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedVendedores([...selectedVendedores, vendedor])
+                              } else {
+                                setSelectedVendedores(selectedVendedores.filter(v => v !== vendedor))
+                              }
+                            }}
+                            className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-2 focus:ring-primary focus:ring-offset-0 cursor-pointer transition-all"
+                          />
+                          <span className="ml-2 text-gray-700 group-hover:text-primary transition-colors">{vendedor}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div ref={dropdownVendedoresRef}>
+                  <button
+                    onClick={() => setExpandidoVendedores(!expandidoVendedores)}
+                    className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm flex items-center justify-between"
+                  >
+                    <span>
+                      <span className="font-semibold">Vendedores</span>
+                      <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
+                        {selectedVendedores.length}/{5}
+                      </span>
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
           
           <div className="overflow-x-auto">
             <table className="w-full min-w-full">
@@ -369,11 +502,10 @@ const PagAcumuladoAno: React.FC = () => {
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Meta</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Vendas</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Atingimento</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700 w-12"></th>
                 </tr>
               </thead>
               <tbody>
-                {dadosRealizados.map((mesData) => (
+                {filteredDadosRealizados.map((mesData) => (
                   <React.Fragment key={mesData.mes}>
                     <tr className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4 font-medium text-gray-900">{mesData.mes}</td>
@@ -387,54 +519,7 @@ const PagAcumuladoAno: React.FC = () => {
                           {mesData.atingimento.toFixed(1)}%
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => setExpandidoRealizado(expandidoRealizado === mesData.mes ? null : mesData.mes)}
-                          className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-full transition-all duration-200"
-                        >
-                          {expandidoRealizado === mesData.mes ? (
-                            <ChevronUp className="h-5 w-5" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5" />
-                          )}
-                        </button>
-                      </td>
                     </tr>
-                    {expandidoRealizado === mesData.mes && (
-                      <tr>
-                        <td colSpan={5} className="py-4 px-4 bg-gray-50">
-                          <div className="overflow-x-auto">
-                            <table className="w-full min-w-full">
-                              <thead>
-                                <tr className="border-b border-gray-300">
-                                  <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Vendedor</th>
-                                  <th className="text-right py-2 px-3 text-sm font-semibold text-gray-700">Meta</th>
-                                  <th className="text-right py-2 px-3 text-sm font-semibold text-gray-700">Vendas</th>
-                                  <th className="text-right py-2 px-3 text-sm font-semibold text-gray-700">Atingimento</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {mesData.vendedores.map((vendedor) => (
-                                  <tr key={vendedor.nome} className="border-b border-gray-200">
-                                    <td className="py-2 px-3 text-sm text-gray-900">{vendedor.nome}</td>
-                                    <td className="py-2 px-3 text-sm text-right text-gray-700">R$ {vendedor.meta.toLocaleString()}</td>
-                                    <td className="py-2 px-3 text-sm text-right font-medium text-gray-900">R$ {vendedor.vendas.toLocaleString()}</td>
-                                    <td className="py-2 px-3 text-sm text-right">
-                                      <span className={`font-bold ${
-                                        vendedor.atingimento >= 100 ? 'text-green-600' :
-                                        vendedor.atingimento >= 80 ? 'text-yellow-600' : 'text-red-600'
-                                      }`}>
-                                        {vendedor.atingimento.toFixed(1)}%
-                                      </span>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
                   </React.Fragment>
                 ))}
                 <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold">
@@ -449,7 +534,6 @@ const PagAcumuladoAno: React.FC = () => {
                       {atingimentoGeral.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="py-3 px-4"></td>
                 </tr>
               </tbody>
             </table>
@@ -458,7 +542,64 @@ const PagAcumuladoAno: React.FC = () => {
 
         {/* Clientes únicos por mês */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Clientes (únicos por mês)</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Clientes (únicos por mês)</h3>
+            
+            {/* Filtro de Vendedor */}
+            {expandidoVendedoresClientes ? (
+              <div className="relative w-full sm:w-auto" ref={dropdownVendedoresClientesRef}>
+                <button
+                  onClick={() => setExpandidoVendedoresClientes(!expandidoVendedoresClientes)}
+                  className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm flex items-center justify-between"
+                >
+                  <span>
+                    <span className="font-semibold">Vendedores</span>
+                    <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
+                      {selectedVendedores.length}/{5}
+                    </span>
+                  </span>
+                  <ChevronUp className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
+                </button>
+
+                <div className="absolute top-full left-0 right-0 mt-1 border border-gray-300 rounded-lg bg-white p-3 space-y-2 z-10 shadow-lg">
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                    {['João Silva', 'Maria Santos', 'Pedro Costa', 'Ana Oliveira', 'Carlos Lima'].map((vendedor) => (
+                      <label key={vendedor} className="flex items-center cursor-pointer group text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedVendedores.includes(vendedor)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedVendedores([...selectedVendedores, vendedor])
+                            } else {
+                              setSelectedVendedores(selectedVendedores.filter(v => v !== vendedor))
+                            }
+                          }}
+                          className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-2 focus:ring-primary focus:ring-offset-0 cursor-pointer transition-all"
+                        />
+                        <span className="ml-2 text-gray-700 group-hover:text-primary transition-colors">{vendedor}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div ref={dropdownVendedoresClientesRef}>
+                <button
+                  onClick={() => setExpandidoVendedoresClientes(!expandidoVendedoresClientes)}
+                  className="w-full sm:w-auto px-4 py-2 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm flex items-center justify-between"
+                >
+                  <span>
+                    <span className="font-semibold">Vendedores</span>
+                    <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
+                      {selectedVendedores.length}/{5}
+                    </span>
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
+                </button>
+              </div>
+            )}
+          </div>
           
           <div className="overflow-x-auto">
             <table className="w-full min-w-full">
@@ -467,62 +608,22 @@ const PagAcumuladoAno: React.FC = () => {
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Mês</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">2024</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">2025</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700 w-12"></th>
                 </tr>
               </thead>
               <tbody>
-                {dadosClientesUnicos.map((mesData) => (
+                {filteredDadosClientesUnicos.map((mesData) => (
                   <React.Fragment key={mesData.mes}>
                     <tr className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4 font-medium text-gray-900">{mesData.mes}</td>
                       <td className="py-3 px-4 text-right text-gray-700">{mesData.total2024}</td>
                       <td className="py-3 px-4 text-right font-semibold text-gray-900">{mesData.total2025}</td>
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => setExpandidoClientes(expandidoClientes === mesData.mes ? null : mesData.mes)}
-                          className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-full transition-all duration-200"
-                        >
-                          {expandidoClientes === mesData.mes ? (
-                            <ChevronUp className="h-5 w-5" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5" />
-                          )}
-                        </button>
-                      </td>
                     </tr>
-                    {expandidoClientes === mesData.mes && (
-                      <tr>
-                        <td colSpan={4} className="py-4 px-4 bg-gray-50">
-                          <div className="overflow-x-auto">
-                            <table className="w-full min-w-full">
-                              <thead>
-                                <tr className="border-b border-gray-300">
-                                  <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Vendedor</th>
-                                  <th className="text-right py-2 px-3 text-sm font-semibold text-gray-700">2024</th>
-                                  <th className="text-right py-2 px-3 text-sm font-semibold text-gray-700">2025</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {mesData.vendedores.map((vendedor) => (
-                                  <tr key={vendedor.nome} className="border-b border-gray-200">
-                                    <td className="py-2 px-3 text-sm text-gray-900">{vendedor.nome}</td>
-                                    <td className="py-2 px-3 text-sm text-right text-gray-700">{vendedor.clientes2024}</td>
-                                    <td className="py-2 px-3 text-sm text-right font-medium text-gray-900">{vendedor.clientes2025}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
                   </React.Fragment>
                 ))}
                 <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold">
                   <td className="py-3 px-4 text-gray-900">Total Geral</td>
                   <td className="py-3 px-4 text-right text-gray-900">{total2024}</td>
                   <td className="py-3 px-4 text-right text-gray-900">{total2025}</td>
-                  <td className="py-3 px-4"></td>
                 </tr>
               </tbody>
             </table>

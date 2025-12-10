@@ -441,32 +441,39 @@ const DashboardGestao: React.FC = () => {
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Semanal</h3>
           <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <table className="w-full min-w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Representante</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">1ª Sem</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">2ª Sem</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">3ª Sem</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">4ª Sem</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">5ª Sem</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rankingSemanal.map((vendedor) => (
-                  <tr key={vendedor.nome} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4"><span className="font-medium text-gray-900">{vendedor.nome}</span></td>
-                    <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana1)}</td>
-                    <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana2)}</td>
-                    <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana3)}</td>
-                    <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana4)}</td>
-                    <td className="py-3 px-4 text-right text-gray-700">{vendedor.semana5 ? `R$ ${formatarMoeda(vendedor.semana5)}` : '-'}</td>
-                    <td className="py-3 px-4 text-right font-semibold text-gray-900">R$ {formatarMoeda(vendedor.totalSemanal)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {(() => {
+              // Verificar se há alguma semana 5 com dados
+              const temSemana5 = rankingSemanal.some(v => v.semana5 && v.semana5 > 0);
+              
+              return (
+                <table className="w-full min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Representante</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">1ª Sem</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">2ª Sem</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">3ª Sem</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">4ª Sem</th>
+                      {temSemana5 && <th className="text-right py-3 px-4 font-semibold text-gray-700">5ª Sem</th>}
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankingSemanal.map((vendedor) => (
+                      <tr key={vendedor.nome} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4"><span className="font-medium text-gray-900">{vendedor.nome}</span></td>
+                        <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana1)}</td>
+                        <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana2)}</td>
+                        <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana3)}</td>
+                        <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana4)}</td>
+                        {temSemana5 && <td className="py-3 px-4 text-right text-gray-700">{vendedor.semana5 ? `R$ ${formatarMoeda(vendedor.semana5)}` : '-'}</td>}
+                        <td className="py-3 px-4 text-right font-semibold text-gray-900">R$ {formatarMoeda(vendedor.totalSemanal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              );
+            })()}
           </div>
         </div>
 

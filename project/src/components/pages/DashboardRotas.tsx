@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, User, Shield, TrendingUp, MapPin, UserCheck, Home, ArrowLeft, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { LogOut, User, Shield, TrendingUp, MapPin, UserCheck, Home, ArrowLeft, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -26,6 +26,18 @@ interface CidadeData {
   ranking: number
 }
 
+interface CidadeComMeta {
+  cidade: string
+  codigo_ibge_cidade: string
+  rota: string
+  vendedor_apelido: string
+  meta_cidade: number
+  vendas_cidade: number
+  qtd_clientes: number
+  percentual_atingimento: number
+  saldo_meta: number
+}
+
 interface VendedorInfo {
   uuid: string
   nome: string
@@ -48,6 +60,16 @@ const DashboardRotas: React.FC = () => {
   const [vendedoresSelecionadosCidades, setVendedoresSelecionadosCidades] = useState<string[]>([])
   const [dropdownRotasAberto, setDropdownRotasAberto] = useState(false)
   const [dropdownCidadesAberto, setDropdownCidadesAberto] = useState(false)
+  
+  // Refs para detectar cliques fora dos dropdowns
+  const dropdownRotasRef = useRef<HTMLDivElement>(null)
+  const dropdownCidadesRef = useRef<HTMLDivElement>(null)
+  
+  // Estados para expansão de rotas
+  const [expandedRota, setExpandedRota] = useState<string | null>(null)
+  const [cidadesComMeta, setCidadesComMeta] = useState<Map<string, CidadeComMeta[]>>(new Map())
+  const [loadingCidades, setLoadingCidades] = useState(false)
+  const [sortCidadesExpandidas, setSortCidadesExpandidas] = useState<{ field: keyof CidadeComMeta; direction: SortDirection }>({ field: 'vendas_cidade', direction: 'desc' })
   
   // Estados para ordenação
   const [sortRotas, setSortRotas] = useState<{ field: RotaSortField; direction: SortDirection }>({ field: 'vendido_2025', direction: 'desc' })
@@ -117,6 +139,21 @@ const DashboardRotas: React.FC = () => {
 
     carregarDados()
   }, [user])
+
+  // Fechar dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRotasRef.current && !dropdownRotasRef.current.contains(event.target as Node)) {
+        setDropdownRotasAberto(false)
+      }
+      if (dropdownCidadesRef.current && !dropdownCidadesRef.current.contains(event.target as Node)) {
+        setDropdownCidadesAberto(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Filtrar dados baseado na seleção de vendedores
   const rotasFiltradas = useMemo(() => {
@@ -221,6 +258,62 @@ const DashboardRotas: React.FC = () => {
     return currentSort.direction === 'asc' 
       ? <ArrowUp className="h-4 w-4 text-primary" />
       : <ArrowDown className="h-4 w-4 text-primary" />
+  }
+
+  const carregarCidadesRota = async (rotaNome: string) => {
+    if (cidadesComMeta.has(rotaNome)) return
+
+    try {
+      setLoadingCidades(true)
+      const { data, error } = await supabase
+        .from('vw_cidades_com_meta')
+        .select('*')
+        .eq('rota', rotaNome)
+        .order('vendas_cidade', { ascending: false })
+
+      if (error) throw error
+      
+      const novoMapa = new Map(cidadesComMeta)
+      novoMapa.set(rotaNome, data || [])
+      setCidadesComMeta(novoMapa)
+    } catch (error) {
+      console.error('Erro ao carregar cidades:', error)
+    } finally {
+      setLoadingCidades(false)
+    }
+  }
+
+  const toggleRotaExpansao = (rotaNome: string) => {
+    if (expandedRota === rotaNome) {
+      setExpandedRota(null)
+    } else {
+      setExpandedRota(rotaNome)
+      carregarCidadesRota(rotaNome)
+    }
+  }
+
+  const handleSortCidadesExpandidas = (field: keyof CidadeComMeta) => {
+    setSortCidadesExpandidas(prev => ({
+      field,
+      direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
+    }))
+  }
+
+  const getCidadesOrdenadas = (cidades: CidadeComMeta[]): CidadeComMeta[] => {
+    return [...cidades].sort((a, b) => {
+      const aValue = a[sortCidadesExpandidas.field]
+      const bValue = b[sortCidadesExpandidas.field]
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortCidadesExpandidas.direction === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
+      }
+      
+      return sortCidadesExpandidas.direction === 'asc' 
+        ? (aValue as number) - (bValue as number)
+        : (bValue as number) - (aValue as number)
+    })
   }
 
   const formatarMoeda = (valor: number): string => {
@@ -347,7 +440,7 @@ const DashboardRotas: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Ranking de Rotas</h3>
             
             {/* Filtro Vendedores */}
-            <div className="relative">
+            <div className="relative" ref={dropdownRotasRef}>
               <button
                 onClick={() => setDropdownRotasAberto(!dropdownRotasAberto)}
                 className="flex items-center justify-between w-full sm:w-64 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
@@ -435,20 +528,108 @@ const DashboardRotas: React.FC = () => {
               </thead>
               <tbody>
                 {rotasOrdenadas.map((rota) => (
-                  <tr key={`${rota.vendedor_uuid}-${rota.rota}`} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">{rota.rota}</td>
-                    <td className="py-3 px-4 text-gray-700">{rota.vendedor_apelido}</td>
-                    <td className="py-3 px-4 text-right text-gray-700">{formatarMoeda(rota.meta_2025)}</td>
-                    <td className="py-3 px-4 text-right font-semibold text-gray-900">{formatarMoeda(rota.vendido_2025)}</td>
-                    <td className="py-3 px-4 text-right">
-                      <span className={`font-bold ${
-                        rota.percentual_meta >= 100 ? 'text-green-600' :
-                        rota.percentual_meta >= 80 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {rota.percentual_meta.toFixed(1)}%
-                      </span>
-                    </td>
-                  </tr>
+                  <React.Fragment key={`${rota.vendedor_uuid}-${rota.rota}`}>
+                    <tr className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => toggleRotaExpansao(rota.rota)}>
+                      <td className="py-3 px-4 font-medium text-gray-900">
+                        <div className="flex items-center space-x-2">
+                          <span>{expandedRota === rota.rota ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</span>
+                          <span>{rota.rota}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-700">{rota.vendedor_apelido}</td>
+                      <td className="py-3 px-4 text-right text-gray-700">{formatarMoeda(rota.meta_2025)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-gray-900">{formatarMoeda(rota.vendido_2025)}</td>
+                      <td className="py-3 px-4 text-right">
+                        <span className={`font-bold ${
+                          rota.percentual_meta >= 100 ? 'text-green-600' :
+                          rota.percentual_meta >= 80 ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          {rota.percentual_meta.toFixed(1)}%
+                        </span>
+                      </td>
+                    </tr>
+                    {expandedRota === rota.rota && (
+                      <tr className="border-b border-gray-200">
+                        <td colSpan={5} className="p-0">
+                          <div className="bg-gray-50 p-4">
+                            {loadingCidades ? (
+                              <div className="flex items-center justify-center py-4">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                                <span className="ml-2 text-sm text-gray-600">Carregando cidades...</span>
+                              </div>
+                            ) : (cidadesComMeta.get(rota.rota) || []).length > 0 ? (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="bg-gray-200">
+                                      <th className="text-left px-3 py-2 font-semibold text-gray-700">Cidade</th>
+                                      <th className="text-right px-3 py-2 font-semibold text-gray-700">
+                                        <button
+                                          onClick={() => handleSortCidadesExpandidas('meta_cidade')}
+                                          className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
+                                        >
+                                          <span>Meta</span>
+                                          {getSortIcon('meta_cidade', sortCidadesExpandidas)}
+                                        </button>
+                                      </th>
+                                      <th className="text-right px-3 py-2 font-semibold text-gray-700">
+                                        <button
+                                          onClick={() => handleSortCidadesExpandidas('vendas_cidade')}
+                                          className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
+                                        >
+                                          <span>Vendas</span>
+                                          {getSortIcon('vendas_cidade', sortCidadesExpandidas)}
+                                        </button>
+                                      </th>
+                                      <th className="text-right px-3 py-2 font-semibold text-gray-700">
+                                        <button
+                                          onClick={() => handleSortCidadesExpandidas('percentual_atingimento')}
+                                          className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
+                                        >
+                                          <span>Atingimento</span>
+                                          {getSortIcon('percentual_atingimento', sortCidadesExpandidas)}
+                                        </button>
+                                      </th>
+                                      <th className="text-right px-3 py-2 font-semibold text-gray-700">
+                                        <button
+                                          onClick={() => handleSortCidadesExpandidas('qtd_clientes')}
+                                          className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
+                                        >
+                                          <span>Clientes</span>
+                                          {getSortIcon('qtd_clientes', sortCidadesExpandidas)}
+                                        </button>
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {getCidadesOrdenadas(cidadesComMeta.get(rota.rota) || []).map((cidade) => (
+                                      <tr key={cidade.codigo_ibge_cidade} className="border-b border-gray-200 hover:bg-white">
+                                        <td className="px-3 py-2 text-gray-900 font-medium">{cidade.cidade}</td>
+                                        <td className="text-right px-3 py-2 text-gray-700">{formatarMoeda(cidade.meta_cidade)}</td>
+                                        <td className="text-right px-3 py-2 font-semibold text-gray-900">{formatarMoeda(cidade.vendas_cidade)}</td>
+                                        <td className="text-right px-3 py-2">
+                                          <span className={`font-bold ${
+                                            cidade.percentual_atingimento >= 100 ? 'text-green-600' :
+                                            cidade.percentual_atingimento >= 80 ? 'text-yellow-600' :
+                                            'text-red-600'
+                                          }`}>
+                                            {cidade.percentual_atingimento.toFixed(1)}%
+                                          </span>
+                                        </td>
+                                        <td className="text-right px-3 py-2 text-gray-700">{cidade.qtd_clientes}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="text-center text-gray-600 text-sm">Nenhuma cidade encontrada</p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -461,7 +642,7 @@ const DashboardRotas: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Top Cidades (30 com mais vendas)</h3>
             
             {/* Filtro Vendedores */}
-            <div className="relative">
+            <div className="relative" ref={dropdownCidadesRef}>
               <button
                 onClick={() => setDropdownCidadesAberto(!dropdownCidadesAberto)}
                 className="flex items-center justify-between w-full sm:w-64 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
