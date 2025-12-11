@@ -255,7 +255,16 @@ const DashboardRotas: React.FC = () => {
     if (currentSort.field !== field) {
       return <ArrowUpDown className="h-4 w-4 text-gray-400" />
     }
-    return currentSort.direction === 'asc' 
+    return currentSort.direction === 'asc'
+      ? <ArrowUp className="h-4 w-4 text-primary" />
+      : <ArrowDown className="h-4 w-4 text-primary" />
+  }
+
+  const getSortIconExpandidas = (field: keyof CidadeComMeta, currentSort: { field: keyof CidadeComMeta; direction: SortDirection }) => {
+    if (currentSort.field !== field) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400" />
+    }
+    return currentSort.direction === 'asc'
       ? <ArrowUp className="h-4 w-4 text-primary" />
       : <ArrowDown className="h-4 w-4 text-primary" />
   }
@@ -569,7 +578,7 @@ const DashboardRotas: React.FC = () => {
                                           className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
                                         >
                                           <span>Meta</span>
-                                          {getSortIcon('meta_cidade', sortCidadesExpandidas)}
+                                          {getSortIconExpandidas('meta_cidade', sortCidadesExpandidas)}
                                         </button>
                                       </th>
                                       <th className="text-right px-3 py-2 font-semibold text-gray-700">
@@ -578,7 +587,7 @@ const DashboardRotas: React.FC = () => {
                                           className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
                                         >
                                           <span>Vendas</span>
-                                          {getSortIcon('vendas_cidade', sortCidadesExpandidas)}
+                                          {getSortIconExpandidas('vendas_cidade', sortCidadesExpandidas)}
                                         </button>
                                       </th>
                                       <th className="text-right px-3 py-2 font-semibold text-gray-700">
@@ -587,7 +596,7 @@ const DashboardRotas: React.FC = () => {
                                           className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
                                         >
                                           <span>Atingimento</span>
-                                          {getSortIcon('percentual_atingimento', sortCidadesExpandidas)}
+                                          {getSortIconExpandidas('percentual_atingimento', sortCidadesExpandidas)}
                                         </button>
                                       </th>
                                       <th className="text-right px-3 py-2 font-semibold text-gray-700">
@@ -596,7 +605,7 @@ const DashboardRotas: React.FC = () => {
                                           className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
                                         >
                                           <span>Clientes</span>
-                                          {getSortIcon('qtd_clientes', sortCidadesExpandidas)}
+                                          {getSortIconExpandidas('qtd_clientes', sortCidadesExpandidas)}
                                         </button>
                                       </th>
                                     </tr>

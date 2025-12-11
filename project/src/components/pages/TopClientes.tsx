@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, User, Shield, TrendingUp, MapPin, UserCheck, Home, ArrowLeft, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -21,9 +21,8 @@ interface ClienteData {
   vendedor: string
   vendedorId: string
   rotaId: string
-  vendas2024: number
-  meta2025: number
-  vendas2025: number
+  vendas: { [ano: number]: number }
+  metas: { [ano: number]: number }
 }
 
 interface PotencialRealizadoData {
@@ -36,12 +35,21 @@ const TopClientes: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [loading, setLoading] = useState(true)
-  
+
+  // Estados para filtros de período
+  const [anoBase, setAnoBase] = useState(2024)
+  const [anoComparacao, setAnoComparacao] = useState(2025)
+  const anosDisponiveis = [2023, 2024, 2025]
+
   // Estados para filtros
   const [vendedoresSelecionados, setVendedoresSelecionados] = useState<string[]>([])
   const [rotasSelecionadas, setRotasSelecionadas] = useState<string[]>([])
   const [dropdownVendedorAberto, setDropdownVendedorAberto] = useState(false)
   const [dropdownRotaAberto, setDropdownRotaAberto] = useState(false)
+
+  // Refs para detectar cliques fora dos dropdowns
+  const dropdownVendedorRef = useRef<HTMLDivElement>(null)
+  const dropdownRotaRef = useRef<HTMLDivElement>(null)
 
   // Dados mockados com memo para otimização
   const vendedores = useMemo<Vendedor[]>(() => [
@@ -69,68 +77,68 @@ const TopClientes: React.FC = () => {
 
   // Dados dos clientes com memo para otimização
   const dadosClientes = useMemo<ClienteData[]>(() => [
-    { id: '1', nome: 'Ótica Central', rota: 'Fortaleza Centro', cidade: 'Fortaleza', vendedor: 'João Silva', vendedorId: '1', rotaId: '2', vendas2024: 285000, meta2025: 320000, vendas2025: 195000 },
-    { id: '2', nome: 'Visão Perfeita', rota: 'Sobral', cidade: 'Sobral', vendedor: 'Ana Oliveira', vendedorId: '4', rotaId: '5', vendas2024: 235000, meta2025: 280000, vendas2025: 165000 },
-    { id: '3', nome: 'Óptica Moderna', rota: 'Caucaia', cidade: 'Caucaia', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '3', vendas2024: 195000, meta2025: 220000, vendas2025: 145000 },
-    { id: '4', nome: 'Centro Oftálmico', rota: 'Juazeiro do Norte', cidade: 'Juazeiro do Norte', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '6', vendas2024: 165000, meta2025: 190000, vendas2025: 125000 },
-    { id: '5', nome: 'Ótica Cristal', rota: 'Maracanaú', cidade: 'Maracanaú', vendedor: 'Pedro Costa', vendedorId: '3', rotaId: '4', vendas2024: 125000, meta2025: 150000, vendas2025: 98000 },
-    { id: '6', nome: 'Vista Clara', rota: 'Iguatu', cidade: 'Iguatu', vendedor: 'Fernanda Rocha', vendedorId: '6', rotaId: '8', vendas2024: 115000, meta2025: 135000, vendas2025: 89000 },
-    { id: '7', nome: 'Óptica Ideal', rota: 'Quixadá', cidade: 'Quixadá', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '9', vendas2024: 92000, meta2025: 110000, vendas2025: 78000 },
-    { id: '8', nome: 'Ótica Premium', rota: 'Crato', cidade: 'Crato', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '7', vendas2024: 98000, meta2025: 120000, vendas2025: 76000 },
-    { id: '9', nome: 'Visão Total', rota: 'Fortaleza Centro', cidade: 'Fortaleza', vendedor: 'João Silva', vendedorId: '1', rotaId: '2', vendas2024: 87000, meta2025: 105000, vendas2025: 72000 },
-    { id: '10', nome: 'Óptica Nova', rota: 'Aracati', cidade: 'Aracati', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '1', vendas2024: 73000, meta2025: 88000, vendas2025: 65000 },
-    { id: '11', nome: 'Centro da Visão', rota: 'Sobral', cidade: 'Sobral', vendedor: 'Ana Oliveira', vendedorId: '4', rotaId: '5', vendas2024: 68000, meta2025: 82000, vendas2025: 58000 },
-    { id: '12', nome: 'Ótica Express', rota: 'Caucaia', cidade: 'Caucaia', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '3', vendas2024: 65000, meta2025: 78000, vendas2025: 55000 },
-    { id: '13', nome: 'Visão & Estilo', rota: 'Maracanaú', cidade: 'Maracanaú', vendedor: 'Pedro Costa', vendedorId: '3', rotaId: '4', vendas2024: 58000, meta2025: 70000, vendas2025: 48000 },
-    { id: '14', nome: 'Óptica Atual', rota: 'Iguatu', cidade: 'Iguatu', vendedor: 'Fernanda Rocha', vendedorId: '6', rotaId: '8', vendas2024: 52000, meta2025: 63000, vendas2025: 42000 },
-    { id: '15', nome: 'Vista Bela', rota: 'Canindé', cidade: 'Canindé', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '10', vendas2024: 48000, meta2025: 58000, vendas2025: 38000 },
-    { id: '16', nome: 'Ótica Família', rota: 'Juazeiro do Norte', cidade: 'Juazeiro do Norte', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '6', vendas2024: 45000, meta2025: 55000, vendas2025: 36000 },
-    { id: '17', nome: 'Visão Clara', rota: 'Crato', cidade: 'Crato', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '7', vendas2024: 42000, meta2025: 52000, vendas2025: 34000 },
-    { id: '18', nome: 'Óptica Sol', rota: 'Quixadá', cidade: 'Quixadá', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '9', vendas2024: 39000, meta2025: 48000, vendas2025: 31000 },
-    { id: '19', nome: 'Centro Ótico', rota: 'Aracati', cidade: 'Aracati', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '1', vendas2024: 36000, meta2025: 45000, vendas2025: 28000 },
-    { id: '20', nome: 'Visão Moderna', rota: 'Fortaleza Centro', cidade: 'Fortaleza', vendedor: 'João Silva', vendedorId: '1', rotaId: '2', vendas2024: 34000, meta2025: 42000, vendas2025: 26000 },
-    { id: '21', nome: 'Óptica Smart', rota: 'Sobral', cidade: 'Sobral', vendedor: 'Ana Oliveira', vendedorId: '4', rotaId: '5', vendas2024: 32000, meta2025: 40000, vendas2025: 24000 },
-    { id: '22', nome: 'Vista & Cia', rota: 'Caucaia', cidade: 'Caucaia', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '3', vendas2024: 29000, meta2025: 37000, vendas2025: 22000 },
-    { id: '23', nome: 'Ótica Brasil', rota: 'Maracanaú', cidade: 'Maracanaú', vendedor: 'Pedro Costa', vendedorId: '3', rotaId: '4', vendas2024: 27000, meta2025: 35000, vendas2025: 20000 },
-    { id: '24', nome: 'Visão Plus', rota: 'Iguatu', cidade: 'Iguatu', vendedor: 'Fernanda Rocha', vendedorId: '6', rotaId: '8', vendas2024: 25000, meta2025: 32000, vendas2025: 18000 },
-    { id: '25', nome: 'Óptica Vida', rota: 'Canindé', cidade: 'Canindé', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '10', vendas2024: 23000, meta2025: 30000, vendas2025: 16000 },
-    { id: '26', nome: 'Centro Visual', rota: 'Juazeiro do Norte', cidade: 'Juazeiro do Norte', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '6', vendas2024: 21000, meta2025: 28000, vendas2025: 14000 },
-    { id: '27', nome: 'Ótica Digital', rota: 'Crato', cidade: 'Crato', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '7', vendas2024: 19000, meta2025: 25000, vendas2025: 12000 },
-    { id: '28', nome: 'Visão Pro', rota: 'Quixadá', cidade: 'Quixadá', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '9', vendas2024: 17000, meta2025: 23000, vendas2025: 10000 },
-    { id: '29', nome: 'Óptica Top', rota: 'Aracati', cidade: 'Aracati', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '1', vendas2024: 15000, meta2025: 20000, vendas2025: 8000 },
-    { id: '30', nome: 'Vista Real', rota: 'Fortaleza Centro', cidade: 'Fortaleza', vendedor: 'João Silva', vendedorId: '1', rotaId: '2', vendas2024: 13000, meta2025: 18000, vendas2025: 6000 },
-    { id: '31', nome: 'Óptica Elite', rota: 'Sobral', cidade: 'Sobral', vendedor: 'Ana Oliveira', vendedorId: '4', rotaId: '5', vendas2024: 11000, meta2025: 15000, vendas2025: 4000 },
-    { id: '32', nome: 'Visão Master', rota: 'Caucaia', cidade: 'Caucaia', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '3', vendas2024: 9000, meta2025: 12000, vendas2025: 2000 }
+    { id: '1', nome: 'Ótica Central', rota: 'Fortaleza Centro', cidade: 'Fortaleza', vendedor: 'João Silva', vendedorId: '1', rotaId: '2', vendas: { 2023: 265000, 2024: 285000, 2025: 195000 }, metas: { 2023: 280000, 2024: 300000, 2025: 320000 } },
+    { id: '2', nome: 'Visão Perfeita', rota: 'Sobral', cidade: 'Sobral', vendedor: 'Ana Oliveira', vendedorId: '4', rotaId: '5', vendas: { 2023: 215000, 2024: 235000, 2025: 165000 }, metas: { 2023: 240000, 2024: 260000, 2025: 280000 } },
+    { id: '3', nome: 'Óptica Moderna', rota: 'Caucaia', cidade: 'Caucaia', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '3', vendas: { 2023: 180000, 2024: 195000, 2025: 145000 }, metas: { 2023: 195000, 2024: 210000, 2025: 220000 } },
+    { id: '4', nome: 'Centro Oftálmico', rota: 'Juazeiro do Norte', cidade: 'Juazeiro do Norte', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '6', vendas: { 2023: 155000, 2024: 165000, 2025: 125000 }, metas: { 2023: 170000, 2024: 180000, 2025: 190000 } },
+    { id: '5', nome: 'Ótica Cristal', rota: 'Maracanaú', cidade: 'Maracanaú', vendedor: 'Pedro Costa', vendedorId: '3', rotaId: '4', vendas: { 2023: 115000, 2024: 125000, 2025: 98000 }, metas: { 2023: 130000, 2024: 140000, 2025: 150000 } },
+    { id: '6', nome: 'Vista Clara', rota: 'Iguatu', cidade: 'Iguatu', vendedor: 'Fernanda Rocha', vendedorId: '6', rotaId: '8', vendas: { 2023: 105000, 2024: 115000, 2025: 89000 }, metas: { 2023: 120000, 2024: 128000, 2025: 135000 } },
+    { id: '7', nome: 'Óptica Ideal', rota: 'Quixadá', cidade: 'Quixadá', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '9', vendas: { 2023: 85000, 2024: 92000, 2025: 78000 }, metas: { 2023: 98000, 2024: 105000, 2025: 110000 } },
+    { id: '8', nome: 'Ótica Premium', rota: 'Crato', cidade: 'Crato', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '7', vendas: { 2023: 92000, 2024: 98000, 2025: 76000 }, metas: { 2023: 105000, 2024: 115000, 2025: 120000 } },
+    { id: '9', nome: 'Visão Total', rota: 'Fortaleza Centro', cidade: 'Fortaleza', vendedor: 'João Silva', vendedorId: '1', rotaId: '2', vendas: { 2023: 80000, 2024: 87000, 2025: 72000 }, metas: { 2023: 92000, 2024: 98000, 2025: 105000 } },
+    { id: '10', nome: 'Óptica Nova', rota: 'Aracati', cidade: 'Aracati', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '1', vendas: { 2023: 68000, 2024: 73000, 2025: 65000 }, metas: { 2023: 78000, 2024: 84000, 2025: 88000 } },
+    { id: '11', nome: 'Centro da Visão', rota: 'Sobral', cidade: 'Sobral', vendedor: 'Ana Oliveira', vendedorId: '4', rotaId: '5', vendas: { 2023: 62000, 2024: 68000, 2025: 58000 }, metas: { 2023: 72000, 2024: 78000, 2025: 82000 } },
+    { id: '12', nome: 'Ótica Express', rota: 'Caucaia', cidade: 'Caucaia', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '3', vendas: { 2023: 60000, 2024: 65000, 2025: 55000 }, metas: { 2023: 70000, 2024: 74000, 2025: 78000 } },
+    { id: '13', nome: 'Visão & Estilo', rota: 'Maracanaú', cidade: 'Maracanaú', vendedor: 'Pedro Costa', vendedorId: '3', rotaId: '4', vendas: { 2023: 53000, 2024: 58000, 2025: 48000 }, metas: { 2023: 62000, 2024: 66000, 2025: 70000 } },
+    { id: '14', nome: 'Óptica Atual', rota: 'Iguatu', cidade: 'Iguatu', vendedor: 'Fernanda Rocha', vendedorId: '6', rotaId: '8', vendas: { 2023: 48000, 2024: 52000, 2025: 42000 }, metas: { 2023: 56000, 2024: 60000, 2025: 63000 } },
+    { id: '15', nome: 'Vista Bela', rota: 'Canindé', cidade: 'Canindé', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '10', vendas: { 2023: 44000, 2024: 48000, 2025: 38000 }, metas: { 2023: 52000, 2024: 55000, 2025: 58000 } },
+    { id: '16', nome: 'Ótica Família', rota: 'Juazeiro do Norte', cidade: 'Juazeiro do Norte', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '6', vendas: { 2023: 41000, 2024: 45000, 2025: 36000 }, metas: { 2023: 49000, 2024: 52000, 2025: 55000 } },
+    { id: '17', nome: 'Visão Clara', rota: 'Crato', cidade: 'Crato', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '7', vendas: { 2023: 38000, 2024: 42000, 2025: 34000 }, metas: { 2023: 46000, 2024: 49000, 2025: 52000 } },
+    { id: '18', nome: 'Óptica Sol', rota: 'Quixadá', cidade: 'Quixadá', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '9', vendas: { 2023: 36000, 2024: 39000, 2025: 31000 }, metas: { 2023: 43000, 2024: 46000, 2025: 48000 } },
+    { id: '19', nome: 'Centro Ótico', rota: 'Aracati', cidade: 'Aracati', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '1', vendas: { 2023: 33000, 2024: 36000, 2025: 28000 }, metas: { 2023: 40000, 2024: 43000, 2025: 45000 } },
+    { id: '20', nome: 'Visão Moderna', rota: 'Fortaleza Centro', cidade: 'Fortaleza', vendedor: 'João Silva', vendedorId: '1', rotaId: '2', vendas: { 2023: 31000, 2024: 34000, 2025: 26000 }, metas: { 2023: 38000, 2024: 40000, 2025: 42000 } },
+    { id: '21', nome: 'Óptica Smart', rota: 'Sobral', cidade: 'Sobral', vendedor: 'Ana Oliveira', vendedorId: '4', rotaId: '5', vendas: { 2023: 29000, 2024: 32000, 2025: 24000 }, metas: { 2023: 36000, 2024: 38000, 2025: 40000 } },
+    { id: '22', nome: 'Vista & Cia', rota: 'Caucaia', cidade: 'Caucaia', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '3', vendas: { 2023: 27000, 2024: 29000, 2025: 22000 }, metas: { 2023: 33000, 2024: 35000, 2025: 37000 } },
+    { id: '23', nome: 'Ótica Brasil', rota: 'Maracanaú', cidade: 'Maracanaú', vendedor: 'Pedro Costa', vendedorId: '3', rotaId: '4', vendas: { 2023: 25000, 2024: 27000, 2025: 20000 }, metas: { 2023: 31000, 2024: 33000, 2025: 35000 } },
+    { id: '24', nome: 'Visão Plus', rota: 'Iguatu', cidade: 'Iguatu', vendedor: 'Fernanda Rocha', vendedorId: '6', rotaId: '8', vendas: { 2023: 23000, 2024: 25000, 2025: 18000 }, metas: { 2023: 28000, 2024: 30000, 2025: 32000 } },
+    { id: '25', nome: 'Óptica Vida', rota: 'Canindé', cidade: 'Canindé', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '10', vendas: { 2023: 21000, 2024: 23000, 2025: 16000 }, metas: { 2023: 26000, 2024: 28000, 2025: 30000 } },
+    { id: '26', nome: 'Centro Visual', rota: 'Juazeiro do Norte', cidade: 'Juazeiro do Norte', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '6', vendas: { 2023: 19000, 2024: 21000, 2025: 14000 }, metas: { 2023: 24000, 2024: 26000, 2025: 28000 } },
+    { id: '27', nome: 'Ótica Digital', rota: 'Crato', cidade: 'Crato', vendedor: 'Carlos Lima', vendedorId: '5', rotaId: '7', vendas: { 2023: 17000, 2024: 19000, 2025: 12000 }, metas: { 2023: 22000, 2024: 24000, 2025: 25000 } },
+    { id: '28', nome: 'Visão Pro', rota: 'Quixadá', cidade: 'Quixadá', vendedor: 'Roberto Alves', vendedorId: '7', rotaId: '9', vendas: { 2023: 15000, 2024: 17000, 2025: 10000 }, metas: { 2023: 20000, 2024: 22000, 2025: 23000 } },
+    { id: '29', nome: 'Óptica Top', rota: 'Aracati', cidade: 'Aracati', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '1', vendas: { 2023: 13000, 2024: 15000, 2025: 8000 }, metas: { 2023: 18000, 2024: 19000, 2025: 20000 } },
+    { id: '30', nome: 'Vista Real', rota: 'Fortaleza Centro', cidade: 'Fortaleza', vendedor: 'João Silva', vendedorId: '1', rotaId: '2', vendas: { 2023: 11000, 2024: 13000, 2025: 6000 }, metas: { 2023: 16000, 2024: 17000, 2025: 18000 } },
+    { id: '31', nome: 'Óptica Elite', rota: 'Sobral', cidade: 'Sobral', vendedor: 'Ana Oliveira', vendedorId: '4', rotaId: '5', vendas: { 2023: 9000, 2024: 11000, 2025: 4000 }, metas: { 2023: 13000, 2024: 14000, 2025: 15000 } },
+    { id: '32', nome: 'Visão Master', rota: 'Caucaia', cidade: 'Caucaia', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '3', vendas: { 2023: 7000, 2024: 9000, 2025: 2000 }, metas: { 2023: 11000, 2024: 11500, 2025: 12000 } }
   ], [])
 
   // Calcular Potencial x Realizado com memo
   const potencialRealizado = useMemo<PotencialRealizadoData>(() => {
-    const totalMetas = dadosClientes.reduce((acc, cliente) => acc + cliente.meta2025, 0)
-    const totalVendas = dadosClientes.reduce((acc, cliente) => acc + cliente.vendas2025, 0)
+    const totalMetas = dadosClientes.reduce((acc, cliente) => acc + (cliente.metas[anoComparacao] || 0), 0)
+    const totalVendas = dadosClientes.reduce((acc, cliente) => acc + (cliente.vendas[anoComparacao] || 0), 0)
     const atingimento = totalMetas > 0 ? (totalVendas / totalMetas) * 100 : 0
 
     return { totalMetas, totalVendas, atingimento }
-  }, [dadosClientes])
+  }, [dadosClientes, anoComparacao])
 
   // Filtrar dados baseado na seleção de vendedores e rotas com memo
   const clientesFiltrados = useMemo(() => {
     let filtered = dadosClientes
 
     if (vendedoresSelecionados.length > 0) {
-      filtered = filtered.filter(cliente => 
+      filtered = filtered.filter(cliente =>
         vendedoresSelecionados.includes(cliente.vendedorId)
       )
     }
 
     if (rotasSelecionadas.length > 0) {
-      filtered = filtered.filter(cliente => 
+      filtered = filtered.filter(cliente =>
         rotasSelecionadas.includes(cliente.rotaId)
       )
     }
 
-    // Sempre retornar apenas os 30 maiores por vendas 2025
-    return filtered.sort((a, b) => b.vendas2025 - a.vendas2025).slice(0, 30)
-  }, [dadosClientes, vendedoresSelecionados, rotasSelecionadas])
+    // Sempre retornar apenas os 30 maiores por vendas do ano de comparação
+    return filtered.sort((a, b) => (b.vendas[anoComparacao] || 0) - (a.vendas[anoComparacao] || 0)).slice(0, 30)
+  }, [dadosClientes, vendedoresSelecionados, rotasSelecionadas, anoComparacao])
 
   const handleVendedorChange = (vendedorId: string) => {
     setVendedoresSelecionados(prev => 
@@ -163,6 +171,43 @@ const TopClientes: React.FC = () => {
       setRotasSelecionadas(rotas.map(r => r.id))
     }
   }
+
+  const handleAnoBaseChange = (ano: number) => {
+    if (ano === anoComparacao) {
+      // Se tentar selecionar o mesmo ano, ajusta automaticamente o ano de comparação
+      const novosAnos = anosDisponiveis.filter(a => a !== ano)
+      if (novosAnos.length > 0) {
+        setAnoComparacao(novosAnos[novosAnos.length - 1])
+      }
+    }
+    setAnoBase(ano)
+  }
+
+  const handleAnoComparacaoChange = (ano: number) => {
+    if (ano === anoBase) {
+      // Se tentar selecionar o mesmo ano, ajusta automaticamente o ano base
+      const novosAnos = anosDisponiveis.filter(a => a !== ano)
+      if (novosAnos.length > 0) {
+        setAnoBase(novosAnos[0])
+      }
+    }
+    setAnoComparacao(ano)
+  }
+
+  // Fechar dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownVendedorRef.current && !dropdownVendedorRef.current.contains(event.target as Node)) {
+        setDropdownVendedorAberto(false)
+      }
+      if (dropdownRotaRef.current && !dropdownRotaRef.current.contains(event.target as Node)) {
+        setDropdownRotaAberto(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     if (!user) {
@@ -277,7 +322,7 @@ const TopClientes: React.FC = () => {
 
         {/* Potencial x Realizado */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Potencial x Realizado (2025)</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Potencial x Realizado ({anoComparacao})</h3>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="text-center p-6 bg-blue-50 rounded-lg border-l-4 border-blue-500">
@@ -304,19 +349,48 @@ const TopClientes: React.FC = () => {
 
         {/* Top 30 Clientes */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 lg:mb-0">Top 30 Clientes (2024 x 2025)</h3>
-            
-            {/* Filtros */}
-            <div className="flex flex-col sm:flex-row gap-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Top 30 Clientes</h3>
+
+          {/* Filtros - Todos em uma linha */}
+          <div className="mb-6">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Filtros de Período */}
+              <div className="flex items-center gap-2">
+                <select
+                  value={anoBase}
+                  onChange={(e) => handleAnoBaseChange(parseInt(e.target.value))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-gray-900 font-medium text-sm"
+                >
+                  {anosDisponiveis.map(ano => (
+                    <option key={ano} value={ano}>{ano}</option>
+                  ))}
+                </select>
+
+                <span className="text-gray-500 font-semibold text-sm">vs</span>
+
+                <select
+                  value={anoComparacao}
+                  onChange={(e) => handleAnoComparacaoChange(parseInt(e.target.value))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-gray-900 font-medium text-sm"
+                >
+                  {anosDisponiveis.map(ano => (
+                    <option key={ano} value={ano}>{ano}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Divisor vertical - apenas em telas maiores */}
+              <div className="hidden sm:block h-8 w-px bg-gray-300"></div>
+
+              {/* Filtros de Segmentação */}
               {/* Filtro Vendedores */}
-              <div className="relative">
+              <div className="relative" ref={dropdownVendedorRef}>
                 <button
                   onClick={() => setDropdownVendedorAberto(!dropdownVendedorAberto)}
-                  className="flex items-center justify-between w-full sm:w-56 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                  className="flex items-center justify-between w-full sm:w-48 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
                 >
                   <span className="text-gray-700">
-                    {vendedoresSelecionados.length === 0 
+                    {vendedoresSelecionados.length === 0
                       ? 'Todos os vendedores'
                       : vendedoresSelecionados.length === vendedores.length
                       ? 'Todos selecionados'
@@ -325,9 +399,9 @@ const TopClientes: React.FC = () => {
                   </span>
                   <ChevronDown className="h-4 w-4 text-gray-400" />
                 </button>
-                
+
                 {dropdownVendedorAberto && (
-                  <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                  <div className="absolute left-0 sm:right-0 mt-1 w-56 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
                     <div className="p-2">
                       <button
                         onClick={selecionarTodosVendedores}
@@ -353,13 +427,13 @@ const TopClientes: React.FC = () => {
               </div>
 
               {/* Filtro Rotas */}
-              <div className="relative">
+              <div className="relative" ref={dropdownRotaRef}>
                 <button
                   onClick={() => setDropdownRotaAberto(!dropdownRotaAberto)}
-                  className="flex items-center justify-between w-full sm:w-56 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                  className="flex items-center justify-between w-full sm:w-40 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
                 >
                   <span className="text-gray-700">
-                    {rotasSelecionadas.length === 0 
+                    {rotasSelecionadas.length === 0
                       ? 'Todas as rotas'
                       : rotasSelecionadas.length === rotas.length
                       ? 'Todas selecionadas'
@@ -368,9 +442,9 @@ const TopClientes: React.FC = () => {
                   </span>
                   <ChevronDown className="h-4 w-4 text-gray-400" />
                 </button>
-                
+
                 {dropdownRotaAberto && (
-                  <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                  <div className="absolute left-0 sm:right-0 mt-1 w-56 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
                     <div className="p-2">
                       <button
                         onClick={selecionarTodasRotas}
@@ -404,36 +478,61 @@ const TopClientes: React.FC = () => {
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Cliente</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Rota</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Cidade</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Vendas 2024</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Meta 2025</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Vendas 2025</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Vendas {anoBase}</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Meta {anoComparacao}</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Vendas {anoComparacao}</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Crescimento</th>
                 </tr>
               </thead>
               <tbody>
-                {clientesFiltrados.map((cliente, index) => (
-                  <tr key={cliente.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center">
-                        <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-bold mr-3 ${
-                          index === 0 ? 'bg-yellow-500' :
-                          index === 1 ? 'bg-gray-400' :
-                          index === 2 ? 'bg-orange-600' : 'bg-blue-500'
-                        }`}>
-                          {index + 1}
+                {clientesFiltrados.map((cliente, index) => {
+                  const vendasBase = cliente.vendas[anoBase] || 0
+                  const vendasComparacao = cliente.vendas[anoComparacao] || 0
+                  const metaComparacao = cliente.metas[anoComparacao] || 0
+                  const crescimento = vendasBase > 0 ? ((vendasComparacao - vendasBase) / vendasBase) * 100 : 0
+
+                  return (
+                    <tr key={cliente.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center">
+                          <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-bold mr-3 ${
+                            index === 0 ? 'bg-yellow-500' :
+                            index === 1 ? 'bg-gray-400' :
+                            index === 2 ? 'bg-orange-600' : 'bg-blue-500'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{cliente.nome}</div>
+                            <div className="text-sm text-gray-500">{cliente.vendedor}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{cliente.nome}</div>
-                          <div className="text-sm text-gray-500">{cliente.vendedor}</div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-700">{cliente.rota}</td>
+                      <td className="py-3 px-4 text-gray-700">{cliente.cidade}</td>
+                      <td className="py-3 px-4 text-right text-gray-700">R$ {vendasBase.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right text-blue-700 font-medium">R$ {metaComparacao.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-gray-900">R$ {vendasComparacao.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end">
+                          <span className={`font-bold ${
+                            crescimento > 0 ? 'text-green-600' :
+                            crescimento < 0 ? 'text-red-600' : 'text-gray-600'
+                          }`}>
+                            {crescimento > 0 ? '+' : ''}{crescimento.toFixed(1)}%
+                          </span>
+                          {crescimento !== 0 && (
+                            <span className={`ml-1 ${
+                              crescimento > 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {crescimento > 0 ? '↑' : '↓'}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-700">{cliente.rota}</td>
-                    <td className="py-3 px-4 text-gray-700">{cliente.cidade}</td>
-                    <td className="py-3 px-4 text-right text-gray-700">R$ {cliente.vendas2024.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-right text-blue-700 font-medium">R$ {cliente.meta2025.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-right font-semibold text-gray-900">R$ {cliente.vendas2025.toLocaleString()}</td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
