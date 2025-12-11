@@ -42,7 +42,8 @@ src/
 │       ├── DashboardGestao.tsx     # Dashboard executivo (NOVO)
 │       ├── PagAcumuladoAno.tsx     # Análise anual (NOVO)
 │       ├── DashboardRotas.tsx      # Dashboard rotas executivo (NOVO)
-│       └── TopClientes.tsx         # Top clientes executivo (NOVO)
+│       ├── TopClientes.tsx         # Top clientes executivo (NOVO)
+│       └── MetasPorCliente.tsx     # Metas por cliente executivo (NOVO)
 ├── contexts/
 │   ├── AuthContext.tsx             # Contexto de autenticação
 │   └── VendedorDataContext.tsx     # Contexto de dados do vendedor
@@ -93,6 +94,13 @@ src/
 - Top 30 clientes comparativo
 - Filtros separados (vendedor + rota)
 - Sistema de ranking visual
+
+#### MetasPorCliente (NOVO)
+- Visão detalhada de metas por cliente
+- Classificação por perfil (Ouro, Prata, Bronze)
+- Filtros por vendedor e cidade com busca inteligente
+- Tabelas ordenáveis com totais dinâmicos
+- Sistema de cores por perfil (amarelo, cinza, laranja)
 
 ## 🗄️ Modelo de Dados
 
@@ -332,6 +340,95 @@ App
 - **Computed State**: useMemo para cálculos
 - **Cached State**: useCallback para funções
 
+## 📊 Schema do Banco de Dados
+
+### Tabelas Principais - Estrutura
+
+#### profiles
+```sql
+create table public.profiles (
+  id uuid not null,                              -- UUID do usuário (FK auth.users)
+  cod_vendedor integer null,                     -- Código único do vendedor
+  nome_completo text not null,                   -- Nome completo
+  apelido text null,                             -- Apelido/nome de exibição
+  cargo text null,                               -- 'vendedor', 'gestor', 'diretor'
+  status text null default 'ativo'::text,        -- Status do perfil
+  vendedor_responsavel text null,                -- Referência ao gerente
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint profiles_pkey primary key (id),
+  constraint profiles_cod_vendedor_key unique (cod_vendedor),
+  constraint profiles_id_fkey foreign KEY (id) references auth.users (id)
+);
+```
+
+**Notas importantes:**
+- `cod_vendedor` é INTEGER (não `codigo_vendedor`)
+- Relaciona com `tabela_clientes.cod_vendedor`
+
+#### tabela_clientes
+```sql
+create table public.tabela_clientes (
+  id serial not null,
+  codigo_cliente integer null,                   -- Código único do cliente
+  razao_social text null,
+  nome_fantasia text null,
+  cidade text null,
+  estado text null,
+  cod_vendedor integer null,                     -- FK para profiles.cod_vendedor
+  -- ... outros campos financeiros e de contato
+  constraint tabela_clientes_pkey primary key (id),
+  constraint tabela_clientes_codigo_cliente_key unique (codigo_cliente)
+);
+
+create index idx_clientes_cod_vendedor on public.tabela_clientes using btree (cod_vendedor);
+```
+
+#### analise_rfm
+```sql
+create table public.analise_rfm (
+  id serial not null,
+  codigo_cliente integer not null,               -- FK tabela_clientes.codigo_cliente
+  perfil text not null,                          -- '30' (ouro), '10' (prata), '5' (bronze)
+  meta_ano_atual numeric null,
+  valor_ano_atual numeric null,
+  percentual_atingimento numeric null,
+  estrelas integer null,                         -- Rating 1-5 estrelas
+  acao_recomendada text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint analise_rfm_pkey primary key (id)
+);
+```
+
+**Valores do perfil:** Strings '30', '10', '5' (não números)
+
+### Views Especializadas
+
+#### vw_clientes_completo
+View consolidada com dados completos dos clientes, incluindo métricas financeiras e status. Usa `security_invoker = true` para respeitar RLS.
+
+#### vw_metricas_categoria_cliente
+Métricas de produtos por categoria (RX/SOL, Feminino/Masculino, OB/PW). **IMPORTANTE:** Configurada com `security_invoker = true` para garantir que RLS seja aplicado corretamente.
+
+**Correção aplicada:**
+```sql
+ALTER VIEW vw_metricas_categoria_cliente SET (security_invoker = true);
+```
+
+Esta correção garante que a view execute com permissões do usuário atual, não do owner, respeitando as políticas RLS.
+
+### Fluxo de Relacionamento
+```
+auth.users (id: UUID)
+    ↓
+profiles (id: UUID, cod_vendedor: INTEGER)
+    ↓
+tabela_clientes (cod_vendedor: INTEGER, codigo_cliente: INTEGER)
+    ↓
+analise_rfm (codigo_cliente: INTEGER, perfil: TEXT)
+```
+
 ## 📋 Conclusão
 
 O sistema está **100% funcional** no frontend com dados reais no módulo representante e dados mockados otimizados no módulo gestão executiva. A arquitetura foi expandida para suportar análises avançadas mantendo performance e usabilidade.
@@ -341,6 +438,13 @@ O sistema está **100% funcional** no frontend com dados reais no módulo repres
 - ✅ **Módulo Gestão**: Completo com dados mockados otimizados
 - ✅ **Autenticação**: Totalmente funcional com RLS
 - ✅ **Performance**: Otimizada com memo e lazy loading
+- ✅ **Views RLS**: Corrigidas com security_invoker
 - ⚠️ **Backend Integration**: Pendente para módulo gestão
 
 A arquitetura escolhida permite escalabilidade, manutenibilidade e segurança adequadas para o crescimento do negócio da Focco Brasil, agora com capacidades executivas avançadas para tomada de decisão estratégica.
+
+---
+
+## 📚 Documentação Adicional
+
+Para informações sobre configuração de segurança e variáveis de ambiente, consulte o arquivo `SECURITY.md` na raiz do projeto.

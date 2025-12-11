@@ -52,6 +52,14 @@ Uma aplicação moderna e completa para gestão de representantes, rotas e ótic
 - **Ranking Visual**: Posicionamento com medalhas e cores
 - **Otimização**: Sistema de memo para reduzir consultas ao banco
 
+#### Metas por Cliente (NOVO)
+- **Classificação por Perfil**: Tabelas separadas para Ouro, Prata e Bronze
+- **Filtros Inteligentes**: Busca por vendedor e cidade com normalização
+- **Tabelas Ordenáveis**: Clique em colunas para ordenar (código, nome, vendedor, cidade, objetivo, vendas, %)
+- **Totais Dinâmicos**: Soma automática de objetivos, vendas e percentual geral por perfil
+- **Sistema de Cores**: Visual diferenciado por perfil (amarelo/ouro, cinza/prata, laranja/bronze)
+- **Contador de Clientes**: Exibição automática da quantidade de clientes filtrados por perfil
+
 ### Sistema de Rotas
 - **Gestão Completa**: Visualização de oportunidades, cidades e óticas por rota
 - **Indicadores**: Quantidade de óticas sem vendas por mais de 90 dias
@@ -132,6 +140,7 @@ A aplicação possui três níveis de acesso:
 2. **Acumulado do Ano**: Performance anual por mês e vendedor
 3. **Dashboard Rotas**: Análise de rotas e cidades top performers
 4. **Top Clientes**: Ranking de clientes com filtros avançados
+5. **Metas por Cliente**: Análise detalhada por perfil (Ouro, Prata, Bronze) com filtros dinâmicos
 
 ### Indicadores Críticos
 - **DSV (Dias Sem Vendas)**: Presente em clientes e detalhes
@@ -238,6 +247,14 @@ npm run build
 - `npm run lint`: Executa o linter
 
 ## 📈 Changelog Recente
+
+### v3.1 - Metas por Cliente (Atual)
+- ✅ Nova página Metas por Cliente para diretores
+- ✅ Classificação automática por perfil RFM
+- ✅ Filtros dinâmicos por vendedor e cidade
+- ✅ Tabelas ordenáveis com totais automáticos
+- ✅ Sistema de cores diferenciado por perfil
+- ✅ Correções de TypeScript (imports e variáveis não utilizadas)
 
 ### v3.0 - Módulo Gestão Executiva
 - ✅ Dashboard Gestão com métricas executivas

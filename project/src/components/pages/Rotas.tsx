@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Search, User, LogOut, MapPin } from 'lucide-react'
+import { ArrowLeft, Search, User, LogOut, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
-import { getRotasCompleto, formatarMoeda, normalizeText, type RotaMapeada } from '../../lib/queries/rotas'
+import { getRotasCompleto, normalizeText, type RotaMapeada } from '../../lib/queries/rotas'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import { supabase } from '../../lib/supabase'
 
@@ -54,6 +54,128 @@ const Rotas: React.FC = () => {
     const normalizedSearchTerm = normalizeText(searchTerm)
     return normalizeText(rota.nome).includes(normalizedSearchTerm)
   })
+
+  // Função para formatar valores em milhares (K)
+  const formatCurrencyK = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'decimal',
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    }).format(value / 1000)
+  }
+
+  // Componente do Card de Rota
+  const RotaCard: React.FC<{ rota: RotaMapeada }> = ({ rota }) => {
+    const atingimento = rota.percentualMeta
+
+    // Calcular o ângulo para o gráfico de rosca
+    const circumference = 2 * Math.PI * 54
+    const greenOffset = circumference * (1 - atingimento / 100)
+
+    return (
+      <div
+        className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden"
+        onClick={() => navigate(`/rotas/${encodeURIComponent(rota.nome || 'sem-rota')}/cidades`)}
+      >
+        {/* Header */}
+        <div className="p-4">
+          <div className="flex items-center gap-1.5 mb-4">
+            <Home className="w-5 h-5 text-gray-600 flex-shrink-0" />
+            <span className="text-base sm:text-lg font-bold text-gray-800 truncate">{rota.nome || 'Sem Rota'}</span>
+            <span className="text-base sm:text-lg text-gray-500 flex-shrink-0">- {rota.totalOticas} óticas</span>
+          </div>
+
+          {/* Content - Horizontal em todos os tamanhos */}
+          <div className="flex items-center gap-4 sm:gap-6">
+            {/* Donut Chart */}
+            <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                {/* Background circle (red) */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke="#DC2626"
+                  strokeWidth="12"
+                />
+                {/* Progress circle (green) */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke="#16A34A"
+                  strokeWidth="12"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={greenOffset}
+                  strokeLinecap="butt"
+                />
+              </svg>
+              {/* Center text */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl sm:text-2xl font-bold text-gray-900">{atingimento.toFixed(1)}%</span>
+                <span className="text-[10px] sm:text-xs text-gray-600">Atingimento</span>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="flex-1 min-w-0">
+              {/* Saldo */}
+              <div className="mb-2.5">
+                <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
+                  R$ {formatCurrencyK(rota.saldoMeta)}
+                </div>
+                <div className="text-gray-600 text-[10px] sm:text-xs">Saldo</div>
+                <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: R$ {formatCurrencyK(rota.metaAnoAtual)}</div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 my-2.5"></div>
+
+              {/* Metrics row */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {/* Lojas */}
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-0.5">
+                    <Home className="w-3 h-3 text-gray-500" />
+                    <span className="font-bold text-xs sm:text-sm text-gray-800">{rota.totalOticas}</span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">Lojas</span>
+                </div>
+
+                {/* Cidades */}
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-0.5">
+                    <MapPin className="w-3 h-3 text-gray-500" />
+                    <span className="font-bold text-xs sm:text-sm text-gray-800">{rota.totalCidades}</span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">Cidades</span>
+                </div>
+
+                {/* Lojas sem venda */}
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-0.5">
+                    <AlertTriangle className="w-3 h-3 text-red-500" />
+                    <span className="font-bold text-xs sm:text-sm text-red-500">{rota.semVendas90d}</span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">Lojas s/ venda</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Oportunidade de Venda */}
+        <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-orange-500 flex-shrink-0" />
+          <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
+            Oportunidade de Venda: R$ {formatCurrencyK(rota.somaOportunidades)}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -123,83 +245,13 @@ const Rotas: React.FC = () => {
           </div>
         ) : (
           /* Rotas List */
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredRotas.length > 0 ? (
               filteredRotas.map((rota, index) => (
-                <div
-                  key={rota.nome || index}
-                  className="bg-white rounded-lg shadow-md border border-gray-200 p-3 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer"
-                  onClick={() => navigate(`/rotas/${encodeURIComponent(rota.nome || 'sem-rota')}/cidades`)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1.5">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        <h3 className="text-base font-semibold text-gray-900">
-                          {rota.nome || 'Sem Rota'}
-                        </h3>
-                        <span className="text-xs text-gray-600">
-                          - {rota.totalOticas} óticas
-                        </span>
-                      </div>
-                      
-                      <div className="mb-1"></div>
-                      
-                      <div className="space-y-0.5 mb-3">
-                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
-                          <span className="text-xs text-blue-700 font-medium">Meta da Rota:</span>
-                          <p className="text-xs font-bold text-blue-800">{formatarMoeda(rota.metaAnoAtual)}</p>
-                        </div>
-                        
-                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
-                          <span className="text-xs text-green-700 font-medium">Saldo:</span>
-                          <p className="text-xs font-bold text-green-800">{formatarMoeda(rota.saldoMeta)}</p>
-                        </div>
-                        
-                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
-                          <span className="text-xs text-orange-700 font-medium">Oport. de Venda:</span>
-                          <p className="text-xs font-bold text-orange-800">{formatarMoeda(rota.somaOportunidades)}</p>
-                        </div>
-                        
-                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
-                          <span className="text-xs text-purple-700 font-medium">Total de Lojas:</span>
-                          <p className="text-xs font-bold text-purple-800">{rota.totalOticas}</p>
-                        </div>
-                        
-                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
-                          <span className="text-xs text-indigo-700 font-medium">nº de Cidades:</span>
-                          <p className="text-xs font-bold text-indigo-800">{rota.totalCidades}</p>
-                        </div>
-                        
-                        <div className="flex justify-between items-center bg-gray-100 px-2 py-1.5 rounded">
-                          <span className="text-xs text-red-700 font-medium">Lojas s/ venda +90d:</span>
-                          <p className="text-xs font-bold text-red-800">{rota.semVendas90d}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-2">
-                        <div className="flex justify-between items-center mb-0.5">
-                          <span className="text-xs text-gray-600">Atingimento</span>
-                          <span className="text-xs font-semibold text-gray-800">{rota.percentualMeta.toFixed(1)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full transition-all duration-300 ${
-                              rota.percentualMeta >= 100 ? 'bg-gradient-to-r from-green-400 to-green-600' :
-                              rota.percentualMeta >= 80 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
-                              rota.percentualMeta >= 60 ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
-                              'bg-gradient-to-r from-red-400 to-red-600'
-                            }`}
-                            style={{ width: `${Math.min(Math.max(rota.percentualMeta, 0), 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <RotaCard key={rota.nome || index} rota={rota} />
               ))
             ) : (
-              <div className="text-center py-12 text-gray-500">
+              <div className="col-span-full text-center py-12 text-gray-500">
                 <p className="text-lg mb-2">{getEmptyStateMessage(user, 'rotas').title}</p>
                 <p className="text-sm">
                   {searchTerm ? 'Tente ajustar o filtro de busca.' : getEmptyStateMessage(user, 'rotas').subtitle}
