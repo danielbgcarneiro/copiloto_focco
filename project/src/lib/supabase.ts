@@ -20,13 +20,13 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
-supabase.auth.onAuthStateChange((event, session) => {
+supabase.auth.onAuthStateChange((_event, _session) => {
   // Auth state tracking
 })
 
 export async function testConnection() {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('profiles')
       .select('count')
       .limit(1)
@@ -35,7 +35,7 @@ export async function testConnection() {
       console.error('Erro ao conectar com profiles:', error.message)
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    await supabase.auth.getUser()
 
     return !error
   } catch (error) {

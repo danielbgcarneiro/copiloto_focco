@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut, User, Shield, Search, ArrowLeft } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { getTabelasPerfilParaGestao, TabelaPerfil, ClientePerfil } from '../../lib/queries/dashboard';
 import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores';
 
@@ -149,7 +149,7 @@ const TabelaClientesPerfil: React.FC<{
 
 const MetasPorCliente: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [tabelasPerfil, setTabelasPerfil] = useState<TabelaPerfil[]>([]);
   const [filtroCidade, setFiltroCidade] = useState('');
