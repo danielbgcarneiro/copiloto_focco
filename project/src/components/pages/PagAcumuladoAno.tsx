@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, User, Shield, ChevronDown, ChevronUp, TrendingUp, MapPin, UserCheck, Home, ArrowLeft } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 interface DadosMensal {
@@ -35,7 +35,7 @@ interface CidadesERP {
 
 const PagAcumuladoAno: React.FC = () => {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [anoAtual] = useState(new Date().getFullYear())
   const [selectedAno, setSelectedAno] = useState(2025)

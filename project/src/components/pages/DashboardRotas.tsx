@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, User, Shield, TrendingUp, MapPin, UserCheck, Home, ArrowLeft, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -49,7 +49,7 @@ type SortDirection = 'asc' | 'desc'
 
 const DashboardRotas: React.FC = () => {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [rotasData, setRotasData] = useState<RotaData[]>([])
   const [cidadesData, setCidadesData] = useState<CidadeData[]>([])
