@@ -1,23 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Search, User, LogOut, MapPin, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Search, User, LogOut, MapPin } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
 import { getRotasCompleto, formatarMoeda, normalizeText, type RotaMapeada } from '../../lib/queries/rotas'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import { supabase } from '../../lib/supabase'
-
-interface CidadeComMeta {
-  codigo_ibge_cidade: number
-  cidade: string
-  rota: string
-  vendedor_apelido: string
-  meta_cidade: number
-  vendas_cidade: number
-  qtd_clientes: number
-  percentual_atingimento: number
-  saldo_meta: number
-}
 
 const Rotas: React.FC = () => {
   const navigate = useNavigate()
@@ -27,12 +15,7 @@ const Rotas: React.FC = () => {
   const [rotas, setRotas] = useState<RotaMapeada[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedRota, setExpandedRota] = useState<string | null>(null)
-  const [cidadesCom, setCidadesMeta] = useState<Map<string, CidadeComMeta[]>>(new Map())
-  const [loadingCidades, setLoadingCidades] = useState(false)
 
-
-  // Carregar rotas reais do usuário logado
   useEffect(() => {
     carregarRotas()
   }, [user])
@@ -41,35 +24,25 @@ const Rotas: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-      
-      // Verificar se usuário está autenticado antes de continuar
+
       if (!user?.id) {
-        console.log('❌ Usuário não autenticado, aguardando...')
         setLoading(false)
         return
       }
-      
-      console.log('🔍 Carregando rotas para usuário:', {
-        userId: user.id,
-        email: user.email
-      })
-      
-      // Aguardar um pouco para garantir que a sessão está sincronizada
+
       await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Verificar sessão dupla para garantir que RLS está ativo
+
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        console.log('❌ Sessão não encontrada, tentando novamente...')
         await new Promise(resolve => setTimeout(resolve, 1000))
       }
-      
+
       const rotasData = await getRotasCompleto()
-      console.log('✅ Rotas carregadas:', rotasData)
       setRotas(rotasData)
-      
+
+
     } catch (error) {
-      console.error('💥 Erro ao carregar rotas:', error)
+      console.error('Erro ao carregar rotas:', error)
       setError(error instanceof Error ? error.message : 'Erro desconhecido')
       setRotas([])
     } finally {
@@ -77,39 +50,6 @@ const Rotas: React.FC = () => {
     }
   }
 
-  async function carregarCidades(rotaNome: string) {
-    if (cidadesCom.has(rotaNome)) {
-      return // Já foi carregado
-    }
-
-    try {
-      setLoadingCidades(true)
-      const { data, error } = await supabase
-        .from('vw_cidades_com_meta')
-        .select('*')
-        .eq('rota', rotaNome)
-        .order('vendas_cidade', { ascending: false })
-
-      if (error) throw error
-
-      setCidadesMeta(new Map(cidadesCom).set(rotaNome, data || []))
-    } catch (error) {
-      console.error('Erro ao carregar cidades:', error)
-    } finally {
-      setLoadingCidades(false)
-    }
-  }
-
-  function toggleRotaExpansao(rotaNome: string) {
-    if (expandedRota === rotaNome) {
-      setExpandedRota(null)
-    } else {
-      setExpandedRota(rotaNome)
-      carregarCidades(rotaNome)
-    }
-  }
-
-  // Filtrar rotas baseado na busca
   const filteredRotas = rotas.filter(rota => {
     const normalizedSearchTerm = normalizeText(searchTerm)
     return normalizeText(rota.nome).includes(normalizedSearchTerm)

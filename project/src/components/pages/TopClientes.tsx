@@ -41,17 +41,14 @@ const TopClientes: React.FC = () => {
   const [anoComparacao, setAnoComparacao] = useState(2025)
   const anosDisponiveis = [2023, 2024, 2025]
 
-  // Estados para filtros
   const [vendedoresSelecionados, setVendedoresSelecionados] = useState<string[]>([])
   const [rotasSelecionadas, setRotasSelecionadas] = useState<string[]>([])
   const [dropdownVendedorAberto, setDropdownVendedorAberto] = useState(false)
   const [dropdownRotaAberto, setDropdownRotaAberto] = useState(false)
 
-  // Refs para detectar cliques fora dos dropdowns
   const dropdownVendedorRef = useRef<HTMLDivElement>(null)
   const dropdownRotaRef = useRef<HTMLDivElement>(null)
 
-  // Dados mockados com memo para otimização
   const vendedores = useMemo<Vendedor[]>(() => [
     { id: '1', nome: 'João Silva' },
     { id: '2', nome: 'Maria Santos' },
@@ -75,7 +72,6 @@ const TopClientes: React.FC = () => {
     { id: '10', nome: 'Canindé' }
   ], [])
 
-  // Dados dos clientes com memo para otimização
   const dadosClientes = useMemo<ClienteData[]>(() => [
     { id: '1', nome: 'Ótica Central', rota: 'Fortaleza Centro', cidade: 'Fortaleza', vendedor: 'João Silva', vendedorId: '1', rotaId: '2', vendas: { 2023: 265000, 2024: 285000, 2025: 195000 }, metas: { 2023: 280000, 2024: 300000, 2025: 320000 } },
     { id: '2', nome: 'Visão Perfeita', rota: 'Sobral', cidade: 'Sobral', vendedor: 'Ana Oliveira', vendedorId: '4', rotaId: '5', vendas: { 2023: 215000, 2024: 235000, 2025: 165000 }, metas: { 2023: 240000, 2024: 260000, 2025: 280000 } },
@@ -111,7 +107,6 @@ const TopClientes: React.FC = () => {
     { id: '32', nome: 'Visão Master', rota: 'Caucaia', cidade: 'Caucaia', vendedor: 'Maria Santos', vendedorId: '2', rotaId: '3', vendas: { 2023: 7000, 2024: 9000, 2025: 2000 }, metas: { 2023: 11000, 2024: 11500, 2025: 12000 } }
   ], [])
 
-  // Calcular Potencial x Realizado com memo
   const potencialRealizado = useMemo<PotencialRealizadoData>(() => {
     const totalMetas = dadosClientes.reduce((acc, cliente) => acc + (cliente.metas[anoComparacao] || 0), 0)
     const totalVendas = dadosClientes.reduce((acc, cliente) => acc + (cliente.vendas[anoComparacao] || 0), 0)
@@ -120,7 +115,6 @@ const TopClientes: React.FC = () => {
     return { totalMetas, totalVendas, atingimento }
   }, [dadosClientes, anoComparacao])
 
-  // Filtrar dados baseado na seleção de vendedores e rotas com memo
   const clientesFiltrados = useMemo(() => {
     let filtered = dadosClientes
 
@@ -136,7 +130,6 @@ const TopClientes: React.FC = () => {
       )
     }
 
-    // Sempre retornar apenas os 30 maiores por vendas do ano de comparação
     return filtered.sort((a, b) => (b.vendas[anoComparacao] || 0) - (a.vendas[anoComparacao] || 0)).slice(0, 30)
   }, [dadosClientes, vendedoresSelecionados, rotasSelecionadas, anoComparacao])
 
@@ -174,7 +167,6 @@ const TopClientes: React.FC = () => {
 
   const handleAnoBaseChange = (ano: number) => {
     if (ano === anoComparacao) {
-      // Se tentar selecionar o mesmo ano, ajusta automaticamente o ano de comparação
       const novosAnos = anosDisponiveis.filter(a => a !== ano)
       if (novosAnos.length > 0) {
         setAnoComparacao(novosAnos[novosAnos.length - 1])
@@ -185,7 +177,6 @@ const TopClientes: React.FC = () => {
 
   const handleAnoComparacaoChange = (ano: number) => {
     if (ano === anoBase) {
-      // Se tentar selecionar o mesmo ano, ajusta automaticamente o ano base
       const novosAnos = anosDisponiveis.filter(a => a !== ano)
       if (novosAnos.length > 0) {
         setAnoBase(novosAnos[0])
@@ -194,7 +185,6 @@ const TopClientes: React.FC = () => {
     setAnoComparacao(ano)
   }
 
-  // Fechar dropdowns ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownVendedorRef.current && !dropdownVendedorRef.current.contains(event.target as Node)) {
@@ -233,7 +223,6 @@ const TopClientes: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-primary text-white shadow-lg">
         <div className="w-full sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-14">
@@ -269,7 +258,6 @@ const TopClientes: React.FC = () => {
         </div>
       </header>
 
-      {/* Menu de Navegação */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="w-full sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-1 py-3 overflow-x-auto">
@@ -308,9 +296,7 @@ const TopClientes: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <main className="w-full sm:max-w-7xl sm:mx-auto px-2 sm:px-6 lg:px-8 py-4 lg:py-8">
-        {/* Welcome Section */}
         <div className="mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
             Top Clientes
@@ -320,7 +306,6 @@ const TopClientes: React.FC = () => {
           </p>
         </div>
 
-        {/* Potencial x Realizado */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Potencial x Realizado ({anoComparacao})</h3>
           
@@ -347,14 +332,11 @@ const TopClientes: React.FC = () => {
           </div>
         </div>
 
-        {/* Top 30 Clientes */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Top 30 Clientes</h3>
 
-          {/* Filtros - Todos em uma linha */}
           <div className="mb-6">
             <div className="flex flex-wrap items-center gap-3">
-              {/* Filtros de Período */}
               <div className="flex items-center gap-2">
                 <select
                   value={anoBase}
@@ -379,11 +361,8 @@ const TopClientes: React.FC = () => {
                 </select>
               </div>
 
-              {/* Divisor vertical - apenas em telas maiores */}
               <div className="hidden sm:block h-8 w-px bg-gray-300"></div>
 
-              {/* Filtros de Segmentação */}
-              {/* Filtro Vendedores */}
               <div className="relative" ref={dropdownVendedorRef}>
                 <button
                   onClick={() => setDropdownVendedorAberto(!dropdownVendedorAberto)}
@@ -426,7 +405,6 @@ const TopClientes: React.FC = () => {
                 )}
               </div>
 
-              {/* Filtro Rotas */}
               <div className="relative" ref={dropdownRotaRef}>
                 <button
                   onClick={() => setDropdownRotaAberto(!dropdownRotaAberto)}

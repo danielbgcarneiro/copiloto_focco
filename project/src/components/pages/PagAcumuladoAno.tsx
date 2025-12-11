@@ -56,7 +56,6 @@ const PagAcumuladoAno: React.FC = () => {
   const [expandidoVendedores, setExpandidoVendedores] = useState(false)
   const [expandidoVendedoresClientesDropdown, setExpandidoVendedoresClientesDropdown] = useState(false)
 
-  // Refs para detectar cliques fora dos dropdowns
   const dropdownVendedoresRealizadoRef = useRef<HTMLDivElement>(null)
   const dropdownVendedoresClientesRef = useRef<HTMLDivElement>(null)
 
@@ -262,7 +261,6 @@ const PagAcumuladoAno: React.FC = () => {
     return { total2024, total2025 }
   }
 
-  // Filtering logic for Realizado
   const filteredDadosRealizados = useMemo(() => {
     return dadosRealizados.map((mes) => ({
       ...mes,
@@ -282,7 +280,6 @@ const PagAcumuladoAno: React.FC = () => {
     }))
   }, [dadosRealizados, selectedVendedoresRealizado])
 
-  // Filtering logic for Clientes Únicos
   const filteredDadosClientesUnicos = useMemo(() => {
     return dadosClientesUnicos.map((mes) => ({
       ...mes,
@@ -296,7 +293,6 @@ const PagAcumuladoAno: React.FC = () => {
     }))
   }, [dadosClientesUnicos, selectedVendedoresClientes])
 
-  // Fechar dropdowns ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownVendedoresRealizadoRef.current && !dropdownVendedoresRealizadoRef.current.contains(event.target as Node)) {

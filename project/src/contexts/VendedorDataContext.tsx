@@ -40,7 +40,6 @@ export const useUserData = () => {
   return context
 }
 
-// Manter compatibilidade com nome antigo
 export const useVendedorData = useUserData
 
 interface UserDataProviderProps {
@@ -72,15 +71,12 @@ export const UserDataProvider: React.FC<UserDataProviderProps> = ({ children }) 
     }
 
     try {
-      // 1. Carrega perfil do usuário
       const { data: profileData, error: profileError } = await getUserProfile(userId)
       if (profileError) {
         throw new Error(`Erro ao carregar perfil: ${profileError}`)
       }
       resultados.profile = profileData
 
-      // 2. Carrega dados com RLS (Row Level Security)
-      // Agora o backend filtra automaticamente baseado no usuário logado
       const queries = [
         { key: 'clientes', fn: getClientes },
         { key: 'rotas', fn: getRotas },
@@ -103,7 +99,6 @@ export const UserDataProvider: React.FC<UserDataProviderProps> = ({ children }) 
         }
       }
 
-      // Cache em localStorage para performance
       const cacheKey = `userData_${userId}`
       localStorage.setItem(cacheKey, JSON.stringify({
         ...resultados,
@@ -119,14 +114,12 @@ export const UserDataProvider: React.FC<UserDataProviderProps> = ({ children }) 
     }
   }
 
-  // Tenta recuperar do cache primeiro
   useEffect(() => {
     if (user?.id) {
       const cacheKey = `userData_${user.id}`
       const cached = localStorage.getItem(cacheKey)
-      
+
       if (cached) {
-        // Tem cache - usa instantaneamente
         try {
           const cachedData = JSON.parse(cached)
           setDadosCompletos(cachedData)
@@ -135,11 +128,9 @@ export const UserDataProvider: React.FC<UserDataProviderProps> = ({ children }) 
           carregarDados(user.id)
         }
       } else {
-        // Não tem cache - carrega tudo
         carregarDados(user.id)
       }
     } else {
-      // Usuário não logado - limpa dados
       setDadosCompletos({
         profile: null,
         clientes: [],

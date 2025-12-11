@@ -14,7 +14,6 @@ const Login: React.FC = () => {
   const { login, user } = useAuth();
   const navigate = useNavigate();
 
-  // Navega para a home se o usuário já estiver logado ou após o login
   useEffect(() => {
     if (user) {
       navigate('/home');
@@ -36,7 +35,6 @@ const Login: React.FC = () => {
       if (!result.success) {
         setError(result.error || 'Erro desconhecido');
       }
-      // A navegação será feita pelo useEffect acima
     } catch (error) {
       setError('Erro na conexão com o servidor');
     } finally {

@@ -54,28 +54,23 @@ const DashboardRotas: React.FC = () => {
   const [rotasData, setRotasData] = useState<RotaData[]>([])
   const [cidadesData, setCidadesData] = useState<CidadeData[]>([])
   const [vendedores, setVendedores] = useState<VendedorInfo[]>([])
-  
-  // Estados para filtros
+
   const [vendedoresSelecionadosRotas, setVendedoresSelecionadosRotas] = useState<string[]>([])
   const [vendedoresSelecionadosCidades, setVendedoresSelecionadosCidades] = useState<string[]>([])
   const [dropdownRotasAberto, setDropdownRotasAberto] = useState(false)
   const [dropdownCidadesAberto, setDropdownCidadesAberto] = useState(false)
-  
-  // Refs para detectar cliques fora dos dropdowns
+
   const dropdownRotasRef = useRef<HTMLDivElement>(null)
   const dropdownCidadesRef = useRef<HTMLDivElement>(null)
-  
-  // Estados para expansão de rotas
+
   const [expandedRota, setExpandedRota] = useState<string | null>(null)
   const [cidadesComMeta, setCidadesComMeta] = useState<Map<string, CidadeComMeta[]>>(new Map())
   const [loadingCidades, setLoadingCidades] = useState(false)
   const [sortCidadesExpandidas, setSortCidadesExpandidas] = useState<{ field: keyof CidadeComMeta; direction: SortDirection }>({ field: 'vendas_cidade', direction: 'desc' })
-  
-  // Estados para ordenação
+
   const [sortRotas, setSortRotas] = useState<{ field: RotaSortField; direction: SortDirection }>({ field: 'vendido_2025', direction: 'desc' })
   const [sortCidades, setSortCidades] = useState<{ field: CidadeSortField; direction: SortDirection }>({ field: 'valor_vendas', direction: 'desc' })
 
-  // Carregar dados das views do Supabase
   useEffect(() => {
     const carregarDados = async () => {
       if (!user) return
@@ -83,7 +78,6 @@ const DashboardRotas: React.FC = () => {
       try {
         setLoading(true)
 
-        // Carregar dados de rotas
         const { data: rotasResponse, error: rotasError } = await supabase
           .from('vw_ranking_rotas')
           .select('*')
@@ -95,7 +89,6 @@ const DashboardRotas: React.FC = () => {
           setRotasData(rotasResponse || [])
         }
 
-        // Carregar dados de cidades
         const { data: cidadesResponse, error: cidadesError } = await supabase
           .from('vw_top10_cidades')
           .select('*')
@@ -108,7 +101,6 @@ const DashboardRotas: React.FC = () => {
           setCidadesData(cidadesResponse || [])
         }
 
-        // Carregar lista de vendedores únicos
         const vendedoresUnicos = new Map<string, string>()
         
         rotasResponse?.forEach(rota => {
@@ -140,7 +132,6 @@ const DashboardRotas: React.FC = () => {
     carregarDados()
   }, [user])
 
-  // Fechar dropdowns ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRotasRef.current && !dropdownRotasRef.current.contains(event.target as Node)) {
@@ -155,7 +146,6 @@ const DashboardRotas: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Filtrar dados baseado na seleção de vendedores
   const rotasFiltradas = useMemo(() => {
     if (vendedoresSelecionadosRotas.length === 0) return rotasData
     return rotasData.filter(rota => 
@@ -170,7 +160,6 @@ const DashboardRotas: React.FC = () => {
     )
   }, [cidadesData, vendedoresSelecionadosCidades])
 
-  // Ordenar dados
   const rotasOrdenadas = useMemo(() => {
     return [...rotasFiltradas].sort((a, b) => {
       const aValue = a[sortRotas.field]

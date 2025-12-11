@@ -20,61 +20,26 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
-// Debug listener para autenticação
 supabase.auth.onAuthStateChange((event, session) => {
-  console.log('🔐 Auth state changed:', event, {
-    userId: session?.user?.id,
-    email: session?.user?.email,
-    hasToken: !!session?.access_token
-  })
+  // Auth state tracking
 })
 
-// Função para testar conexão
 export async function testConnection() {
   try {
-    console.log('🔗 Testando conexão com Supabase...')
-    console.log('📍 URL:', supabaseUrl)
-    console.log('🔑 Anon Key (primeiros 20 chars):', supabaseKey?.substring(0, 20) + '...')
-    
-    // Primeiro teste: verificar se consegue acessar a tabela profiles
     const { data, error } = await supabase
       .from('profiles')
       .select('count')
       .limit(1)
-    
-    console.log('📊 Teste de conexão com profiles:', {
-      hasData: !!data,
-      error: error?.message,
-      errorCode: error?.code
-    })
-    
+
     if (error) {
-      console.error('❌ Erro ao conectar com profiles:', {
-        message: error.message,
-        code: error.code,
-        hint: error.hint,
-        details: error.details
-      })
+      console.error('Erro ao conectar com profiles:', error.message)
     }
 
-    // Segundo teste: verificar autenticação
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    console.log('👤 Status de autenticação:', {
-      isAuthenticated: !!user,
-      userEmail: user?.email,
-      authError: authError?.message
-    })
-    
-    if (!error) {
-      console.log('✅ Conexão com database bem-sucedida!')
-    }
-    
+
     return !error
   } catch (error) {
-    console.error('💥 Erro crítico na conexão:', {
-      error,
-      message: error instanceof Error ? error.message : 'Erro desconhecido'
-    })
+    console.error('Erro crítico na conexão:', error instanceof Error ? error.message : 'Erro desconhecido')
     return false
   }
 }
@@ -205,17 +170,16 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
   }
 }
 
-// Função para logout
 export async function logoutUser(): Promise<{ error: string | null }> {
   try {
     const { error } = await supabase.auth.signOut()
     if (error) {
-      console.error('❌ Erro no logout:', error)
+      console.error('Erro no logout:', error)
       return { error: error.message }
     }
     return { error: null }
   } catch (error) {
-    console.error('💥 Erro no logout:', error)
+    console.error('Erro no logout:', error)
     return { error: 'Erro na conexão' }
   }
 }

@@ -27,7 +27,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Verificar se há um usuário autenticado no Supabase
     const checkUser = async () => {
       const { user, error } = await getCurrentUser()
       if (user && !error) {
@@ -61,11 +60,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     setLoading(true)
     try {
-      // Limpa cache do vendedor antes de fazer logout
       if (user?.profile?.cod_vendedor) {
         localStorage.removeItem(`vendedor_${user.profile.cod_vendedor}`)
       }
-      
+
       await logoutUser()
       setUser(null)
     } catch (error) {
