@@ -1,6 +1,0 @@
-SELECT 
-  * 
-FROM 
-  public.profiles 
-WHERE 
-  id = auth.uid();

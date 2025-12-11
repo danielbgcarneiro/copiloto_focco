@@ -28,7 +28,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 
   if (!allowedRoles.includes(user.cargo)) {
     if (user.cargo === 'diretor') {
-      return <Navigate to="/dashboard-gestao" replace />;
+      return <Navigate to="/gestao" replace />;
     }
     return <Navigate to="/dashboard" replace />;
   }

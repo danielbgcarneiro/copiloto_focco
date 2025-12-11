@@ -41,54 +41,32 @@ const router = createBrowserRouter([
     )
   },
   {
-    path: "/dashboard-gestao",
+    path: "/gestao",
     element: (
       <ProtectedRoute allowedRoles={['diretor']}>
         <UserDataProvider>
           <DashboardGestao />
         </UserDataProvider>
       </ProtectedRoute>
-    )
-  },
-  {
-    path: "/acumulado-ano",
-    element: (
-      <ProtectedRoute allowedRoles={['diretor']}>
-        <UserDataProvider>
-          <PagAcumuladoAno />
-        </UserDataProvider>
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/dashboard-rotas",
-    element: (
-      <ProtectedRoute allowedRoles={['diretor']}>
-        <UserDataProvider>
-          <DashboardRotas />
-        </UserDataProvider>
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/top-clientes",
-    element: (
-      <ProtectedRoute allowedRoles={['diretor']}>
-        <UserDataProvider>
-          <TopClientes />
-        </UserDataProvider>
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/metas-por-cliente", // New route
-    element: (
-      <ProtectedRoute allowedRoles={['diretor']}>
-        <UserDataProvider>
-          <MetasPorCliente />
-        </UserDataProvider>
-      </ProtectedRoute>
-    )
+    ),
+    children: [
+      {
+        path: "acumulado-ano",
+        element: <PagAcumuladoAno />,
+      },
+      {
+        path: "dashboard-rotas",
+        element: <DashboardRotas />,
+      },
+      {
+        path: "top-clientes",
+        element: <TopClientes />,
+      },
+      {
+        path: "metas-por-cliente",
+        element: <MetasPorCliente />,
+      },
+    ]
   },
   {
     path: "/rotas",

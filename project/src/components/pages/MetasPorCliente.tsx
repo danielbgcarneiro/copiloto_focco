@@ -200,24 +200,6 @@ const MetasPorCliente: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-primary text-white shadow-lg">
-        <div className="w-full sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-14">
-            <div className="flex items-center">
-              <button onClick={() => navigate('/dashboard-gestao')} className="p-2 sm:p-1.5 hover:bg-white/10 rounded-full mr-2">
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-              <Shield className="h-5 w-5 mr-2" /><span className="text-sm font-medium hidden sm:inline">Gestão</span>
-            </div>
-            <h1 className="text-base sm:text-lg font-bold">Metas por Cliente</h1>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1.5"><User className="h-4 w-4" /><span className="text-xs sm:text-sm hidden sm:inline">{user?.apelido || 'Diretor'}</span></div>
-              <button onClick={() => { logout(); navigate('/') }} className="p-2 sm:p-1.5 hover:bg-white/10 rounded-full"><LogOut className="h-4 w-4" /></button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <main className="w-full sm:max-w-7xl sm:mx-auto px-2 sm:px-6 lg:px-8 py-4 lg:py-8">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Visão Geral de Metas por Cliente</h2>
         

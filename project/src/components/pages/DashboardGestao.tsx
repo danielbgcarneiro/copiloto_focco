@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { BarChart3, Users, LogOut, User, Shield, DollarSign, Target, Calendar, RefreshCw } from 'lucide-react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { BarChart3, Users, LogOut, User, Shield, DollarSign, Target, Calendar, RefreshCw, Menu, X, Home, MapPin } from 'lucide-react'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -44,9 +44,11 @@ interface VendedorRankingSemanal {
 
 
 const DashboardGestao: React.FC = () => {
+  const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [loading, setLoading] = useState(true)
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mesAtual, setMesAtual] = useState(new Date().getMonth() + 1)
   const [anoAtual, setAnoAtual] = useState(new Date().getFullYear())
   const [carregandoDados, setCarregandoDados] = useState(false)
@@ -312,173 +314,247 @@ const DashboardGestao: React.FC = () => {
           </div>
         </div>
       </header>
-
-      <main className="w-full sm:max-w-7xl sm:mx-auto px-2 sm:px-6 lg:px-8 py-4 lg:py-8">
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Bem-vindo, {user?.apelido || 'Diretor'}</h2>
-          <p className="text-sm sm:text-base text-gray-600">Painel executivo com visão geral de toda a operação</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Período</h3>
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <select value={mesAtual} onChange={(e) => setMesAtual(Number(e.target.value))} className="px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-w-0" disabled={carregandoDados}>{meses.map(m => <option key={m.valor} value={m.valor}>{m.nome.substring(0,3)}</option>)}</select>
-              <select value={anoAtual} onChange={(e) => setAnoAtual(Number(e.target.value))} className="px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-w-0" disabled={carregandoDados}>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select>
-              <button onClick={atualizarDados} disabled={carregandoDados} className="flex items-center justify-center p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><RefreshCw className={`h-4 w-4 ${carregandoDados ? 'animate-spin' : ''}`} /></button>
+      
+      <nav className="bg-white shadow-sm border-b border-gray-200">
+        <div className="w-full sm:max-w-7xl sm:mx-auto px-2 sm:px-6 lg:px-8">
+          <div className="relative flex items-center justify-between h-14">
+            <div className="absolute inset-y-0 left-0 flex items-center md:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary"
+              >
+                <span className="sr-only">Abrir menu</span>
+                {isMenuOpen ? <X className="block h-6 w-6" aria-hidden="true" /> : <Menu className="block h-6 w-6" aria-hidden="true" />}
+              </button>
+            </div>
+            <div className="flex-1 flex items-center justify-center md:items-stretch md:justify-start">
+              <div className="hidden md:block">
+                <div className="flex space-x-4">
+                  <NavLink to="/gestao" end className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><Home className="h-5 w-5 mr-2" />Visão Geral</NavLink>
+                  <NavLink to="/gestao/metas-por-cliente" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><Target className="h-5 w-5 mr-2" />Metas por Cliente</NavLink>
+                  <NavLink to="/gestao/acumulado-ano" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><Calendar className="h-5 w-5 mr-2" />Acumulado do Ano</NavLink>
+                  <NavLink to="/gestao/dashboard-rotas" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><MapPin className="h-5 w-5 mr-2" />Dashboard Rotas</NavLink>
+                  <NavLink to="/gestao/top-clientes" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><Users className="h-5 w-5 mr-2" />Top Clientes</NavLink>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Vendas Totais</p><p className="text-base sm:text-xl font-bold text-gray-900 truncate">R$ {formatarMoeda(metricas.vendasTotais)}</p></div><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" /></div></div>
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Faturadas</p><p className="text-base sm:text-xl font-bold text-blue-900 truncate">R$ {formatarMoeda(metricas.vendasFaturadas)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesFaturados}</p></div><BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" /></div></div>
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">A Faturar</p><p className="text-base sm:text-xl font-bold text-orange-900 truncate">R$ {formatarMoeda(metricas.vendasAFaturar)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesAFaturar}</p></div><Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" /></div></div>
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Clientes</p><p className="text-base sm:text-xl font-bold text-purple-900 truncate">{metricas.clientesAtendidos}</p></div><Users className="h-5 w-5 sm:h-6 sm:w-6 text-purple-500" /></div></div>
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Atingimento</p><p className={`text-base sm:text-xl font-bold truncate ${metricas.atingimentoPercent >= 100 ? 'text-green-900' : 'text-red-900'}`}>{metricas.atingimentoPercent.toFixed(1)}%</p></div><Target className={`h-5 w-5 sm:h-6 sm:w-6 ${metricas.atingimentoPercent >= 100 ? 'text-green-500' : 'text-red-500'}`} /></div></div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Módulos de Gestão</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <button onClick={() => navigate('/metas-por-cliente')} className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg shadow hover:bg-orange-600 transition-colors">
-              <Target className="h-5 w-5 mr-2" />
-              Metas por Cliente
-            </button>
-            <button onClick={() => navigate('/acumulado-ano')} className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-colors">
-              <Calendar className="h-5 w-5 mr-2" />
-              Acumulado do Ano
-            </button>
-            <button onClick={() => navigate('/dashboard-rotas')} className="flex items-center justify-center p-4 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition-colors">
-              <BarChart3 className="h-5 w-5 mr-2" />
-              Dashboard Rotas
-            </button>
-            <button onClick={() => navigate('/top-clientes')} className="flex items-center justify-center p-4 bg-purple-500 text-white rounded-lg shadow hover:bg-purple-600 transition-colors">
-              <Users className="h-5 w-5 mr-2" />
-              Top Clientes
-            </button>
+        {isMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+              <NavLink to="/gestao" end onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><Home className="h-5 w-5 mr-2" />Visão Geral</NavLink>
+              <NavLink to="/gestao/metas-por-cliente" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><Target className="h-5 w-5 mr-2" />Metas por Cliente</NavLink>
+              <NavLink to="/gestao/acumulado-ano" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><Calendar className="h-5 w-5 mr-2" />Acumulado do Ano</NavLink>
+              <NavLink to="/gestao/dashboard-rotas" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><MapPin className="h-5 w-5 mr-2" />Dashboard Rotas</NavLink>
+              <NavLink to="/gestao/top-clientes" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><Users className="h-5 w-5 mr-2" />Top Clientes</NavLink>
+            </div>
           </div>
-        </div>
+        )}
+      </nav>
 
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Mensal</h3>
-          <div className="space-y-4">
-            {[...rankingVendedores].sort((a, b) => b.atingimento - a.atingimento).map((vendedor) => {
-              const larguraBarra = Math.min(vendedor.atingimento, 100);
-              return (
-                <div key={vendedor.nome} className="flex items-center">
-                  <div className="flex-shrink-0 w-32 text-sm font-medium text-gray-700 text-left mr-4 truncate" title={vendedor.nome}>{vendedor.nome}</div>
-                  <div className="flex-1 bg-gray-200 rounded-full h-6 relative">
-                    <div className="h-6 rounded-full flex items-center justify-end pr-2 text-white text-xs font-bold" style={{ width: `${larguraBarra}%`, background: 'linear-gradient(to right, #3b82f6, #1e40af)' }}>
-                      {vendedor.atingimento.toFixed(1)}%
-                    </div>
-                  </div>
+      <main className="w-full sm:max-w-7xl sm:mx-auto px-2 sm:px-6 lg:px-8 py-4 lg:py-8">
+        {location.pathname === '/gestao' ? (
+          <>
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Bem-vindo, {user?.apelido || 'Diretor'}</h2>
+              <p className="text-sm sm:text-base text-gray-600">Painel executivo com visão geral de toda a operação</p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+              <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Período</h3>
+                <div className="flex items-center space-x-2 sm:space-x-4">
+                  <select value={mesAtual} onChange={(e) => setMesAtual(Number(e.target.value))} className="px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-w-0" disabled={carregandoDados}>{meses.map(m => <option key={m.valor} value={m.valor}>{m.nome.substring(0,3)}</option>)}</select>
+                  <select value={anoAtual} onChange={(e) => setAnoAtual(Number(e.target.value))} className="px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-w-0" disabled={carregandoDados}>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select>
+                  <button onClick={atualizarDados} disabled={carregandoDados} className="flex items-center justify-center p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><RefreshCw className={`h-4 w-4 ${carregandoDados ? 'animate-spin' : ''}`} /></button>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+              </div>
+            </div>
 
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Tabela Vendas Mensal</h3>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <table className="w-full min-w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700">Vendedor</th>
-                  <th className="text-right py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 hidden sm:table-cell">Meta</th>
-                  <th className="text-right py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700">Vendas</th>
-                  <th className="text-right py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700">Ating.</th>
-                  <th className="text-right py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 hidden sm:table-cell">Clientes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rankingVendedores.map((vendedor) => (
-                  <tr key={vendedor.nome} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-2 sm:py-3 px-3 sm:px-4"><span className="font-medium text-gray-900 text-xs sm:text-base">{vendedor.nome.split(' ')[0]}</span></td>
-                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 text-xs sm:text-sm hidden sm:table-cell">R$ {formatarMoeda(vendedor.meta)}</td>
-                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-right font-semibold text-gray-900 text-xs sm:text-sm">R$ {formatarMoeda(vendedor.vendas)}</td>
-                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-right"><span className={`font-bold text-xs sm:text-sm ${vendedor.atingimento >= 100 ? 'text-green-600' : 'text-red-600'}`}>{vendedor.atingimento.toFixed(1)}%</span></td>
-                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 text-xs sm:text-sm hidden sm:table-cell">{vendedor.numeroClientes}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Vendas Totais</p><p className="text-base sm:text-xl font-bold text-gray-900 truncate">R$ {formatarMoeda(metricas.vendasTotais)}</p></div><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" /></div></div>
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Faturadas</p><p className="text-base sm:text-xl font-bold text-blue-900 truncate">R$ {formatarMoeda(metricas.vendasFaturadas)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesFaturados}</p></div><BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" /></div></div>
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">A Faturar</p><p className="text-base sm:text-xl font-bold text-orange-900 truncate">R$ {formatarMoeda(metricas.vendasAFaturar)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesAFaturar}</p></div><Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" /></div></div>
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Clientes</p><p className="text-base sm:text-xl font-bold text-purple-900 truncate">{metricas.clientesAtendidos}</p></div><Users className="h-5 w-5 sm:h-6 sm:w-6 text-purple-500" /></div></div>
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Atingimento</p><p className={`text-base sm:text-xl font-bold truncate ${metricas.atingimentoPercent >= 100 ? 'text-green-900' : 'text-red-900'}`}>{metricas.atingimentoPercent.toFixed(1)}%</p></div><Target className={`h-5 w-5 sm:h-6 sm:w-6 ${metricas.atingimentoPercent >= 100 ? 'text-green-500' : 'text-red-500'}`} /></div></div>
+            </div>
 
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-8 mt-6 sm:mt-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Performance Semanal</h3>
-          <div className="h-80">
-            {dadosSemanas.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={dadosSemanas}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="semana" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(value) => `R$ ${abreviarNumero(value)}`} tick={{ fontSize: 12 }} domain={[0, valorMaximoGrafico]} />
-                  <Tooltip
-                    contentStyle={{
-                      fontSize: '12px',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                      border: '1px solid #e5e7eb'
-                    }}
-                    formatter={(value: number, name: string) => [`R$ ${formatarMoeda(value)}`, name]}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="vendasAcumuladas" name="Vendas Acumuladas" stroke="#10b981" strokeWidth={3} dot={{ r: 5 }} />
-                  <Bar dataKey="vendas" name="Vendas da Semana" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Line type="monotone" dataKey="meta" name="Meta Acumulada" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">Sem dados de vendas semanais para o período selecionado.</div>
-            )}
-          </div>
-        </div>
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Mensal</h3>
+              <div className="space-y-4">
+                {[...rankingVendedores].sort((a, b) => b.atingimento - a.atingimento).map((vendedor) => {
+                  const larguraBarra = Math.min(vendedor.atingimento, 100);
+                  return (
+                    <div key={vendedor.nome} className="flex items-center">
+                      <div className="flex-shrink-0 w-24 sm:w-32 text-sm font-medium text-gray-700 text-left mr-2 sm:mr-4 truncate" title={vendedor.nome}>{vendedor.nome}</div>
+                      <div className="flex-1 bg-gray-200 rounded-full h-6 relative">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${larguraBarra}%`,
+                            background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                          }}
+                        >
+                          {larguraBarra > 50 && (
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white text-xs font-bold">
+                              {vendedor.atingimento.toFixed(1)}%
+                            </span>
+                          )}
+                        </div>
+                        {larguraBarra <= 50 && (
+                          <span
+                            className="absolute top-1/2 -translate-y-1/2 text-primary text-xs font-bold"
+                            style={{ left: `calc(${larguraBarra}% + 5px)` }}
+                          >
+                            {vendedor.atingimento.toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Semanal</h3>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            {(() => {
-              // Verificar se há alguma semana 5 com dados
-              const temSemana5 = rankingSemanal.some(v => v.semana5 && v.semana5 > 0);
-              
-              return (
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Tabela Vendas Mensal</h3>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <table className="w-full min-w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Representante</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700">1ª Sem</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700">2ª Sem</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700">3ª Sem</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700">4ª Sem</th>
-                      {temSemana5 && <th className="text-right py-3 px-4 font-semibold text-gray-700">5ª Sem</th>}
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700">Total</th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700">Vendedor</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 hidden sm:table-cell">Meta</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700">Vendas</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700">Ating.</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 hidden sm:table-cell">Clientes</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rankingSemanal.map((vendedor) => (
+                    {rankingVendedores.map((vendedor) => (
                       <tr key={vendedor.nome} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4"><span className="font-medium text-gray-900">{vendedor.nome}</span></td>
-                        <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana1)}</td>
-                        <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana2)}</td>
-                        <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana3)}</td>
-                        <td className="py-3 px-4 text-right text-gray-700">R$ {formatarMoeda(vendedor.semana4)}</td>
-                        {temSemana5 && <td className="py-3 px-4 text-right text-gray-700">{vendedor.semana5 ? `R$ ${formatarMoeda(vendedor.semana5)}` : '-'}</td>}
-                        <td className="py-3 px-4 text-right font-semibold text-gray-900">R$ {formatarMoeda(vendedor.totalSemanal)}</td>
+                        <td className="py-2 sm:py-3 px-3 sm:px-4"><span className="font-medium text-gray-900 text-xs sm:text-base">{vendedor.nome.split(' ')[0]}</span></td>
+                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 text-xs sm:text-sm hidden sm:table-cell">R$ {formatarMoeda(vendedor.meta)}</td>
+                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right font-semibold text-gray-900 text-xs sm:text-sm">R$ {formatarMoeda(vendedor.vendas)}</td>
+                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right"><span className={`font-bold text-xs sm:text-sm ${vendedor.atingimento >= 100 ? 'text-green-600' : 'text-red-600'}`}>{vendedor.atingimento.toFixed(1)}%</span></td>
+                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 text-xs sm:text-sm hidden sm:table-cell">{vendedor.numeroClientes}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              );
-            })()}
-          </div>
-        </div>
+              </div>
+            </div>
 
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-8 mt-6 sm:mt-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">Performance Semanal</h3>
+              <div className="h-80">
+                {dadosSemanas.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={dadosSemanas}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="semana" tick={{ fontSize: 12 }} />
+                      <YAxis tickFormatter={(value) => `R$ ${abreviarNumero(value)}`} tick={{ fontSize: 12 }} domain={[0, valorMaximoGrafico]} />
+                      <Tooltip
+                        contentStyle={{
+                          fontSize: '12px',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          border: '1px solid #e5e7eb'
+                        }}
+                        formatter={(value: number, name: string) => [`R$ ${formatarMoeda(value)}`, name]}
+                      />
+                      <Legend />
+                      <Line type="monotone" dataKey="vendasAcumuladas" name="Vendas Acumuladas" stroke="#10b981" strokeWidth={3} dot={{ r: 5 }} />
+                      <Bar dataKey="vendas" name="Vendas da Semana" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Line type="monotone" dataKey="meta" name="Meta Acumulada" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">Sem dados de vendas semanais para o período selecionado.</div>
+                )}
+              </div>
+            </div>
 
-
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Semanal</h3>
+              <div className="overflow-x-auto">
+                {(() => {
+                  const temSemana5 = rankingSemanal.some(v => v.semana5 && v.semana5 > 0);
+                  
+                  return (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b-2 border-gray-200">
+                          <th className="text-left p-2 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                            <span className="hidden sm:inline">Representante</span>
+                            <span className="sm:hidden">Repr.</span>
+                          </th>
+                          <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                            <span className="hidden sm:inline">1ª Sem</span>
+                            <span className="sm:hidden">S1</span>
+                          </th>
+                          <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                            <span className="hidden sm:inline">2ª Sem</span>
+                            <span className="sm:hidden">S2</span>
+                          </th>
+                          <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                            <span className="hidden sm:inline">3ª Sem</span>
+                            <span className="sm:hidden">S3</span>
+                          </th>
+                          <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                            <span className="hidden sm:inline">4ª Sem</span>
+                            <span className="sm:hidden">S4</span>
+                          </th>
+                          {temSemana5 && <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                            <span className="hidden sm:inline">5ª Sem</span>
+                            <span className="sm:hidden">S5</span>
+                          </th>}
+                          <th className="text-right p-2 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rankingSemanal.map((vendedor) => (
+                          <tr key={vendedor.nome} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="p-2 whitespace-nowrap text-xs sm:text-sm sm:px-4">
+                              <span className="font-medium text-gray-900">{vendedor.nome}</span>
+                            </td>
+                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(vendedor.semana1)}</span>
+                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana1)}</span>
+                            </td>
+                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(vendedor.semana2)}</span>
+                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana2)}</span>
+                            </td>
+                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(vendedor.semana3)}</span>
+                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana3)}</span>
+                            </td>
+                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(vendedor.semana4)}</span>
+                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana4)}</span>
+                            </td>
+                            {temSemana5 && <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(vendedor.semana5 || 0)}</span>
+                              <span className="hidden sm:inline">{vendedor.semana5 ? `R$ ${formatarMoeda(vendedor.semana5)}` : '-'}</span>
+                            </td>}
+                            <td className="p-2 text-right font-semibold text-gray-900 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(vendedor.totalSemanal)}</span>
+                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.totalSemanal)}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+            </div>
+          </>
+        ) : (
+          <Outlet />
+        )}
       </main>
     </div>
   )

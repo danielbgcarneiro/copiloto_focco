@@ -223,79 +223,6 @@ const TopClientes: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-primary text-white shadow-lg">
-        <div className="w-full sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-14">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/dashboard-gestao')}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
-                title="Voltar ao Dashboard"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div className="flex items-center">
-                <Shield className="h-5 w-5 mr-2" />
-                <span className="text-sm font-medium hidden sm:inline">Gestão</span>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <h1 className="text-base sm:text-lg font-bold">Top Clientes</h1>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1.5">
-                <User className="h-4 w-4" />
-                <span className="text-xs sm:text-sm hidden sm:inline">{user?.apelido || user?.nome || user?.email || 'Diretor'}</span>
-              </div>
-              <button 
-                onClick={() => { logout(); navigate('/') }}
-                className="p-2 sm:p-1.5 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="w-full sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-1 py-3 overflow-x-auto">
-            <button
-              onClick={() => navigate('/dashboard-gestao')}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
-            >
-              <Home className="h-4 w-4" />
-              <span>Dashboard</span>
-            </button>
-            <span className="text-gray-300">/</span>
-            <button
-              onClick={() => navigate('/acumulado-ano')}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
-            >
-              <TrendingUp className="h-4 w-4" />
-              <span>Acumulado Ano</span>
-            </button>
-            <span className="text-gray-300">/</span>
-            <button
-              onClick={() => navigate('/dashboard-rotas')}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
-            >
-              <MapPin className="h-4 w-4" />
-              <span>Rotas</span>
-            </button>
-            <span className="text-gray-300">/</span>
-            <button
-              onClick={() => navigate('/top-clientes')}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg whitespace-nowrap"
-            >
-              <UserCheck className="h-4 w-4" />
-              <span>Top Clientes</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       <main className="w-full sm:max-w-7xl sm:mx-auto px-2 sm:px-6 lg:px-8 py-4 lg:py-8">
         <div className="mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
@@ -428,8 +355,8 @@ const TopClientes: React.FC = () => {
                         onClick={selecionarTodasRotas}
                         className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded"
                       >
-                        {rotasSelecionadas.length === rotas.length ? 'Desmarcar todas' : 'Selecionar todas'}
-                      </button>
+                        {rotasSelecionadas.length === rotas.length ? 'Desmarcar todos' : 'Selecionar todas'}
+                        </button>
                       <div className="border-t border-gray-200 my-2"></div>
                       {rotas.map(rota => (
                         <label key={rota.id} className="flex items-center px-3 py-2 text-sm hover:bg-gray-50 rounded cursor-pointer">

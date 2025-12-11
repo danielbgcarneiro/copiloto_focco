@@ -21,7 +21,7 @@ const HomeRedirect: React.FC = () => {
   }
 
   if (user.cargo === 'diretor') {
-    return <Navigate to="/dashboard-gestao" replace />;
+    return <Navigate to="/gestao" replace />;
   }
 
   return <Navigate to="/dashboard" replace />;
