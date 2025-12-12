@@ -300,12 +300,8 @@ const Clientes: React.FC = () => {
           {clientesFiltrados.map((cliente) => {
             const isInadimplente = cliente.status_financeiro === 'INADIMPLENTE'
 
-            // Calcular atingimento com validação
-            const saldoAtual = cliente.saldo_meta || 0
-            const metaAtual = cliente.meta_ano_atual || 0
-            const atingimento = metaAtual > 0
-              ? Math.min(100, Math.max(0, (saldoAtual / metaAtual) * 100))
-              : 0
+            // Usar atingimento já calculado pela view (não recalcular!)
+            const atingimento = Math.min(100, Math.max(0, cliente.percentual_atingimento || 0))
 
             // Calcular o ângulo para o gráfico de rosca
             const circumference = 2 * Math.PI * 54
@@ -343,7 +339,12 @@ const Clientes: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 mb-4">Código: {cliente.codigo_cliente}</p>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Código: {cliente.codigo_cliente}
+                    {cliente.ultima_visita_display && cliente.ultima_visita_display !== 'Sem registro' && (
+                      <span className="ml-2">| Última visita: {cliente.ultima_visita_display}</span>
+                    )}
+                  </p>
 
                   {/* Content - Horizontal */}
                   <div className="flex items-center gap-4 sm:gap-6">
@@ -394,7 +395,7 @@ const Clientes: React.FC = () => {
                       <div className="border-t border-gray-200 my-2.5"></div>
 
                       {/* Metrics row */}
-                      <div className="grid grid-cols-2 gap-2 text-center">
+                      <div className="grid grid-cols-[1fr_2fr] gap-2 text-center">
                         {/* DSV */}
                         <div className="flex flex-col items-center">
                           <div className="flex items-center gap-0.5">
@@ -408,7 +409,7 @@ const Clientes: React.FC = () => {
                         <div className="flex flex-col items-center">
                           <div className="flex items-center gap-0.5">
                             <MapPin className="w-3 h-3 text-gray-500" />
-                            <span className="font-bold text-xs sm:text-sm text-gray-800 truncate max-w-[60px]">{cliente.bairro || '-'}</span>
+                            <span className="font-bold text-xs sm:text-sm text-gray-800 truncate max-w-[100px]">{cliente.bairro || '-'}</span>
                           </div>
                           <span className="text-[9px] sm:text-[10px] text-gray-500">Bairro</span>
                         </div>

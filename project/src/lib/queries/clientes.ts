@@ -33,7 +33,8 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
       saldo_meta,
       valor_limite_credito,
       acao_recomendada,
-      ultima_visita_data
+      ultima_visita_data,
+      ultima_visita_display
     `)
     .eq('vendedor_uuid', user.id)
     .not('vendedor_uuid', 'is', null); // Garantir que tem vendedor

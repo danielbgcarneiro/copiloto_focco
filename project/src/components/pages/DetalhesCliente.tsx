@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, User, LogOut, Phone, MessageCircle, Mic } from 'lucide-react'
+import { ArrowLeft, User, LogOut, Phone, MessageCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
 import { supabase } from '../../lib/supabase' // MUDANÇA 1: Adicionar import
@@ -621,14 +621,14 @@ const DetalhesCliente: React.FC = () => {
                 </span>
               </button>
 
-              {/* Botão Gravar Áudio - Desabilitado */}
-              <button
+              {/* Botão Gravar Áudio - Oculto temporariamente */}
+              {/* <button
                 disabled
                 className="w-full bg-gray-400 text-white py-2.5 rounded-lg cursor-not-allowed flex items-center justify-center gap-2 opacity-50"
               >
                 <Mic className="h-4 w-4" />
                 <span className="text-sm">Gravar Áudio (Em breve)</span>
-              </button>
+              </button> */}
             </div>
           </div>
 

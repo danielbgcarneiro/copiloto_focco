@@ -132,7 +132,7 @@ const Cidades: React.FC = () => {
               {/* Saldo */}
               <div className="mb-2.5">
                 <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
-                  {formatCurrency(cidade.vendasAnoAtual)}
+                  {formatCurrency(cidade.saldoMetas)}
                 </div>
                 <div className="text-gray-600 text-[10px] sm:text-xs">Saldo</div>
                 <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(cidade.somaMetas)}</div>

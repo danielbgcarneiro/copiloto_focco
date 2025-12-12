@@ -114,7 +114,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
         semVendas90d: rota.clientes_sem_venda_90d || rota.oticas_sem_vendas_90d || 0,
         status: 'Ativo' as 'Ativo' | 'Inativo',
         metaAnoAtual: rota.meta_2025 || 0,
-        saldoMeta: rota.vendido_2025 || 0, // CORRIGIDO: agora usa vendido_2025 (vendas reais)
+        saldoMeta: rota.oportunidade || 0, // Saldo da meta (meta_2025 - vendido_2025)
         percentualMeta: rota.percentual_meta || 0
       }))
       // Filtrar rotas "Sem Rota" que não têm clientes
