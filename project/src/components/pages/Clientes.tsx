@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Search, Filter, User, LogOut, Check, DollarSign, Clock, MapPin, Calendar, AlertTriangle, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Search, Filter, User, LogOut, Check, Clock, MapPin, AlertTriangle, CheckCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
 import { getClientesPorVendedor, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
@@ -69,27 +69,6 @@ const Clientes: React.FC = () => {
       .trim()
   }
 
-  // Função para formatar valores
-  const formatarMoeda = (valor: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(valor || 0)
-  }
-
-  // Função para formatar data da última visita
-  const formatarUltimaVisita = (dataVisita: string | null) => {
-    if (!dataVisita) return 'Sem Registro'
-    
-    try {
-      const data = new Date(dataVisita)
-      return data.toLocaleDateString('pt-BR')
-    } catch {
-      return 'sem registro de visita'
-    }
-  }
 
 
   // Filtrar e ordenar clientes
@@ -321,63 +300,31 @@ const Clientes: React.FC = () => {
           {clientesFiltrados.map((cliente) => {
             const isInadimplente = cliente.status_financeiro === 'INADIMPLENTE'
 
-            // Determinar tipo de ação e cores apropriadas
-            const getAcaoStyle = (acao: string) => {
-              if (!acao) return null
+            // Calcular atingimento com validação
+            const saldoAtual = cliente.saldo_meta || 0
+            const metaAtual = cliente.meta_ano_atual || 0
+            const atingimento = metaAtual > 0
+              ? Math.min(100, Math.max(0, (saldoAtual / metaAtual) * 100))
+              : 0
 
-              const acaoLower = acao.toLowerCase()
+            // Calcular o ângulo para o gráfico de rosca
+            const circumference = 2 * Math.PI * 54
+            const greenOffset = circumference * (1 - atingimento / 100)
 
-              // Urgente - Vermelho/Âmbar
-              if (acaoLower.includes('urgente') || acaoLower.includes('bloqueio') ||
-                  acaoLower.includes('vai perder') || acaoLower.includes('cobrança') ||
-                  acaoLower.includes('última tentativa') || acaoLower.includes('resolver situação')) {
-                return {
-                  bg: 'bg-amber-50',
-                  border: 'border-amber-200',
-                  icon: 'text-amber-500',
-                  text: 'text-amber-700'
-                }
-              }
-
-              // Atenção - Amarelo
-              if (acaoLower.includes('reconquistar') || acaoLower.includes('aumentar frequência') ||
-                  acaoLower.includes('reativar') || acaoLower.includes('desenvolver') ||
-                  acaoLower.includes('ação de reativação') || acaoLower.includes('avaliar manutenção')) {
-                return {
-                  bg: 'bg-yellow-50',
-                  border: 'border-yellow-200',
-                  icon: 'text-yellow-500',
-                  text: 'text-yellow-700'
-                }
-              }
-
-              // Manutenção/Positivo - Verde
-              if (acaoLower.includes('manter') || acaoLower.includes('foco total') ||
-                  acaoLower.includes('foco em') || acaoLower.includes('primeira venda') ||
-                  acaoLower.includes('novo')) {
-                return {
-                  bg: 'bg-green-50',
-                  border: 'border-green-200',
-                  icon: 'text-green-500',
-                  text: 'text-green-700'
-                }
-              }
-
-              // Padrão - Cinza
-              return {
-                bg: 'bg-gray-50',
-                border: 'border-gray-200',
-                icon: 'text-gray-500',
-                text: 'text-gray-700'
-              }
+            // Função para formatar valores em reais
+            const formatCurrency = (value: number) => {
+              return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              }).format(value)
             }
-
-            const acaoStyle = cliente.acao_recomendada ? getAcaoStyle(cliente.acao_recomendada) : null
 
             return (
               <div
                 key={cliente.codigo_cliente}
-                className="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-all cursor-pointer"
+                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden"
                 onClick={() => {
                   const rotaPath = rotaNome ? encodeURIComponent(rotaNome) : 'sem-rota'
                   const cidadePath = cidadeDecodificada ? encodeURIComponent(cidadeDecodificada) : 'sem-cidade'
@@ -385,111 +332,133 @@ const Clientes: React.FC = () => {
                 }}
               >
                 {/* Header */}
-                <div className="mb-3">
-                  <h2 className="text-base font-bold text-gray-800 mb-1 truncate">{cliente.nome_fantasia}</h2>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-500">Código: {cliente.codigo_cliente}</p>
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-800 truncate flex-1">
+                      {cliente.nome_fantasia}
+                    </h3>
                     {isInadimplente && (
-                      <span className="bg-orange-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                      <span className="bg-orange-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
                         INADIMPLENTE
                       </span>
                     )}
                   </div>
-                </div>
+                  <p className="text-xs text-gray-500 mb-4">Código: {cliente.codigo_cliente}</p>
 
-                {/* Saldo e Meta */}
-                <div className="flex gap-2 mb-3">
-                  {/* Saldo Card */}
-                  <div className="flex-1 bg-green-600 rounded-lg p-3 text-center">
-                    <span className="text-green-100 text-[10px] font-medium block">Saldo</span>
-                    <div className="text-white text-sm sm:text-base font-bold truncate">
-                      {formatarMoeda(cliente.saldo_meta)}
+                  {/* Content - Horizontal */}
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    {/* Donut Chart */}
+                    <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                        {/* Background circle (red) */}
+                        <circle
+                          cx="60"
+                          cy="60"
+                          r="54"
+                          fill="none"
+                          stroke="#DC2626"
+                          strokeWidth="12"
+                        />
+                        {/* Progress circle (green) */}
+                        <circle
+                          cx="60"
+                          cy="60"
+                          r="54"
+                          fill="none"
+                          stroke="#16A34A"
+                          strokeWidth="12"
+                          strokeDasharray={circumference}
+                          strokeDashoffset={greenOffset}
+                          strokeLinecap="butt"
+                        />
+                      </svg>
+                      {/* Center text */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-xl sm:text-2xl font-bold text-gray-900">{atingimento.toFixed(1)}%</span>
+                        <span className="text-[10px] sm:text-xs text-gray-600">Atingimento</span>
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex-1 min-w-0">
+                      {/* Saldo */}
+                      <div className="mb-2.5">
+                        <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
+                          {formatCurrency(cliente.saldo_meta)}
+                        </div>
+                        <div className="text-gray-600 text-[10px] sm:text-xs">Saldo</div>
+                        <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(cliente.meta_ano_atual)}</div>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="border-t border-gray-200 my-2.5"></div>
+
+                      {/* Metrics row */}
+                      <div className="grid grid-cols-2 gap-2 text-center">
+                        {/* DSV */}
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center gap-0.5">
+                            <Clock className="w-3 h-3 text-gray-500" />
+                            <span className="font-bold text-xs sm:text-sm text-gray-800">{cliente.dias_sem_comprar || 0}</span>
+                          </div>
+                          <span className="text-[9px] sm:text-[10px] text-gray-500">DSV</span>
+                        </div>
+
+                        {/* Bairro */}
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center gap-0.5">
+                            <MapPin className="w-3 h-3 text-gray-500" />
+                            <span className="font-bold text-xs sm:text-sm text-gray-800 truncate max-w-[60px]">{cliente.bairro || '-'}</span>
+                          </div>
+                          <span className="text-[9px] sm:text-[10px] text-gray-500">Bairro</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Meta Card */}
-                  <div className="flex-1 bg-teal-700 rounded-lg p-3 text-center">
-                    <span className="text-teal-100 text-[10px] font-medium block">Meta</span>
-                    <div className="text-white text-sm sm:text-base font-bold truncate">
-                      {formatarMoeda(cliente.meta_ano_atual)}
-                    </div>
-                  </div>
                 </div>
 
-                {/* Ação Recomendada - SEMPRE aparece se existir */}
-                {cliente.acao_recomendada && acaoStyle && (
-                  <div className={`${acaoStyle.bg} border ${acaoStyle.border} rounded-full py-1.5 px-3 flex items-center justify-center gap-1.5 mb-3`}>
-                    <AlertTriangle className={`w-3 h-3 ${acaoStyle.icon} flex-shrink-0`} />
-                    <span className={`${acaoStyle.text} text-[10px] font-medium truncate`}>{cliente.acao_recomendada}</span>
+                {/* Ação Recomendada ou Oportunidade */}
+                {cliente.acao_recomendada ? (
+                  <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                    <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
+                      {cliente.acao_recomendada}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                    <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
+                      Oportunidade: {formatCurrency(cliente.oportunidade)}
+                    </span>
                   </div>
                 )}
 
-                {/* Oportunidade */}
-                <div className="flex items-center justify-center gap-1.5 mb-3">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-gray-600 font-medium text-xs">Oportunidade:</span>
-                  <span className="text-orange-500 font-bold text-sm">
-                    {formatarMoeda(cliente.oportunidade)}
-                  </span>
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-gray-200 mb-3"></div>
-
-                {/* Info Grid */}
-                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                  {/* Limite de Crédito */}
-                  <div className="flex items-center gap-1">
-                    <DollarSign className="w-3 h-3 text-gray-400" />
-                    <span className="text-gray-500 text-[10px]">Lim Créd:</span>
-                    <span className="text-gray-700 font-medium text-[10px] truncate">{formatarMoeda(cliente.valor_limite_credito)}</span>
-                  </div>
-
-                  {/* DSV */}
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-gray-400" />
-                    <span className="text-gray-500 text-[10px]">DSV:</span>
-                    <span className="text-gray-700 font-medium text-[10px]">{cliente.dias_sem_comprar || 0}d</span>
-                  </div>
-
-                  {/* Bairro */}
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-gray-400" />
-                    <span className="text-gray-500 text-[10px]">Bairro:</span>
-                    <span className="text-gray-700 font-medium text-[10px] truncate">{cliente.bairro || '-'}</span>
-                  </div>
-
-                  {/* Última Visita */}
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-gray-400" />
-                    <span className="text-gray-500 text-[10px]">Últ. Visita:</span>
-                    <span className="text-gray-700 font-medium text-[10px] truncate">{formatarUltimaVisita(cliente.ultima_visita_data)}</span>
-                  </div>
-                </div>
-
                 {/* Check Button */}
-                <button
-                  onClick={(e) => handleCheckClick(cliente, e)}
-                  disabled={processandoVisita === cliente.codigo_cliente}
-                  className={`
-                    w-full py-2.5 rounded-lg transition-all duration-200 ease-in-out flex items-center justify-center gap-2 font-medium text-sm
-                    ${cliente.visitado
-                      ? 'bg-green-500 text-white shadow-md hover:bg-green-600'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }
-                    ${processandoVisita === cliente.codigo_cliente ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                  `}
-                  title={cliente.visitado ? 'Cliente visitado - Clique para cancelar' : 'Registrar visita'}
-                >
-                  {processandoVisita === cliente.codigo_cliente ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4" />
-                      {cliente.visitado ? 'Visitado' : 'Registrar Visita'}
-                    </>
-                  )}
-                </button>
+                <div className="p-4 pt-3">
+                  <button
+                    onClick={(e) => handleCheckClick(cliente, e)}
+                    disabled={processandoVisita === cliente.codigo_cliente}
+                    className={`
+                      w-full py-2.5 rounded-lg transition-all duration-200 ease-in-out flex items-center justify-center gap-2 font-medium text-sm
+                      ${cliente.visitado
+                        ? 'bg-green-500 text-white shadow-md hover:bg-green-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }
+                      ${processandoVisita === cliente.codigo_cliente ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    `}
+                    title={cliente.visitado ? 'Cliente visitado - Clique para cancelar' : 'Registrar visita'}
+                  >
+                    {processandoVisita === cliente.codigo_cliente ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4" />
+                        {cliente.visitado ? 'Visitado' : 'Registrar Visita'}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )
           })}

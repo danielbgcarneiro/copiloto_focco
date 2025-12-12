@@ -61,7 +61,6 @@ const Dashboard: React.FC = () => {
         console.log('✅ Dados completos carregados:', {
           dashboard: {
             metricas: dashboardCompleto.metricas,
-            cidadesCount: dashboardCompleto.top10Cidades.length,
             rotasCount: dashboardCompleto.rankingRotas.length
           },
           vendedorRanking: rankingVendedor,
@@ -69,8 +68,7 @@ const Dashboard: React.FC = () => {
         });
 
         // Verificar se há dados suficientes
-        if (dashboardCompleto.top10Cidades.length === 0 && 
-            dashboardCompleto.rankingRotas.length === 0) {
+        if (dashboardCompleto.rankingRotas.length === 0) {
           console.warn('⚠️ Nenhum dado encontrado - possível problema com RLS');
         }
 

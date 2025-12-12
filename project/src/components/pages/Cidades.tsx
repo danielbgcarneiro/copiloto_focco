@@ -61,18 +61,20 @@ const Cidades: React.FC = () => {
     return normalizeText(cidade.nome).includes(normalizedSearchTerm)
   })
 
-  // Função para formatar valores em milhares (K)
-  const formatCurrencyK = (value: number) => {
+  // Função para formatar valores em reais
+  const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
-      style: 'decimal',
-      minimumFractionDigits: 3,
-      maximumFractionDigits: 3,
-    }).format(value / 1000)
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value)
   }
 
   // Componente do Card de Cidade
   const CidadeCard: React.FC<{ cidade: CidadeMapeada }> = ({ cidade }) => {
-    const atingimento = cidade.atingimento
+    // Garantir que o atingimento está entre 0 e 100
+    const atingimento = Math.min(100, Math.max(0, cidade.atingimento || 0))
 
     // Calcular o ângulo para o gráfico de rosca
     const circumference = 2 * Math.PI * 54
@@ -130,10 +132,10 @@ const Cidades: React.FC = () => {
               {/* Saldo */}
               <div className="mb-2.5">
                 <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
-                  R$ {formatCurrencyK(cidade.vendasAnoAtual)}
+                  {formatCurrency(cidade.vendasAnoAtual)}
                 </div>
                 <div className="text-gray-600 text-[10px] sm:text-xs">Saldo</div>
-                <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: R$ {formatCurrencyK(cidade.somaMetas)}</div>
+                <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(cidade.somaMetas)}</div>
               </div>
 
               {/* Divider */}
@@ -167,7 +169,7 @@ const Cidades: React.FC = () => {
         <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-orange-500 flex-shrink-0" />
           <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
-            Oportunidade de Venda: R$ {formatCurrencyK(cidade.somaOportunidades)}
+            Oportunidade de Venda: {formatCurrency(cidade.somaOportunidades)}
           </span>
         </div>
       </div>

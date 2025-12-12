@@ -2,17 +2,26 @@ import { supabase } from '../supabase';
 
 export interface RotaCompleta {
   rota: string;
+  nome_rota: string;
   vendedor_uuid: string;
   vendedor_apelido: string;
+  vendedor_nome_completo: string;
   total_cidades: number;
+  qtd_cidades: number;
   total_clientes: number;
+  total_oticas: number;
+  qtd_oticas: number;
   soma_oportunidades: number;
   clientes_sem_venda_90d: number;
-  vendido_ano_atual: number;
-  meta_ano_atual: number;
-  saldo_meta: number;
+  oticas_sem_vendas_90d: number;
+  vendido_2024: number;
+  vendido_2025: number;
+  meta_2025: number;
   percentual_meta: number;
+  oportunidade: number;
   ranking: number;
+  ranking_vendas: number;
+  faixa_atingimento: string;
 }
 
 export interface RotaMapeada {
@@ -29,84 +38,83 @@ export interface RotaMapeada {
 
 export async function getRotasCompleto(): Promise<RotaMapeada[]> {
   try {
-    console.log('🛣️ Buscando rotas via vw_v2_metricas_por_rota...');
-    
+    console.log('🛣️ Buscando rotas via vw_rotas_unificada...');
+
     // Verificar sessão antes de fazer consulta
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
+
     if (sessionError) {
       console.error('❌ Erro ao obter sessão:', sessionError)
       throw new Error('Erro de autenticação: ' + sessionError.message)
     }
-    
+
     if (!session) {
       console.error('❌ Usuário não autenticado')
       throw new Error('Usuário não autenticado')
     }
-    
+
     console.log('🔐 Sessão ativa:', {
       userId: session.user.id,
       email: session.user.email
     });
-    
-    // Buscar métricas diretamente da view usando vendedor_uuid (campo correto da view)
+
+    // Buscar métricas diretamente da nova view unificada usando vendedor_uuid
+    // Especificar campos explicitamente para evitar parsing incorreto
     const { data, error: metricsError } = await supabase
-      .from('vw_v2_metricas_por_rota')
-      .select('*')
+      .from('vw_rotas_unificada')
+      .select(`
+        rota,
+        nome_rota,
+        vendedor_uuid,
+        vendedor_apelido,
+        vendedor_nome_completo,
+        total_cidades,
+        qtd_cidades,
+        total_clientes,
+        total_oticas,
+        qtd_oticas,
+        soma_oportunidades,
+        clientes_sem_venda_90d,
+        oticas_sem_vendas_90d,
+        vendido_2024,
+        vendido_2025,
+        meta_2025,
+        percentual_meta,
+        oportunidade,
+        ranking,
+        ranking_vendas,
+        faixa_atingimento
+      `)
       .eq('vendedor_uuid', session.user.id)
       .order('percentual_meta', { ascending: false });
-    
-    console.log('🛣️ Resposta da view vw_v2_metricas_por_rota:', { 
-      dadosCount: data?.length || 0, 
+
+    console.log('🛣️ Resposta da view vw_rotas_unificada:', {
+      dadosCount: data?.length || 0,
       primeirosDados: data?.slice(0, 3),
-      error: metricsError 
+      error: metricsError
     });
-    
+
     if (metricsError) {
       console.error('❌ Erro ao buscar métricas das rotas:', metricsError);
       throw metricsError;
     }
-    
+
     if (!data || data.length === 0) {
-      console.log('⚠️ View vw_v2_metricas_por_rota retornou dados vazios - possível problema de RLS');
+      console.log('⚠️ View vw_rotas_unificada retornou dados vazios - possível problema de RLS');
       return [];
     }
-    
-    // Verificação de consistência: comparar com dados de clientes para validar RLS
-    console.log('🔍 Verificando consistência dos dados retornados...');
-    try {
-      const { data: clientesData } = await supabase
-        .from('vw_clientes_completo')
-        .select('rota')
-        .limit(1);
-      
-      if (clientesData && clientesData.length > 0) {
-        const rotaDoCliente = clientesData[0].rota;
-        const rotasRetornadas = data.map(r => r.rota);
-        
-        if (rotaDoCliente && !rotasRetornadas.includes(rotaDoCliente)) {
-          console.warn('⚠️ Inconsistência detectada: Rota do cliente não encontrada nas rotas retornadas');
-          console.warn('Rota do cliente:', rotaDoCliente);
-          console.warn('Rotas retornadas:', rotasRetornadas);
-        } else {
-          console.log('✅ Consistência verificada: Dados parecem estar corretos');
-        }
-      }
-    } catch (consistencyError) {
-      console.warn('⚠️ Erro na verificação de consistência:', consistencyError);
-    }
-    
+
     // Mapear dados da view para formato esperado pelo componente
     const rotasMapeadas: RotaMapeada[] = data
       .map((rota: RotaCompleta) => ({
-        nome: rota.rota,
-        totalCidades: rota.total_cidades || 0,
-        totalOticas: rota.total_clientes || 0,
+        nome: rota.rota || rota.nome_rota || 'Sem Rota',
+        totalCidades: rota.total_cidades || rota.qtd_cidades || 0,
+        totalOticas: rota.total_oticas || rota.qtd_oticas || rota.total_clientes || 0,
         somaOportunidades: rota.soma_oportunidades || 0,
-        semVendas90d: rota.clientes_sem_venda_90d || 0,
+        semVendas90d: rota.clientes_sem_venda_90d || rota.oticas_sem_vendas_90d || 0,
         status: 'Ativo' as 'Ativo' | 'Inativo',
-        metaAnoAtual: rota.meta_ano_atual || 0,
-        saldoMeta: rota.saldo_meta || 0,
+        metaAnoAtual: rota.meta_2025 || 0,
+        saldoMeta: rota.vendido_2025 || 0, // CORRIGIDO: agora usa vendido_2025 (vendas reais)
         percentualMeta: rota.percentual_meta || 0
       }))
       // Filtrar rotas "Sem Rota" que não têm clientes
@@ -122,7 +130,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
         }
         return true;
       });
-    
+
     console.log(`✅ ${rotasMapeadas.length} rotas processadas (após filtrar rotas vazias)`);
     return rotasMapeadas;
   } catch (error) {

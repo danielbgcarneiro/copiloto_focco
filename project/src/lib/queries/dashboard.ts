@@ -7,13 +7,6 @@ export interface DashboardMetricas {
   percentual_meta: number; // Mapeado de percentual_atingimento
 }
 
-export interface Top10Cidade {
-  cidade: string;
-  qtd_oticas: number;
-  valor_vendas: number;
-  posicao: number;
-}
-
 export interface RankingRota {
   rota: string;
   nome_rota: string;
@@ -47,7 +40,6 @@ export interface TabelaPerfil {
 
 export interface DashboardData {
   metricas: DashboardMetricas;
-  top10Cidades: Top10Cidade[];
   rankingRotas: RankingRota[];
   tabelasPerfil: TabelaPerfil[];
 }
@@ -94,65 +86,33 @@ export async function getDashboardMetricas(): Promise<DashboardMetricas> {
   }
 }
 
-export async function getTop10Cidades(): Promise<Top10Cidade[]> {
-  try {
-    console.log('🏙️ Iniciando busca de top 10 cidades...');
-    
-    // Filtrar por vendedor_uuid
-    const { data, error } = await supabase
-      .from('vw_top10_cidades')
-      .select('*')
-      .eq('vendedor_uuid', (await supabase.auth.getUser()).data.user?.id)
-      .order('valor_vendas', { ascending: false })
-      .limit(10);
-    
-    console.log('🏙️ Resposta da view vw_top10_cidades:', { 
-      dadosCount: data?.length || 0, 
-      primeirosDados: data?.slice(0, 3),
-      error,
-      userId: (await supabase.auth.getUser()).data.user?.id
-    });
-    
-    if (error) {
-      // Se a view foi removida ou a coluna não existe, log e retornar lista vazia
-      console.warn('❌ Erro ao buscar top 10 cidades (retornando lista vazia):', error);
-      return [];
-    }
-    
-    if (!data || data.length === 0) {
-      console.log('⚠️ Nenhuma cidade encontrada');
-      return [];
-    }
-    
-    // Mapear dados e adicionar posição
-    const cidadesComPosicao: Top10Cidade[] = data.map((cidade, index) => ({
-      cidade: cidade.cidade,
-      qtd_oticas: Number(cidade.qtd_oticas || 0),
-      valor_vendas: Number(cidade.valor_vendas || 0),
-      posicao: index + 1
-    }));
-    
-    console.log('✅ Top 10 cidades processadas:', cidadesComPosicao.length);
-    return cidadesComPosicao;
-  } catch (error) {
-    console.error('💥 Erro ao buscar top 10 cidades:', error);
-    throw error;
-  }
-}
+// Função getTop10Cidades removida - view não existe mais no backend
 
 export async function getRankingRotas(): Promise<RankingRota[]> {
   try {
     console.log('🛣️ Iniciando busca de ranking de rotas...');
-    
-    // Filtrar por vendedor_uuid
+
+    // Filtrar por vendedor_uuid - especificar campos para evitar parsing incorreto
     const { data, error } = await supabase
-      .from('vw_ranking_rotas')
-      .select('*')
+      .from('vw_rotas_unificada')
+      .select(`
+        rota,
+        nome_rota,
+        vendedor_uuid,
+        vendedor_apelido,
+        qtd_oticas,
+        total_oticas,
+        vendido_2025,
+        meta_2025,
+        percentual_meta,
+        ranking,
+        faixa_atingimento
+      `)
       .eq('vendedor_uuid', (await supabase.auth.getUser()).data.user?.id)
       .order('percentual_meta', { ascending: false });
-    
-    console.log('🛣️ Resposta da view vw_ranking_rotas:', { 
-      dadosCount: data?.length || 0, 
+
+    console.log('🛣️ Resposta da view vw_rotas_unificada:', {
+      dadosCount: data?.length || 0,
       primeirosDados: data?.slice(0, 3),
       error,
       userId: (await supabase.auth.getUser()).data.user?.id
@@ -208,20 +168,8 @@ export function validarConsistenciaDados(dashboardData: DashboardData): {
     problemas.push('Métricas: oticas_positivadas é undefined');
   }
   
-  // Validar cidades
-  if (dashboardData.top10Cidades.length === 0) {
-    problemas.push('Top 10 cidades: lista vazia');
-  } else {
-    dashboardData.top10Cidades.forEach((cidade, index) => {
-      if (!cidade.cidade) {
-        problemas.push(`Cidade ${index + 1}: nome indefinido`);
-      }
-      if (cidade.valor_vendas < 0) {
-        problemas.push(`Cidade ${cidade.cidade}: valor_vendas negativo`);
-      }
-    });
-  }
-  
+  // Validação de cidades removida - Top 10 cidades não existe mais
+
   // Validar rotas
   if (dashboardData.rankingRotas.length === 0) {
     problemas.push('Ranking rotas: lista vazia');
@@ -572,20 +520,18 @@ export async function getTabelasPerfilParaGestao(): Promise<TabelaPerfil[]> {
 export async function getDashboardCompleto(): Promise<DashboardData> {
   try {
     console.log('🔍 Carregando dados completos do dashboard...');
-    
+
     // Executar todas as queries em paralelo
-    const [metricas, top10Cidades, rankingRotas, perfilOuro, perfilPrata, perfilBronze] = await Promise.all([
+    const [metricas, rankingRotas, perfilOuro, perfilPrata, perfilBronze] = await Promise.all([
       getDashboardMetricas(),
-      getTop10Cidades(),
       getRankingRotas(),
       getTabelaPerfil('ouro'),
       getTabelaPerfil('prata'),
       getTabelaPerfil('bronze')
     ]);
-    
+
     const dashboardData: DashboardData = {
       metricas,
-      top10Cidades,
       rankingRotas,
       tabelasPerfil: [perfilOuro, perfilPrata, perfilBronze]
     };
@@ -599,7 +545,6 @@ export async function getDashboardCompleto(): Promise<DashboardData> {
     
     console.log('✅ Dados do dashboard carregados:', {
       metricas,
-      cidadesCount: top10Cidades.length,
       rotasCount: rankingRotas.length,
       perfilOuro: perfilOuro.totalClientes,
       perfilPrata: perfilPrata.totalClientes,

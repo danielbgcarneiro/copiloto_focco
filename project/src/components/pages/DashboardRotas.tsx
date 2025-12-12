@@ -10,21 +10,19 @@ interface RotaData {
   vendedor_apelido: string
   vendedor_uuid: string
   qtd_oticas: number
+  total_oticas: number
   vendido_2025: number
   meta_2025: number
   percentual_meta: number
   ranking: number
+  total_cidades: number
+  qtd_cidades: number
+  clientes_sem_venda_90d: number
+  oticas_sem_vendas_90d: number
+  soma_oportunidades: number
 }
 
-interface CidadeData {
-  cidade: string
-  vendedor_apelido: string
-  vendedor_uuid: string
-  codigo_ibge_cidade: string
-  qtd_oticas: number
-  valor_vendas: number
-  ranking: number
-}
+// Interface CidadeData removida - Top Cidades não existe mais
 
 interface CidadeComMeta {
   cidade: string
@@ -44,7 +42,6 @@ interface VendedorInfo {
 }
 
 type RotaSortField = 'rota' | 'meta_2025' | 'vendido_2025' | 'percentual_meta'
-type CidadeSortField = 'cidade' | 'valor_vendas'
 type SortDirection = 'asc' | 'desc'
 
 const DashboardRotas: React.FC = () => {
@@ -52,16 +49,12 @@ const DashboardRotas: React.FC = () => {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [rotasData, setRotasData] = useState<RotaData[]>([])
-  const [cidadesData, setCidadesData] = useState<CidadeData[]>([])
   const [vendedores, setVendedores] = useState<VendedorInfo[]>([])
 
   const [vendedoresSelecionadosRotas, setVendedoresSelecionadosRotas] = useState<string[]>([])
-  const [vendedoresSelecionadosCidades, setVendedoresSelecionadosCidades] = useState<string[]>([])
   const [dropdownRotasAberto, setDropdownRotasAberto] = useState(false)
-  const [dropdownCidadesAberto, setDropdownCidadesAberto] = useState(false)
 
   const dropdownRotasRef = useRef<HTMLDivElement>(null)
-  const dropdownCidadesRef = useRef<HTMLDivElement>(null)
 
   const [expandedRota, setExpandedRota] = useState<string | null>(null)
   const [cidadesComMeta, setCidadesComMeta] = useState<Map<string, CidadeComMeta[]>>(new Map())
@@ -69,7 +62,6 @@ const DashboardRotas: React.FC = () => {
   const [sortCidadesExpandidas, setSortCidadesExpandidas] = useState<{ field: keyof CidadeComMeta; direction: SortDirection }>({ field: 'vendas_cidade', direction: 'desc' })
 
   const [sortRotas, setSortRotas] = useState<{ field: RotaSortField; direction: SortDirection }>({ field: 'vendido_2025', direction: 'desc' })
-  const [sortCidades, setSortCidades] = useState<{ field: CidadeSortField; direction: SortDirection }>({ field: 'valor_vendas', direction: 'desc' })
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -79,8 +71,24 @@ const DashboardRotas: React.FC = () => {
         setLoading(true)
 
         const { data: rotasResponse, error: rotasError } = await supabase
-          .from('vw_ranking_rotas')
-          .select('*')
+          .from('vw_rotas_unificada')
+          .select(`
+            rota,
+            nome_rota,
+            vendedor_uuid,
+            vendedor_apelido,
+            qtd_oticas,
+            total_oticas,
+            vendido_2025,
+            meta_2025,
+            percentual_meta,
+            ranking,
+            total_cidades,
+            qtd_cidades,
+            clientes_sem_venda_90d,
+            oticas_sem_vendas_90d,
+            soma_oportunidades
+          `)
           .order('percentual_meta', { ascending: false })
 
         if (rotasError) {
@@ -89,29 +97,13 @@ const DashboardRotas: React.FC = () => {
           setRotasData(rotasResponse || [])
         }
 
-        const { data: cidadesResponse, error: cidadesError } = await supabase
-          .from('vw_top10_cidades')
-          .select('*')
-          .order('valor_vendas', { ascending: false })
-          .limit(30)
-
-        if (cidadesError) {
-          console.error('Erro ao carregar cidades:', cidadesError)
-        } else {
-          setCidadesData(cidadesResponse || [])
-        }
+        // Tabela Top Cidades removida - view não existe mais no backend
 
         const vendedoresUnicos = new Map<string, string>()
-        
+
         rotasResponse?.forEach(rota => {
           if (rota.vendedor_uuid && rota.vendedor_apelido) {
             vendedoresUnicos.set(rota.vendedor_uuid, rota.vendedor_apelido)
-          }
-        })
-
-        cidadesResponse?.forEach(cidade => {
-          if (cidade.vendedor_uuid && cidade.vendedor_apelido) {
-            vendedoresUnicos.set(cidade.vendedor_uuid, cidade.vendedor_apelido)
           }
         })
 
@@ -137,9 +129,6 @@ const DashboardRotas: React.FC = () => {
       if (dropdownRotasRef.current && !dropdownRotasRef.current.contains(event.target as Node)) {
         setDropdownRotasAberto(false)
       }
-      if (dropdownCidadesRef.current && !dropdownCidadesRef.current.contains(event.target as Node)) {
-        setDropdownCidadesAberto(false)
-      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
@@ -153,46 +142,22 @@ const DashboardRotas: React.FC = () => {
     )
   }, [rotasData, vendedoresSelecionadosRotas])
 
-  const cidadesFiltradas = useMemo(() => {
-    if (vendedoresSelecionadosCidades.length === 0) return cidadesData
-    return cidadesData.filter(cidade => 
-      vendedoresSelecionadosCidades.includes(cidade.vendedor_uuid)
-    )
-  }, [cidadesData, vendedoresSelecionadosCidades])
-
   const rotasOrdenadas = useMemo(() => {
     return [...rotasFiltradas].sort((a, b) => {
       const aValue = a[sortRotas.field]
       const bValue = b[sortRotas.field]
-      
+
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortRotas.direction === 'asc' 
+        return sortRotas.direction === 'asc'
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue)
       }
-      
-      return sortRotas.direction === 'asc' 
+
+      return sortRotas.direction === 'asc'
         ? (aValue as number) - (bValue as number)
         : (bValue as number) - (aValue as number)
     })
   }, [rotasFiltradas, sortRotas])
-
-  const cidadesOrdenadas = useMemo(() => {
-    return [...cidadesFiltradas].sort((a, b) => {
-      const aValue = a[sortCidades.field]
-      const bValue = b[sortCidades.field]
-      
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortCidades.direction === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue)
-      }
-      
-      return sortCidades.direction === 'asc' 
-        ? (aValue as number) - (bValue as number)
-        : (bValue as number) - (aValue as number)
-    })
-  }, [cidadesFiltradas, sortCidades])
 
   const handleSortRotas = (field: RotaSortField) => {
     setSortRotas(prev => ({
@@ -201,24 +166,9 @@ const DashboardRotas: React.FC = () => {
     }))
   }
 
-  const handleSortCidades = (field: CidadeSortField) => {
-    setSortCidades(prev => ({
-      field,
-      direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
-    }))
-  }
-
   const handleVendedorChangeRotas = (vendedorUuid: string) => {
-    setVendedoresSelecionadosRotas(prev => 
-      prev.includes(vendedorUuid) 
-        ? prev.filter(uuid => uuid !== vendedorUuid)
-        : [...prev, vendedorUuid]
-    )
-  }
-
-  const handleVendedorChangeCidades = (vendedorUuid: string) => {
-    setVendedoresSelecionadosCidades(prev => 
-      prev.includes(vendedorUuid) 
+    setVendedoresSelecionadosRotas(prev =>
+      prev.includes(vendedorUuid)
         ? prev.filter(uuid => uuid !== vendedorUuid)
         : [...prev, vendedorUuid]
     )
@@ -232,15 +182,7 @@ const DashboardRotas: React.FC = () => {
     }
   }
 
-  const selecionarTodosCidades = () => {
-    if (vendedoresSelecionadosCidades.length === vendedores.length) {
-      setVendedoresSelecionadosCidades([])
-    } else {
-      setVendedoresSelecionadosCidades(vendedores.map(v => v.uuid))
-    }
-  }
-
-  const getSortIcon = (field: RotaSortField | CidadeSortField, currentSort: { field: RotaSortField | CidadeSortField; direction: SortDirection }) => {
+  const getSortIcon = (field: RotaSortField, currentSort: { field: RotaSortField; direction: SortDirection }) => {
     if (currentSort.field !== field) {
       return <ArrowUpDown className="h-4 w-4 text-gray-400" />
     }
@@ -559,94 +501,7 @@ const DashboardRotas: React.FC = () => {
           </div>
         </div>
 
-        {/* Top Cidades */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Top Cidades (30 com mais vendas)</h3>
-            
-            {/* Filtro Vendedores */}
-            <div className="relative" ref={dropdownCidadesRef}>
-              <button
-                onClick={() => setDropdownCidadesAberto(!dropdownCidadesAberto)}
-                className="flex items-center justify-between w-full sm:w-64 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
-              >
-                <span className="text-gray-700">
-                  {vendedoresSelecionadosCidades.length === 0 
-                    ? 'Todos os vendedores'
-                    : vendedoresSelecionadosCidades.length === vendedores.length
-                    ? 'Todos selecionados'
-                    : `${vendedoresSelecionadosCidades.length} selecionados`
-                  }
-                </span>
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              </button>
-              
-              {dropdownCidadesAberto && (
-                <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
-                  <div className="p-2">
-                    <button
-                      onClick={selecionarTodosCidades}
-                      className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded"
-                    >
-                      {vendedoresSelecionadosCidades.length === vendedores.length ? 'Desmarcar todos' : 'Selecionar todos'}
-                    </button>
-                    <div className="border-t border-gray-200 my-2"></div>
-                    {vendedores.map(vendedor => (
-                      <label key={vendedor.uuid} className="flex items-center px-3 py-2 text-sm hover:bg-gray-50 rounded cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={vendedoresSelecionadosCidades.includes(vendedor.uuid)}
-                          onChange={() => handleVendedorChangeCidades(vendedor.uuid)}
-                          className="mr-2 text-primary focus:ring-primary"
-                        />
-                        {vendedor.nome}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    <button
-                      onClick={() => handleSortCidades('cidade')}
-                      className="flex items-center space-x-1 hover:text-gray-900"
-                    >
-                      <span>Cidade</span>
-                      {getSortIcon('cidade', sortCidades)}
-                    </button>
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Vendedor</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Óticas</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">
-                    <button
-                      onClick={() => handleSortCidades('valor_vendas')}
-                      className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
-                    >
-                      <span>Vendas</span>
-                      {getSortIcon('valor_vendas', sortCidades)}
-                    </button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {cidadesOrdenadas.map((cidade) => (
-                  <tr key={`${cidade.vendedor_uuid}-${cidade.codigo_ibge_cidade}`} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">{cidade.cidade}</td>
-                    <td className="py-3 px-4 text-gray-700">{cidade.vendedor_apelido}</td>
-                    <td className="py-3 px-4 text-right text-gray-700">{cidade.qtd_oticas}</td>
-                    <td className="py-3 px-4 text-right font-semibold text-gray-900">{formatarMoeda(cidade.valor_vendas)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* Seção Top Cidades removida - view não existe mais no backend */}
       </main>
     </div>
   )
