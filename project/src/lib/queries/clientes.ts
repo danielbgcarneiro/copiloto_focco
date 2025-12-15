@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 
 // Define a interface para os dados RFM retornados pelo Supabase
+// Define a interface para os dados RFM retornados pelo Supabase
 interface AnaliseRfmData {
   valor_ano_atual?: number;
   meta_ano_atual?: number;
@@ -62,6 +63,7 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
     }
   });
 
+  // Buscar clientes sem relação embedded
   let query = supabase
     .from('tabela_clientes')
     .select(`
@@ -69,13 +71,7 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
       nome_fantasia,
       cidade,
       bairro,
-      codigo_ibge_cidade,
-      analise_rfm (
-        valor_ano_atual,
-        meta_ano_atual,
-        dias_sem_comprar,
-        previsao_pedido
-      )
+      codigo_ibge_cidade
     `)
     .eq('cod_vendedor', profile.cod_vendedor);
 
@@ -85,7 +81,7 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
   }
 
   const { data, error } = await query.order('nome_fantasia');
-  
+
   if (error) {
     console.error('Erro ao buscar clientes:', error);
     throw error;
@@ -95,28 +91,38 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
     return [];
   }
 
-  // A relação 'analise_rfm' retorna um array, então pegamos o primeiro elemento.
-  // Também calculamos saldo_meta e percentual_atingimento aqui, como é feito em rotas.ts
+  // Buscar dados RFM separadamente
+  const codigosClientes = data.map(c => c.codigo_cliente);
+  const { data: rfmData, error: rfmError } = await supabase
+    .from('analise_rfm')
+    .select('codigo_cliente, valor_ano_atual, meta_ano_atual, dias_sem_comprar, previsao_pedido')
+    .in('codigo_cliente', codigosClientes);
+
+  if (rfmError) {
+    console.error('Erro ao buscar analise_rfm:', rfmError);
+  }
+
+  // Criar mapa de RFM para lookup rápido
+  const rfmMap = new Map<number, AnaliseRfmData>();
+  rfmData?.forEach(rfm => {
+    rfmMap.set(rfm.codigo_cliente, rfm);
+  });
+
+  // Combinar dados de clientes com RFM
   const clientesFormatados = data.map(cliente => {
-    // Extrair o objeto RFM do array retornado pelo Supabase e tipar explicitamente
-    const rfmObject: AnaliseRfmData = Array.isArray(cliente.analise_rfm) && cliente.analise_rfm.length > 0
-      ? cliente.analise_rfm[0]
-      : {};
-    
+    const rfmObject: AnaliseRfmData = rfmMap.get(cliente.codigo_cliente) || {};
+
     const metaAnoAtual = rfmObject?.meta_ano_atual || 0;
     const valorAnoAtual = rfmObject?.valor_ano_atual || 0;
 
-    const rotaDoCliente = cliente.codigo_ibge_cidade 
-      ? cidadeRotaMap.get(cliente.codigo_ibge_cidade) 
+    const rotaDoCliente = cliente.codigo_ibge_cidade
+      ? cidadeRotaMap.get(cliente.codigo_ibge_cidade)
       : undefined;
 
-    // Remover analise_rfm bruto para evitar confusão
-    const { analise_rfm, ...clienteData } = cliente;
-
     return {
-      ...clienteData,
-      vendedor_uuid: user.id, // Adiciona o vendedor_uuid explicitamente
-      rota: rotaDoCliente, // Adiciona a rota mapeada
+      ...cliente,
+      vendedor_uuid: user.id,
+      rota: rotaDoCliente,
       analise_rfm: {
         valor_ano_atual: valorAnoAtual,
         meta_ano_atual: metaAnoAtual,
@@ -128,8 +134,7 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
     };
   });
 
-  // Buscar visitas recentes para todos os clientes
-  const codigosClientes = clientesFormatados.map(cliente => cliente.codigo_cliente);
+  // Buscar visitas recentes para todos os clientes (reutilizar codigosClientes já definido)
   
   const { data: visitas, error: visitasError } = await supabase
     .from('visitas_clientes')
@@ -154,7 +159,6 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
   
   return clientesComVisitas;
 }
-
 // Função para fazer check-in de visita - SIMPLIFICADA
 export async function fazerCheckInVisita(codigoCliente: number) {
   console.log('🚀 INICIANDO fazerCheckInVisita para cliente:', codigoCliente);
