@@ -100,14 +100,43 @@ O estado global da aplicação é gerenciado através da **Context API** do Reac
 ```
 src/
 ├── components/   # Componentes reutilizáveis (UI) e páginas principais
-│   ├── auth/     # Lógica de login e proteção de rotas
+│   ├── auth/     # Lógica de login, proteção de rotas e redirecionamento
+│   │   ├── Login.tsx           # Sistema de autenticação
+│   │   ├── ProtectedRoute.tsx  # Proteção de rotas por cargo
+│   │   └── HomeRedirect.tsx    # Redirecionamento baseado em cargo
+│   ├── dashboard/ # Componentes do dashboard
+│   │   ├── Dashboard.tsx       # Dashboard do representante
+│   │   └── TabelaPerfil.tsx    # Tabela de perfil de clientes
 │   └── pages/    # As páginas que representam cada tela da aplicação
+│       ├── Cidades.tsx          # Gestão de cidades
+│       ├── Clientes.tsx         # Lista de clientes
+│       ├── DetalhesCliente.tsx  # Detalhes do cliente
+│       ├── Inadimplentes.tsx    # Gestão de inadimplência
+│       ├── Rotas.tsx            # Gestão de rotas
+│       ├── PedidosVendedor.tsx  # Visualização de pedidos por período
+│       ├── DashboardGestao.tsx  # Dashboard executivo
+│       ├── PagAcumuladoAno.tsx  # Análise anual
+│       ├── DashboardRotas.tsx   # Dashboard rotas executivo
+│       ├── TopClientes.tsx      # Top clientes executivo
+│       └── MetasPorCliente.tsx  # Metas por cliente executivo
 ├── contexts/     # Provedores de Contexto para estado global
+│   ├── AuthContext.tsx          # Contexto de autenticação
+│   └── VendedorDataContext.tsx  # Contexto de dados do vendedor
 ├── lib/
 │   ├── queries/  # Centraliza todas as funções que buscam dados no Supabase
+│   │   ├── cidades.ts           # Queries de cidades
+│   │   ├── cliente.ts           # Queries específicas de cliente
+│   │   ├── clientes.ts          # Queries de lista de clientes
+│   │   ├── dashboard.ts         # Queries do dashboard
+│   │   ├── debug.ts             # Funções de debug
+│   │   ├── inadimplentes.ts     # Queries de inadimplentes
+│   │   ├── rotas.ts             # Queries de rotas
+│   │   └── vendedores.ts        # Queries de vendedores
+│   ├── utils/    # Funções utilitárias
 │   └── supabase.ts # Configuração do cliente Supabase e funções de autenticação
 ├── styles/       # CSS global e de base
 ├── types/        # Definições de tipos TypeScript globais
+├── utils/        # Utilitários gerais
 └── App.tsx       # Componente raiz com o setup de rotas e contextos
 ```
 
@@ -136,7 +165,15 @@ O coração da lógica de negócio reside no banco de dados PostgreSQL do Supaba
 - **Tabelas Principais**:
   - `profiles`: Armazena os dados dos usuários da aplicação, incluindo seu `cargo`. Relaciona-se com `auth.users` via UUID.
   - `tabela_clientes`: Contém os dados mestres dos clientes (óticas).
-  - `analise_rfm`: Guarda métricas de performance e classificação dos clientes (Ouro, Prata, Bronze).
+  - `analise_rfm`: Análise RFM (Recency, Frequency, Monetary) completa dos clientes, incluindo:
+    - **Scores individuais**: score_r, score_f, score_m (1-5 cada)
+    - **Score final**: soma dos scores (3-15)
+    - **Classificação**: A-E baseada no score final
+    - **Perfil**: 'Ouro', 'Prata' ou 'Bronze' (valores textuais)
+    - **Indicadores**: potencial_crescimento, tendencia, alerta_risco
+    - **Métricas**: quantidade e valor de compras por ano, metas e percentual de atingimento
+    - **RLS**: Vendedores veem apenas dados RFM dos seus clientes; Gestores/Diretores têm acesso total
+    - **Observação**: Sistema de estrelas (1-5) foi removido; valores numéricos de perfil (30, 10, 5) foram substituídos por textuais
 
 - **Views (Visões)**:
   - Views como `vw_clientes_completo` são usadas para desnormalizar e consolidar dados de múltiplas tabelas, simplificando as queries do frontend.
@@ -144,6 +181,7 @@ O coração da lógica de negócio reside no banco de dados PostgreSQL do Supaba
 
 - **Funções RPC**:
   - Para lógicas que não podem ser expressas em um simples `SELECT`, como a busca de detalhes agregados de um cliente, são usadas funções em `pl/pgsql` que podem ser chamadas pelo frontend como se fossem uma API.
+  - **get_pedidos_por_vendedor(mes_filtro, ano_filtro)**: Retorna pedidos filtrados por período para o vendedor logado. Usada na página "Meus Pedidos".
 
 ## 9. Diretrizes e Boas Práticas
 

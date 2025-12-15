@@ -220,15 +220,14 @@ const DetalhesCliente: React.FC = () => {
         const { data: dadosRFM, error: errorRFM } = await supabase
           .from('analise_rfm')
           .select(`
-            qtd_compras_ano_anterior, 
-            qtd_compras_ano_atual, 
-            valor_ano_anterior, 
-            valor_ano_atual, 
-            meta_ano_atual, 
-            percentual_atingimento, 
-            estrelas, 
-            acao_recomendada, 
-            previsao_pedido, 
+            qtd_compras_ano_anterior,
+            qtd_compras_ano_atual,
+            valor_ano_anterior,
+            valor_ano_atual,
+            meta_ano_atual,
+            percentual_atingimento,
+            acao_recomendada,
+            previsao_pedido,
             dias_sem_comprar,
             codigo_cliente,
             data_analise
@@ -362,7 +361,6 @@ const DetalhesCliente: React.FC = () => {
     percentualMeta: cliente.percentual_atingimento,
     acaoRecomendada: cliente.acao_recomendada,
     celular: cliente.celular || '',  // Com fallback
-    estrelas: cliente.estrelas || 0,
     statusErp: cliente.status_erp,
     statusErpDesc: cliente.status_erp_desc,
     statusComercial: cliente.status_comercial,
@@ -457,40 +455,6 @@ const DetalhesCliente: React.FC = () => {
             </div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-gray-600 leading-tight">Cód: {dadosCliente.codigo}</p>
-              {dadosCliente.estrelas > 0 && (
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-bold text-gray-900">{dadosCliente.estrelas}</span>
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <defs>
-                      <linearGradient id="starGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#fbbf24" />
-                        <stop offset="100%" stopColor="#f59e0b" />
-                      </linearGradient>
-                      <filter id="starShadow">
-                        <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.3" />
-                      </filter>
-                    </defs>
-                    <path
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                      fill="url(#starGradient)"
-                      stroke="#d97706"
-                      strokeWidth="1"
-                      strokeLinejoin="round"
-                      filter="url(#starShadow)"
-                    />
-                    <path
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                      fill="url(#starGradient)"
-                      opacity="0.9"
-                    />
-                  </svg>
-                </div>
-              )}
             </div>
           </div>
 

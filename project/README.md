@@ -9,7 +9,7 @@ Uma aplicação moderna e completa para gestão de representantes, rotas e ótic
 - ✅ **Frontend Completo**: Todas as páginas implementadas com dados reais
 - ✅ **Autenticação**: Sistema RLS funcionando perfeitamente
 - ✅ **Debug Avançado**: Sistema completo de logging e identificação de problemas
-- ✅ **Indicadores Visuais**: Alertas de urgência e sistema de classificação por estrelas
+- ✅ **Análise RFM Avançada**: Sistema completo com scores, classificação A-E e perfis Ouro/Prata/Bronze
 - ✅ **Módulo Gestão**: Dashboard executivo com análises avançadas
 - ⚠️ **Pendência Backend**: RPC `get_cliente_detalhes` precisa ser corrigida para retornar quantidades de compras
 
@@ -21,6 +21,12 @@ Uma aplicação moderna e completa para gestão de representantes, rotas e ótic
 - **Top 10 Cidades**: Ranking por valor de vendas com indicadores visuais
 - **Top 20 Clientes**: Lista ordenável por rota e percentual de meta
 - **Ranking de Rotas**: Gráfico comparativo de meta vs vendido com percentuais
+
+### Meus Pedidos
+- **Filtros por Período**: Seleção de mês e ano para análise de pedidos
+- **Total de Vendas**: Soma automática de todos os pedidos do período
+- **Agrupamento por Cliente**: Pedidos consolidados por cliente com última data
+- **Detalhamento Completo**: Código do cliente, fantasia e valor total por pedido
 
 ### 🎯 Dashboard Gestão (NOVO)
 **Módulo executivo exclusivo para diretores com análises avançadas:**
@@ -76,7 +82,11 @@ Uma aplicação moderna e completa para gestão de representantes, rotas e ótic
 - **Filtros Avançados**: Por bairro, valor de oportunidade (maior/menor), ordem alfabética
 - **Detalhes Completos**: Mix de produtos, dados financeiros 2024/2025
 - **Indicador de Urgência**: Alerta visual para clientes com meta <50%
-- **Classificação por Estrelas**: Rating de 1-5 estrelas baseado em análise RFM
+- **Análise RFM Completa**: Scores de Recency, Frequency e Monetary (1-5 cada)
+- **Classificação A-E**: Sistema de classificação final baseado nos scores RFM
+- **Perfil de Cliente**: Categorização em Ouro, Prata ou Bronze
+- **Indicadores de Tendência**: Potencial de crescimento e tendência de vendas
+- **Alertas de Risco**: Identificação automática de clientes em situação crítica
 
 ### Sistema de Inadimplência
 - **Dashboard Específico**: Total de inadimplentes, valor total, clientes críticos
@@ -134,6 +144,7 @@ A aplicação possui três níveis de acesso:
 4. **Clientes/Óticas**: Gestão completa de óticas parceiras
 5. **Detalhes do Cliente**: Perfil detalhado com mix de produtos
 6. **Inadimplentes**: Sistema especializado para gestão de inadimplência
+7. **Meus Pedidos**: Visualização de pedidos por período com filtros e totais
 
 ### Páginas Gestão (Diretor)
 1. **Dashboard Gestão**: Visão executiva com métricas da empresa
@@ -148,7 +159,8 @@ A aplicação possui três níveis de acesso:
 - **Classificação de Risco**: Automática baseada em dias de atraso
 - **Status Dinâmico**: Cálculo em tempo real de dias de atraso
 - **Meta em Risco**: Alerta visual automático para clientes com <50% de atingimento
-- **Rating de Performance**: Sistema de estrelas (1-5) baseado em análise RFM
+- **Análise RFM**: Scores detalhados, classificação A-E e perfis Ouro/Prata/Bronze
+- **Tendências e Alertas**: Sistema inteligente de previsão e alertas de risco
 
 ## 🎨 Design System
 
@@ -248,7 +260,25 @@ npm run build
 
 ## 📈 Changelog Recente
 
-### v3.1 - Metas por Cliente (Atual)
+### v3.3 - Sistema RFM Avançado (Atual)
+- ✅ Reestruturação completa da tabela `analise_rfm`
+- ✅ Implementação de scores RFM individuais (Recency, Frequency, Monetary)
+- ✅ Sistema de classificação final A-E baseado em scores
+- ✅ Mudança de perfis numéricos ('30', '10', '5') para texto ('Ouro', 'Prata', 'Bronze')
+- ✅ Novos indicadores: potencial_crescimento, tendencia, alerta_risco
+- ✅ Remoção do sistema de estrelas (1-5) em favor da classificação A-E
+- ✅ Políticas RLS configuradas para controle de acesso à tabela `analise_rfm`
+- ✅ Atualização de código e documentação para refletir nova estrutura
+
+### v3.2 - Pedidos do Vendedor
+- ✅ Nova página "Meus Pedidos" para visualização de pedidos
+- ✅ Filtros por mês e ano para análise temporal
+- ✅ Agrupamento automático de pedidos por cliente
+- ✅ Total de vendas calculado automaticamente
+- ✅ Integração com RPC `get_pedidos_por_vendedor`
+- ✅ Acessível para representantes, gestores e diretores
+
+### v3.1 - Metas por Cliente
 - ✅ Nova página Metas por Cliente para diretores
 - ✅ Classificação automática por perfil RFM
 - ✅ Filtros dinâmicos por vendedor e cidade

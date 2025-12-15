@@ -30,20 +30,23 @@ src/
 ├── components/
 │   ├── auth/
 │   │   ├── Login.tsx               # Sistema de autenticação
-│   │   └── ProtectedRoute.tsx      # Proteção de rotas
+│   │   ├── ProtectedRoute.tsx      # Proteção de rotas
+│   │   └── HomeRedirect.tsx        # Redirecionamento baseado em cargo
 │   ├── dashboard/
-│   │   └── Dashboard.tsx           # Dashboard representante
+│   │   ├── Dashboard.tsx           # Dashboard representante
+│   │   └── TabelaPerfil.tsx        # Tabela de perfil de clientes
 │   └── pages/
 │       ├── Cidades.tsx             # Gestão de cidades
 │       ├── Clientes.tsx            # Lista de clientes
 │       ├── DetalhesCliente.tsx     # Detalhes do cliente
 │       ├── Inadimplentes.tsx       # Gestão de inadimplência
 │       ├── Rotas.tsx               # Gestão de rotas (representante)
-│       ├── DashboardGestao.tsx     # Dashboard executivo (NOVO)
-│       ├── PagAcumuladoAno.tsx     # Análise anual (NOVO)
-│       ├── DashboardRotas.tsx      # Dashboard rotas executivo (NOVO)
-│       ├── TopClientes.tsx         # Top clientes executivo (NOVO)
-│       └── MetasPorCliente.tsx     # Metas por cliente executivo (NOVO)
+│       ├── PedidosVendedor.tsx     # Visualização de pedidos por período
+│       ├── DashboardGestao.tsx     # Dashboard executivo
+│       ├── PagAcumuladoAno.tsx     # Análise anual
+│       ├── DashboardRotas.tsx      # Dashboard rotas executivo
+│       ├── TopClientes.tsx         # Top clientes executivo
+│       └── MetasPorCliente.tsx     # Metas por cliente executivo
 ├── contexts/
 │   ├── AuthContext.tsx             # Contexto de autenticação
 │   └── VendedorDataContext.tsx     # Contexto de dados do vendedor
@@ -67,6 +70,7 @@ src/
 - **Cidades**: Análise por cidade
 - **Clientes**: Gestão de óticas
 - **Inadimplentes**: Controle de cobrança
+- **Meus Pedidos**: Visualização de pedidos por período com filtros por mês e ano
 
 ### 🎯 Módulo Gestão Executiva (NOVO)
 **Exclusivo para diretores - Análises avançadas:**
@@ -124,8 +128,10 @@ src/
 
 #### 4. analise_rfm
 - **Função**: Análise RFM (Recency, Frequency, Monetary) dos clientes
-- **Campos**: percentual_atingimento, estrelas, acao_recomendada, meta_ano_atual
-- **Uso**: Indicadores de urgência e classificação por estrelas
+- **Campos principais**: score_r, score_f, score_m, score_final, classificacao_final, perfil, percentual_atingimento, acao_recomendada, meta_ano_atual, potencial_crescimento, tendencia, alerta_risco
+- **Uso**: Scores RFM, classificação A-E, perfil (Ouro/Prata/Bronze), indicadores de tendência e alertas
+- **RLS**: Vendedores veem apenas RFM dos seus clientes, Gestores/Diretores veem todos
+- **Observação**: Coluna 'estrelas' foi removida; perfil usa valores textuais ('Ouro', 'Prata', 'Bronze') em vez de numéricos
 
 #### 5. vendedor_rotas
 - **Função**: Relacionamento vendedor-rota
@@ -145,6 +151,12 @@ src/
 - **Retorna**: Dados agregados de produtos comprados por ano
 - **Status**: ⚠️ Pendente correção no backend (qtd_compras_2024/2025)
 
+#### get_pedidos_por_vendedor(mes_filtro, ano_filtro)
+- **Função**: Retorna pedidos do vendedor logado filtrados por mês e ano
+- **Parâmetros**: mes_filtro (INTEGER), ano_filtro (INTEGER)
+- **Retorna**: Lista de pedidos com código cliente, fantasia, data de criação, valor faturado e valor aberto
+- **Uso**: Página "Meus Pedidos" para visualização de performance por período
+
 ## 🔐 Sistema de Segurança
 
 ### Row Level Security (RLS)
@@ -152,6 +164,12 @@ src/
 - **Implementação**: Filtros automáticos baseados no user.id
 - **Verificação**: Session ativa obrigatória para todas as queries
 - **Exceção**: Diretores têm acesso completo no módulo gestão
+
+#### Políticas RLS por Tabela
+
+**analise_rfm:**
+- `Vendedores podem ver RFM dos seus clientes`: Permite SELECT apenas nos clientes associados ao cod_vendedor do usuário logado (via JOIN com profiles e tabela_clientes)
+- `Gestores e Diretores podem ver todos os dados RFM`: Permite SELECT irrestrito para usuários com cargo 'gestor' ou 'diretor'
 
 ### Autenticação
 - **Método**: Supabase Auth com email/senha
@@ -246,7 +264,7 @@ Filter Change → useMemo → Data Processing → Table Update → Visual Feedba
 3. **Dados Mockados**: Removidos de páginas operacionais, otimizados no módulo gestão
 4. **Error 406**: Identificado como problema de RPC no backend
 5. **Indicador de Urgência**: Implementado alerta visual para clientes com meta <50%
-6. **Classificação por Estrelas**: Exibição de rating do cliente na página de detalhes
+6. **Sistema RFM Avançado**: Implementação completa com scores, classificação A-E e perfis Ouro/Prata/Bronze
 7. **Performance Issues**: Otimizações com memo implementadas
 8. **Navigation Issues**: Sistema de breadcrumbs unificado
 
@@ -284,7 +302,9 @@ VITE_SUPABASE_ANON_KEY=sua_chave_anonima
 - **Mix de Produtos**: Distribuição por categoria
 - **Status Financeiro**: Classificação automática
 - **Indicador de Urgência**: Alerta visual para clientes com meta <50%
-- **Rating por Estrelas**: Classificação de 1-5 estrelas baseada na análise RFM
+- **Análise RFM**: Scores R/F/M (1-5), classificação final (A-E), perfil (Ouro/Prata/Bronze)
+- **Indicadores de Tendência**: Potencial de crescimento e tendência de vendas
+- **Alertas de Risco**: Sistema automático de alertas para clientes em situação crítica
 
 ### Dashboards
 - **Representante**: Visão operacional individual
@@ -326,12 +346,15 @@ VITE_SUPABASE_ANON_KEY=sua_chave_anonima
 App
 ├── ProtectedRoute
 ├── AuthProvider
+├── HomeRedirect
 └── UserDataProvider
     ├── Dashboard (Representante)
+    ├── PedidosVendedor (Representante/Gestor/Diretor)
     └── DashboardGestao (Diretor)
         ├── PagAcumuladoAno
         ├── DashboardRotas
-        └── TopClientes
+        ├── TopClientes
+        └── MetasPorCliente
 ```
 
 ### Padrões de Estado
@@ -387,21 +410,37 @@ create index idx_clientes_cod_vendedor on public.tabela_clientes using btree (co
 #### analise_rfm
 ```sql
 create table public.analise_rfm (
-  id serial not null,
+  id bigserial not null,
   codigo_cliente integer not null,               -- FK tabela_clientes.codigo_cliente
-  perfil text not null,                          -- '30' (ouro), '10' (prata), '5' (bronze)
-  meta_ano_atual numeric null,
-  valor_ano_atual numeric null,
-  percentual_atingimento numeric null,
-  estrelas integer null,                         -- Rating 1-5 estrelas
-  acao_recomendada text null,
+  data_analise date not null default CURRENT_DATE,
+  score_r smallint not null,                     -- Score Recency (1-5)
+  score_f smallint not null,                     -- Score Frequency (1-5)
+  score_m smallint not null,                     -- Score Monetary (1-5)
+  score_final smallint not null,                 -- Soma dos scores (3-15)
+  classificacao_final character(1) not null,     -- A, B, C, D, E
+  dias_sem_comprar integer not null,
+  previsao_pedido numeric(12, 2) not null default 0,
+  potencial_crescimento varchar(10) null,        -- ALTO, MÉDIO, BAIXO, RISCO
+  tendencia varchar(11) null,                    -- CRESCIMENTO, ESTÁVEL, QUEDA
+  alerta_risco boolean null default false,
+  acao_recomendada text not null,
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
-  constraint analise_rfm_pkey primary key (id)
+  qtd_compras_ano_anterior integer null default 0,
+  qtd_compras_ano_atual integer null default 0,
+  valor_ano_anterior numeric(12, 2) null default 0,
+  valor_ano_atual numeric(12, 2) null default 0,
+  meta_ano_atual numeric(12, 2) null default 0,
+  percentual_atingimento integer null default 0,
+  perfil varchar(10) null,                       -- 'Ouro', 'Prata', 'Bronze'
+  constraint analise_rfm_pkey primary key (id),
+  constraint uk_codigo_cliente unique (codigo_cliente)
 );
 ```
 
-**Valores do perfil:** Strings '30', '10', '5' (não números)
+**Valores do perfil:** Strings 'Ouro', 'Prata', 'Bronze' (primeira letra maiúscula)
+**Classificação final:** Caractere único A-E (A = melhor, E = pior)
+**Scores RFM:** Valores de 1-5 para Recency, Frequency e Monetary
 
 ### Views Especializadas
 

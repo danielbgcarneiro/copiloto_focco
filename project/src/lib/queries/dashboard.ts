@@ -90,61 +90,139 @@ export async function getDashboardMetricas(): Promise<DashboardMetricas> {
 
 export async function getRankingRotas(): Promise<RankingRota[]> {
   try {
-    console.log('🛣️ Iniciando busca de ranking de rotas...');
+    console.log('🛣️ Iniciando busca de ranking de rotas (construído a partir de tabelas)...');
 
-    // Filtrar por vendedor_uuid - especificar campos para evitar parsing incorreto
-    const { data, error } = await supabase
-      .from('vw_rotas_unificada')
-      .select(`
-        rota,
-        nome_rota,
-        vendedor_uuid,
-        vendedor_apelido,
-        qtd_oticas,
-        total_oticas,
-        vendido_2025,
-        meta_2025,
-        percentual_meta,
-        ranking,
-        faixa_atingimento
-      `)
-      .eq('vendedor_uuid', (await supabase.auth.getUser()).data.user?.id)
-      .order('percentual_meta', { ascending: false });
-
-    console.log('🛣️ Resposta da view vw_rotas_unificada:', {
-      dadosCount: data?.length || 0,
-      primeirosDados: data?.slice(0, 3),
-      error,
-      userId: (await supabase.auth.getUser()).data.user?.id
-    });
-    
-    if (error) {
-      console.error('❌ Erro ao buscar ranking de rotas:', error);
-      throw error;
-    }
-    
-    if (!data || data.length === 0) {
-      console.log('⚠️ Nenhuma rota encontrada no ranking');
+    // Obter o usuário logado
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('⚠️ Usuário não autenticado');
       return [];
     }
-    
-    // Mapear dados da view para formato esperado
-    const rotasRanking: RankingRota[] = data.map(rota => ({
-      rota: rota.rota,
-      nome_rota: rota.nome_rota || rota.rota,
-      qtd_oticas: rota.qtd_oticas || 0,
-      vendido_2025: rota.vendido_2025 || 0,
-      meta_2025: rota.meta_2025 || 0,
-      percentual_meta: rota.percentual_meta || 0,
-      ranking: rota.ranking || 0,
-      saldo_restante: (rota.meta_2025 || 0) - (rota.vendido_2025 || 0)
-    }));
-    
+
+    // Buscar rotas do vendedor
+    const { data: rotasVendedor, error: rotasError } = await supabase
+      .from('vendedor_rotas')
+      .select('rota')
+      .eq('vendedor_id', user.id)
+      .eq('ativo', true);
+
+    if (rotasError) {
+      console.error('❌ Erro ao buscar rotas do vendedor:', rotasError);
+      return [];
+    }
+
+    if (!rotasVendedor || rotasVendedor.length === 0) {
+      console.log('⚠️ Nenhuma rota encontrada para o vendedor');
+      return [];
+    }
+
+    const rotas = rotasVendedor.map(r => r.rota);
+    console.log('📍 Rotas do vendedor:', rotas);
+
+    // Buscar perfil do vendedor para pegar cod_vendedor
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('cod_vendedor')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('❌ Erro ao buscar perfil do vendedor:', profileError);
+      return [];
+    }
+
+    // Buscar mapeamento cidade -> rota de rotas_estado para as rotas do vendedor
+    const { data: rotasEstado, error: rotasEstadoError } = await supabase
+      .from('rotas_estado')
+      .select('codigo_ibge_cidade, cidade, rota')
+      .in('rota', rotas);
+
+    if (rotasEstadoError) {
+      console.error('❌ Erro ao buscar rotas_estado:', rotasEstadoError);
+      return [];
+    }
+
+    // Criar mapeamento codigo_ibge_cidade -> rota
+    const cidadeRotaMap = new Map<string, string>();
+    rotasEstado?.forEach(re => {
+      if (re.codigo_ibge_cidade) {
+        cidadeRotaMap.set(re.codigo_ibge_cidade, re.rota);
+      }
+    });
+
+    console.log('🗺️ Mapeamento cidade->rota:', cidadeRotaMap.size, 'cidades');
+
+    // Buscar clientes do vendedor com dados RFM
+    const { data: clientes, error: clientesError } = await supabase
+      .from('tabela_clientes')
+      .select(`
+        codigo_cliente,
+        cod_vendedor,
+        codigo_ibge_cidade,
+        cidade,
+        analise_rfm (
+          valor_ano_atual,
+          meta_ano_atual
+        )
+      `)
+      .eq('cod_vendedor', profile.cod_vendedor);
+
+    if (clientesError) {
+      console.error('❌ Erro ao buscar clientes:', clientesError);
+      return [];
+    }
+
+    console.log('👥 Clientes encontrados:', clientes?.length || 0);
+
+    // Agrupar por rota usando o mapeamento cidade->rota
+    const rotasMap = new Map<string, { qtd_oticas: number; vendido_2025: number; meta_2025: number }>();
+
+    // Inicializar todas as rotas com valores zero
+    rotas.forEach(rota => {
+      rotasMap.set(rota, { qtd_oticas: 0, vendido_2025: 0, meta_2025: 0 });
+    });
+
+    // Agregar dados dos clientes por rota
+    clientes?.forEach((cliente: any) => {
+      const rota = cidadeRotaMap.get(cliente.codigo_ibge_cidade);
+
+      if (rota && rotasMap.has(rota)) {
+        const stats = rotasMap.get(rota)!;
+        stats.qtd_oticas += 1;
+        stats.vendido_2025 += cliente.analise_rfm?.valor_ano_atual || 0;
+        stats.meta_2025 += cliente.analise_rfm?.meta_ano_atual || 0;
+      } else {
+        console.log('⚠️ Cliente sem rota mapeada:', {
+          codigo: cliente.codigo_cliente,
+          cidade: cliente.cidade,
+          ibge: cliente.codigo_ibge_cidade
+        });
+      }
+    });
+
+    // Converter para array e calcular percentuais
+    const rotasRanking: RankingRota[] = Array.from(rotasMap.entries())
+      .map(([rota, stats]) => ({
+        rota,
+        nome_rota: rota,
+        qtd_oticas: stats.qtd_oticas,
+        vendido_2025: stats.vendido_2025,
+        meta_2025: stats.meta_2025,
+        percentual_meta: stats.meta_2025 > 0 ? (stats.vendido_2025 / stats.meta_2025) * 100 : 0,
+        ranking: 0, // Será calculado após ordenação
+        saldo_restante: stats.meta_2025 - stats.vendido_2025
+      }))
+      .sort((a, b) => b.percentual_meta - a.percentual_meta)
+      .map((rota, index) => ({
+        ...rota,
+        ranking: index + 1
+      }));
+
     console.log('✅ Ranking de rotas processado:', rotasRanking.length);
     return rotasRanking;
   } catch (error) {
     console.error('💥 Erro ao buscar ranking de rotas:', error);
-    throw error;
+    return []; // Retornar array vazio em vez de throw para não quebrar o dashboard
   }
 }
 
@@ -198,18 +276,12 @@ export function validarConsistenciaDados(dashboardData: DashboardData): {
 }
 
 // Função para buscar clientes de um perfil específico (Ouro, Prata, Bronze)
-// Máscaras: Ouro = 30, Prata = 10, Bronze = 5
 export async function getTabelaPerfil(perfil: 'ouro' | 'prata' | 'bronze'): Promise<TabelaPerfil> {
   try {
     console.log(`📋 Buscando clientes perfil ${perfil.toUpperCase()}...`);
-    
-    // Mapear perfil para número
-    const perfilMap = {
-      ouro: 30,
-      prata: 10,
-      bronze: 5
-    };
-    const numeroMascara = perfilMap[perfil];
+
+    // Mapear perfil para string com primeira letra maiúscula (Ouro, Prata, Bronze)
+    const perfilCapitalized = perfil.charAt(0).toUpperCase() + perfil.slice(1);
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -308,16 +380,16 @@ export async function getTabelaPerfil(perfil: 'ouro' | 'prata' | 'bronze'): Prom
     const codigosClientes = (clientesInfo as any[]).map((c: any) => c.codigo_cliente);
 
     // 3) TERCEIRO: Buscar registros em analise_rfm apenas para esses clientes e para o perfil
-    console.log(`📊 Buscando dados RFM para perfil ${numeroMascara}...`);
+    console.log(`📊 Buscando dados RFM para perfil ${perfilCapitalized}...`);
     const { data: rfmData, error: rfmError } = await supabase
       .from('analise_rfm')
       .select('codigo_cliente, meta_ano_atual, valor_ano_atual, percentual_atingimento, perfil')
       .in('codigo_cliente', codigosClientes)
-      .eq('perfil', String(numeroMascara))
+      .eq('perfil', perfilCapitalized)
       .order('valor_ano_atual', { ascending: false });
 
     if (rfmError) {
-      console.error(`❌ Erro ao buscar analise_rfm para perfis (perfil=${numeroMascara}):`, 
+      console.error(`❌ Erro ao buscar analise_rfm para perfis (perfil=${perfilCapitalized}):`, 
         { code: (rfmError as any).code, message: (rfmError as any).message }
       );
       return {
@@ -474,15 +546,18 @@ export async function getTabelasPerfilParaGestao(): Promise<TabelaPerfil[]> {
         apelido_vendedor: vendedoresMap.get(info.cod_vendedor) || 'N/A', // Add apelido_vendedor
       };
 
-      if (rfm.perfil === '30') { // Ouro
+      // Normalizar perfil para lowercase para comparação
+      const perfilNormalizado = rfm.perfil?.toLowerCase() || '';
+
+      if (perfilNormalizado === 'ouro') {
         ouroClientes.push(clientePerfil);
         somaObjetivoOuro += objetivo;
         somaVendasOuro += vendas;
-      } else if (rfm.perfil === '10') { // Prata
+      } else if (perfilNormalizado === 'prata') {
         prataClientes.push(clientePerfil);
         somaObjetivoPrata += objetivo;
         somaVendasPrata += vendas;
-      } else if (rfm.perfil === '5') { // Bronze
+      } else if (perfilNormalizado === 'bronze') {
         bronzeClientes.push(clientePerfil);
         somaObjetivoBronze += objetivo;
         somaVendasBronze += vendas;

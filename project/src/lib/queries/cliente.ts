@@ -22,7 +22,6 @@ interface ClienteDetalhes {
   valor_vendas_2025: number;
   meta_2025: number;
   percentual_atingimento: number;
-  estrelas: number;
   previsao_pedido: number;
   acao_recomendada: string;
   oportunidade: number;
