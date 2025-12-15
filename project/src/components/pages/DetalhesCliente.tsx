@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, User, LogOut, Phone, MessageCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useUserData } from '../../contexts/VendedorDataContext'
-import { supabase } from '../../lib/supabase' // MUDANÇA 1: Adicionar import
+import { getClienteDetalhes } from '../../lib/queries/cliente'
 import { getHistoricoVisitas } from '../../lib/queries/clientes'
 
 // Funções de formatação
@@ -15,16 +14,19 @@ const formatarMoeda = (valor: number) => {
 };
 
 const formatarPercentual = (valor: number) => {
-  return `${Math.round(valor || 0)}%`;
+  return `${(valor || 0).toFixed(1)}%`;
 };
 
 const formatarTelefone = (telefone: string) => {
   if (!telefone) return '';
-  const limpo = telefone.replace(/\D/g, '');
-  if (limpo.length === 11) {
-    return `(${limpo.slice(0,2)}) ${limpo.slice(2,7)}-${limpo.slice(7)}`;
+  const limpo = telefone.replace(/\D/g, ''); // Remove tudo que não for dígito
+  
+  if (limpo.length === 11) { // Ex: 86982617711 (DDD + 9 + 8 dígitos de celular)
+    return `(${limpo.slice(0,2)}) ${limpo.slice(2,7)}-${limpo.slice(7,11)}`;
+  } else if (limpo.length === 10) { // Ex: 8682617711 (DDD + 8 dígitos)
+    return `(${limpo.slice(0,2)}) ${limpo.slice(2,6)}-${limpo.slice(6,10)}`;
   }
-  return telefone;
+  return telefone; // Retorna o original se não for 10 ou 11 dígitos
 };
 
 // Função para processar métricas por categoria
@@ -75,7 +77,6 @@ function processarMetricasCategoria(cliente: any) {
 const DetalhesCliente: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { } = useUserData()
   const { id, rotaId, cidadeNome, clienteId } = useParams<{ 
     id?: string; 
     rotaId?: string; 
@@ -98,69 +99,11 @@ const DetalhesCliente: React.FC = () => {
   // Função para navegar de volta
   const voltarParaClientes = () => {
     if (rotaNome && cidadeDecodificada) {
-      // Navegação hierárquica
       navigate(`/rotas/${encodeURIComponent(rotaNome)}/cidades/${encodeURIComponent(cidadeDecodificada)}/clientes`)
     } else {
-      // Navegação direta (fallback)
       navigate('/clientes')
     }
   }
-
-  // TESTE TEMPORÁRIO - REMOVIDO PARA EVITAR CONSULTAS DUPLICADAS
-  // useEffect(() => {
-  //   async function testSupabaseAccess() {
-  //     console.log('🧪 INICIANDO TESTE DE ACESSO...');
-  //     
-  //     const { data: { user } } = await supabase.auth.getUser()
-  //     console.log('🔐 Current user:', {
-  //       id: user?.id,
-  //       email: user?.email,
-  //       isAuthenticated: !!user
-  //     })
-  //     
-  //     if (!user) {
-  //       console.log('❌ Usuário não autenticado - parando testes');
-  //       return;
-  //     }
-      
-  //     // Teste 1: Acesso direto à view (RLS-safe)
-  //     console.log('🧪 Teste 1: vw_clientes_completo');
-  //     try {
-  //       const { data: t1, error: e1 } = await supabase
-  //         .from('vw_clientes_completo')
-  //         .select('codigo_cliente, nome_fantasia')
-  //         .eq('codigo_cliente', 100273)
-  //       
-  //       console.log('Test 1 - tabela_clientes:', { data: t1, error: e1 })
-  //     } catch (err) {
-  //       console.log('Test 1 - Erro:', err);
-  //     }
-  //     
-  //     // Teste 2: Acesso à view
-  //     console.log('🧪 Teste 2: vw_clientes_completo');
-  //     try {
-  //       const { data: t2, error: e2 } = await supabase
-  //         .from('vw_clientes_completo')
-  //         .select('codigo_cliente, nome_fantasia')
-  //         .eq('codigo_cliente', 100273)
-  //       
-  //       console.log('Test 2 - vw_clientes_completo:', { data: t2, error: e2 })
-  //     } catch (err) {
-  //       console.log('Test 2 - Erro:', err);
-  //     }
-  //     
-  //     // Teste 3: RPC
-  //     console.log('🧪 Teste 3: RPC get_cliente_detalhes');
-  //     try {
-  //       const rpcResult = await supabase.rpc('get_cliente_detalhes', { p_codigo_cliente: 100273 });
-  //       console.log('Test 3 - RPC:', rpcResult);
-  //     } catch (err) {
-  //       console.log('Test 3 - Erro:', err);
-  //     }
-  //   }
-  //   
-  //   testSupabaseAccess()
-  // }, [])
 
   async function carregarHistoricoVisitas(clienteIdNumerico: number) {
     try {
@@ -177,124 +120,30 @@ const DetalhesCliente: React.FC = () => {
   useEffect(() => {
     async function carregarCliente() {
       if (!codigoCliente) {
-        console.log('❌ ID não fornecido');
+        setError('ID do cliente não fornecido.');
+        setLoading(false);
         return;
       }
       
       const clienteIdNumerico = parseInt(codigoCliente);
       if (isNaN(clienteIdNumerico)) {
-        console.log('❌ ID inválido:', codigoCliente);
-        setError('ID do cliente inválido');
+        setError('ID do cliente inválido.');
         setLoading(false);
         return;
       }
       
-      console.log('🔍 Carregando cliente com ID:', clienteIdNumerico);
-      
       try {
         setLoading(true);
-        console.log('📞 Buscando dados diretamente da view para ID:', clienteIdNumerico);
-        
-        // Buscar dados básicos da view
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-          throw new Error('Usuário não autenticado');
-        }
-
-        const { data: dadosBasicos, error: errorBasicos } = await supabase
-          .from('vw_clientes_completo')
-          .select('*')
-          .eq('codigo_cliente', clienteIdNumerico)
-          .eq('vendedor_uuid', user.id)
-          .single();
-          
-        if (errorBasicos) {
-          throw errorBasicos;
-        }
-        
-        console.log('✅ Dados básicos recebidos:', dadosBasicos);
-        
-        // Buscar dados de análise RFM com verificação de segurança
-        // Como a tabela analise_rfm não tem vendedor_uuid, vamos garantir 
-        // que só buscamos dados de clientes que o vendedor tem acesso
-        const { data: dadosRFM, error: errorRFM } = await supabase
-          .from('analise_rfm')
-          .select(`
-            qtd_compras_ano_anterior,
-            qtd_compras_ano_atual,
-            valor_ano_anterior,
-            valor_ano_atual,
-            meta_ano_atual,
-            percentual_atingimento,
-            acao_recomendada,
-            previsao_pedido,
-            dias_sem_comprar,
-            codigo_cliente,
-            data_analise
-          `)
-          .eq('codigo_cliente', clienteIdNumerico)
-          .order('data_analise', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (errorRFM) {
-          console.warn('⚠️ Erro ao buscar dados RFM:', errorRFM);
-        }
-        
-        console.log('✅ Dados RFM recebidos:', dadosRFM);
-        
-        // Buscar métricas por categoria (Mix de Produtos)
-        const { data: metricasCategoria, error: errorMetricas } = await supabase
-          .from('vw_metricas_categoria_cliente')
-          .select('*')
-          .eq('codigo_cliente', clienteIdNumerico)
-          .maybeSingle();
-        
-        if (errorMetricas) {
-          console.warn('⚠️ Erro ao buscar métricas de categoria:', errorMetricas);
-        }
-        
-        console.log('✅ Métricas categoria recebidas:', metricasCategoria);
-        
-        // AGREGAR dados básicos COM dados RFM E métricas
-        const dadosCompletos = {
-          ...dadosBasicos,
-          ...(dadosRFM || {}),
-          ...(metricasCategoria || {})
-        };
-        
+        const dadosCompletos = await getClienteDetalhes(clienteIdNumerico);
         setCliente(dadosCompletos);
         
-        // Carregar histórico de visitas
         await carregarHistoricoVisitas(clienteIdNumerico);
-        
-        console.log('🔍 DEBUG - Dados carregados:', {
-          codigo_cliente: dadosCompletos.codigo_cliente,
-          qtd_2024: dadosCompletos.qtd_compras_ano_anterior,
-          qtd_2025: dadosCompletos.qtd_compras_ano_atual,
-          tipo_qtd_2024: typeof dadosCompletos.qtd_compras_ano_anterior,
-          tipo_qtd_2025: typeof dadosCompletos.qtd_compras_ano_atual,
-          tem_qtd_2024: 'qtd_compras_ano_anterior' in dadosCompletos,
-          tem_qtd_2025: 'qtd_compras_ano_atual' in dadosCompletos,
-          valor_exato_2024: dadosCompletos.qtd_compras_ano_anterior,
-          valor_exato_2025: dadosCompletos.qtd_compras_ano_atual,
-          dados_completos: dadosCompletos
-        });
       } catch (err) {
         console.error('❌ Erro ao carregar cliente:', err);
-        let mensagemErro = `Erro ao carregar dados do cliente ID ${id}`;
-        
-        // Adicionar detalhes específicos do erro
-        if (err instanceof Error) {
-          mensagemErro += `\n\nDetalhes do erro: ${err.message}`;
-        } else if (typeof err === 'object' && err !== null) {
-          mensagemErro += `\n\nDetalhes: ${JSON.stringify(err, null, 2)}`;
-        }
-        
+        const mensagemErro = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
         setError(mensagemErro);
       } finally {
         setLoading(false);
-        console.log('🏁 Loading finalizado');
       }
     }
 
@@ -346,7 +195,7 @@ const DetalhesCliente: React.FC = () => {
     );
   }
 
-  // Usar os dados reais do cliente
+  // Mapear os dados do cliente para a UI
   const dadosCliente = {
     nome: cliente.nome_fantasia,
     status: cliente.status_financeiro,
@@ -356,35 +205,15 @@ const DetalhesCliente: React.FC = () => {
     vendas2024: cliente.valor_ano_anterior,
     oportunidade: cliente.previsao_pedido,
     meta: cliente.meta_ano_atual,
-    qtdVendas2025: cliente.qtd_compras_ano_atual ?? 0,  // Com fallback
-    qtdVendas2024: cliente.qtd_compras_ano_anterior ?? 0,  // Com fallback
+    qtdVendas2025: cliente.qtd_compras_ano_atual ?? 0,
+    qtdVendas2024: cliente.qtd_compras_ano_anterior ?? 0,
     percentualMeta: cliente.percentual_atingimento,
     acaoRecomendada: cliente.acao_recomendada,
-    celular: cliente.celular || '',  // Com fallback
-    statusErp: cliente.status_erp,
-    statusErpDesc: cliente.status_erp_desc,
-    statusComercial: cliente.status_comercial,
-    statusDisplay: cliente.status_display,
-    limiteCredito: cliente.valor_limite_credito,
-    saldoUtilizado: cliente.saldo_utilizado,
-    limiteDisponivel: cliente.limite_disponivel
+    celular: cliente.celular || '',
   };
 
   // Processar Métricas por Categoria
   const metricasCategoria = processarMetricasCategoria(cliente);
-
-  console.log('Cliente ID:', codigoCliente)
-  console.log('Dados do cliente:', dadosCliente)
-  console.log('🔍 DEBUG FINAL - Quantidades:', {
-    qtdVendas2025_final: dadosCliente.qtdVendas2025,
-    qtdVendas2024_final: dadosCliente.qtdVendas2024,
-    tipo_qtd_2025: typeof dadosCliente.qtdVendas2025,
-    tipo_qtd_2024: typeof dadosCliente.qtdVendas2024,
-    origem_qtd_2025: cliente.qtd_compras_ano_atual,
-    origem_qtd_2024: cliente.qtd_compras_ano_anterior
-  })
-  console.log('Métricas categoria:', metricasCategoria)
-
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -440,13 +269,6 @@ const DetalhesCliente: React.FC = () => {
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center space-x-2">
                 <h2 className="text-base font-bold text-gray-900">{dadosCliente.nome}</h2>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  dadosCliente.status === 'ADIMPLENTE' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {dadosCliente.status}
-                </span>
               </div>
               <div className="flex items-center space-x-1">
                 <span className="text-xs text-gray-600">DSV:</span>
@@ -485,18 +307,6 @@ const DetalhesCliente: React.FC = () => {
                 <span className="text-gray-600">Qnt: {dadosCliente.qtdVendas2024}</span>
               </div>
             </div>
-            
-            {/* Indicador de Urgência - Meta em risco */}
-            {dadosCliente.percentualMeta < 50 && (
-              <div className="mt-3 flex items-start gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-alert h-4 w-4 mt-0.5 flex-shrink-0 text-gray-600" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" x2="12" y1="8" y2="12"></line>
-                  <line x1="12" x2="12.01" y1="16" y2="16"></line>
-                </svg>
-                <p className="text-xs font-medium text-gray-900 leading-tight">URGENTE - Meta em risco (&lt;50%)</p>
-              </div>
-            )}
           </div>
 
           {/* Mix de Produtos */}
@@ -556,7 +366,7 @@ const DetalhesCliente: React.FC = () => {
               >
                 <Phone className="h-4 w-4" />
                 <span className="text-sm">
-                  {dadosCliente.celular ? `Ligar (${formatarTelefone(dadosCliente.celular)})` : 'Sem telefone'}
+                  {dadosCliente.celular ? `Ligar ${formatarTelefone(dadosCliente.celular)}` : 'Sem telefone'}
                 </span>
               </button>
 
@@ -584,15 +394,6 @@ const DetalhesCliente: React.FC = () => {
                   {dadosCliente.celular ? 'WhatsApp' : 'Sem WhatsApp'}
                 </span>
               </button>
-
-              {/* Botão Gravar Áudio - Oculto temporariamente */}
-              {/* <button
-                disabled
-                className="w-full bg-gray-400 text-white py-2.5 rounded-lg cursor-not-allowed flex items-center justify-center gap-2 opacity-50"
-              >
-                <Mic className="h-4 w-4" />
-                <span className="text-sm">Gravar Áudio (Em breve)</span>
-              </button> */}
             </div>
           </div>
 

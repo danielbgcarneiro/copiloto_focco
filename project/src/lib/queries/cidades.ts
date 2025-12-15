@@ -1,33 +1,8 @@
 import { supabase } from '../supabase';
 
-export interface CidadeCompleta {
-  cidade: string;
-  rota: string;
-  vendedor_apelido: string;
-  vendedor_uuid: string;
-  total_oticas: number;
-  // Campos de status
-  oticas_ativas: number;
-  oticas_pendentes: number;
-  oticas_inadimplentes: number;
-  status_ativo: number;
-  status_pendente: number;
-  status_inativo: number;
-  status_inadimplente: number;
-  // Financeiros
-  soma_oportunidades: number;
-  vendido_2025: number;
-  saldo_metas: number;
-}
-
 export interface CidadeMapeada {
   nome: string;
   rota: string;
-  clientes: {
-    AT: number;
-    PEN: number;
-    INA: number;
-  };
   somaOportunidades: number;
   clientesSemVenda90d: number;
   totalClientes: number;
@@ -39,9 +14,9 @@ export interface CidadeMapeada {
 
 export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMapeada[]> {
   try {
-    console.log('🏙️ Buscando cidades via vw_cidades_completo...', { rota });
+    console.log('🏙️ Buscando cidades (construindo a partir de tabelas base)...', { rota });
 
-    // Verificar sessão antes de fazer consulta
+    // 1. Verificar sessão
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
     if (sessionError) {
@@ -54,79 +29,144 @@ export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMa
       throw new Error('Usuário não autenticado')
     }
 
-    console.log('🔐 Sessão ativa:', {
-      userId: session.user.id,
-      email: session.user.email
-    });
+    console.log('🔐 Sessão ativa:', { userId: session.user.id });
 
-    // Buscar dados da vw_cidades_completo (única view necessária)
-    let queryCidades = supabase
-      .from('vw_cidades_completo')
-      .select(`
-        cidade,
-        rota,
-        vendedor_apelido,
-        vendedor_uuid,
-        total_oticas,
-        status_ativo,
-        status_pendente,
-        status_inativo,
-        status_inadimplente,
-        soma_oportunidades,
-        vendido_2025,
-        saldo_metas
-      `)
-      .eq('vendedor_uuid', session.user.id);
+    // 2. Buscar perfil do vendedor
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('cod_vendedor')
+      .eq('id', session.user.id)
+      .single();
 
-    // Aplicar filtro por rota se especificado
-    if (rota === null) {
-      // Filtrar cidades sem rota mas com clientes
-      queryCidades = queryCidades.eq('rota', 'SEM ROTA').gt('total_oticas', 0);
-    } else if (rota) {
-      queryCidades = queryCidades.eq('rota', rota);
-    }
-
-    const { data: cidadesCompleto, error: errorCidades } = await queryCidades.order('cidade', { ascending: true });
-
-    if (errorCidades) {
-      console.error('❌ Erro ao buscar cidades:', errorCidades);
-      throw errorCidades;
-    }
-
-    if (!cidadesCompleto || cidadesCompleto.length === 0) {
-      console.log('⚠️ Nenhuma cidade encontrada para esta rota');
+    if (profileError || !profile) {
+      console.error('❌ Erro ao buscar perfil:', profileError);
       return [];
     }
 
-    console.log(`✅ ${cidadesCompleto.length} cidades encontradas`);
+    // 3. Buscar rotas do vendedor (se não filtrou por rota específica)
+    let rotasFiltro: string[] = [];
+    if (rota) {
+      rotasFiltro = [rota];
+    } else {
+      const { data: rotasVendedor } = await supabase
+        .from('vendedor_rotas')
+        .select('rota')
+        .eq('vendedor_id', session.user.id)
+        .eq('ativo', true);
 
-    // Mapear dados da view para formato esperado pelo componente
-    const cidadesMapeadas: CidadeMapeada[] = cidadesCompleto.map((cidade: CidadeCompleta) => {
-      // Calcular métricas direto da view vw_cidades_completo
-      const somaMetas = cidade.vendido_2025 + cidade.saldo_metas; // meta = vendido + saldo
-      const atingimento = somaMetas > 0
-        ? (cidade.vendido_2025 / somaMetas) * 100
-        : 0;
-      const clientesSemVenda90d = cidade.total_oticas - cidade.status_ativo;
+      rotasFiltro = rotasVendedor?.map(r => r.rota) || [];
+    }
 
-      return {
-        nome: cidade.cidade,
-        rota: cidade.rota || 'SEM ROTA',
-        clientes: {
-          AT: cidade.status_ativo || 0,
-          PEN: cidade.status_pendente || 0,
-          INA: (cidade.status_inativo || 0) + (cidade.status_inadimplente || 0)
-        },
-        somaOportunidades: cidade.soma_oportunidades || 0,
-        clientesSemVenda90d: clientesSemVenda90d,
-        totalClientes: cidade.total_oticas || 0,
-        somaMetas: somaMetas,
-        vendido2025: cidade.vendido_2025 || 0,
-        saldoMetas: cidade.saldo_metas || 0,
-        atingimento: atingimento
-      };
+    if (rotasFiltro.length === 0) {
+      console.log('⚠️ Nenhuma rota encontrada');
+      return [];
+    }
+
+    // 4. Buscar mapeamento de rotas_estado
+    const { data: rotasEstado } = await supabase
+      .from('rotas_estado')
+      .select('codigo_ibge_cidade, cidade, rota')
+      .in('rota', rotasFiltro);
+
+    // Criar mapeamento codigo_ibge_cidade -> rota
+    const cidadeRotaMap = new Map<string, string>();
+    rotasEstado?.forEach(re => {
+      if (re.codigo_ibge_cidade) {
+        cidadeRotaMap.set(re.codigo_ibge_cidade, re.rota);
+      }
     });
 
+    // 5. Buscar clientes do vendedor com dados RFM
+    const { data: clientes, error: clientesError } = await supabase
+      .from('tabela_clientes')
+      .select(`
+        codigo_cliente,
+        codigo_ibge_cidade,
+        cidade,
+        analise_rfm (
+          valor_ano_atual,
+          meta_ano_atual,
+          previsao_pedido,
+          dias_sem_comprar
+        )
+      `)
+      .eq('cod_vendedor', profile.cod_vendedor);
+
+    if (clientesError) {
+      console.error('❌ Erro ao buscar clientes:', clientesError);
+      return [];
+    }
+
+    console.log('👥 Clientes encontrados:', clientes?.length || 0);
+
+    // 6. Agrupar por cidade
+    interface CidadeStats {
+      nome: string;
+      rota: string;
+      totalClientes: number;
+      somaOportunidades: number;
+      somaMetas: number;
+      vendido2025: number;
+      clientesSemVenda90d: number;
+    }
+
+    const cidadesMap = new Map<string, CidadeStats>();
+
+    clientes?.forEach((cliente: any) => {
+      const rotaCliente = cidadeRotaMap.get(cliente.codigo_ibge_cidade);
+
+      // Filtrar pela rota se especificado
+      if (rota && rotaCliente !== rota) return;
+      if (!rotaCliente && rota !== null) return;
+
+      const nomeCidade = cliente.cidade || 'Sem Cidade';
+      const key = `${nomeCidade}|${rotaCliente || 'SEM ROTA'}`;
+
+      if (!cidadesMap.has(key)) {
+        cidadesMap.set(key, {
+          nome: nomeCidade,
+          rota: rotaCliente || 'SEM ROTA',
+          totalClientes: 0,
+          somaOportunidades: 0,
+          somaMetas: 0,
+          vendido2025: 0,
+          clientesSemVenda90d: 0
+        });
+      }
+
+      const stats = cidadesMap.get(key)!;
+      stats.totalClientes += 1;
+
+      // Contabilizar métricas RFM
+      if (cliente.analise_rfm) {
+        stats.vendido2025 += cliente.analise_rfm.valor_ano_atual || 0;
+        stats.somaMetas += cliente.analise_rfm.meta_ano_atual || 0;
+        stats.somaOportunidades += cliente.analise_rfm.previsao_pedido || 0;
+
+        // Clientes sem venda há +90 dias
+        if ((cliente.analise_rfm.dias_sem_comprar || 0) >= 90) {
+          stats.clientesSemVenda90d += 1;
+        }
+      }
+    });
+
+    // 7. Converter para array e calcular métricas finais
+    const cidadesMapeadas: CidadeMapeada[] = Array.from(cidadesMap.values())
+      .map(stats => ({
+        nome: stats.nome,
+        rota: stats.rota,
+        somaOportunidades: stats.somaOportunidades,
+        clientesSemVenda90d: stats.clientesSemVenda90d,
+        totalClientes: stats.totalClientes,
+        somaMetas: stats.somaMetas,
+        vendido2025: stats.vendido2025,
+        saldoMetas: stats.somaMetas - stats.vendido2025,
+        atingimento: stats.somaMetas > 0 ? (stats.vendido2025 / stats.somaMetas) * 100 : 0
+      }))
+      .filter(cidade => cidade.totalClientes > 0)
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+
+    console.log(`✅ ${cidadesMapeadas.length} cidades processadas`);
     return cidadesMapeadas;
   } catch (error) {
     console.error('💥 Erro ao buscar cidades completo:', error);

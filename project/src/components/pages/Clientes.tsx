@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Search, Filter, User, LogOut, Check, Clock, MapPin, AlertTriangle, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Search, Filter, User, LogOut, Check, Clock, MapPin, CheckCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
 import { getClientesPorVendedor, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
@@ -80,6 +80,10 @@ const Clientes: React.FC = () => {
              normalizeText(cliente.bairro || '').includes(normalizedSearchTerm)
     })
     .sort((a, b) => {
+      // Acessar analise_rfm com segurança
+      const a_rfm = a.analise_rfm || {};
+      const b_rfm = b.analise_rfm || {};
+
       switch (sortBy) {
         case 'nome':
           return a.nome_fantasia.localeCompare(b.nome_fantasia)
@@ -90,11 +94,11 @@ const Clientes: React.FC = () => {
         case 'bairro-za':
           return (b.bairro || '').localeCompare(a.bairro || '')
         case 'maior-oportunidade':
-          return (b.oportunidade || 0) - (a.oportunidade || 0)
+          return (b_rfm.previsao_pedido || 0) - (a_rfm.previsao_pedido || 0)
         case 'menor-oportunidade':
-          return (a.oportunidade || 0) - (b.oportunidade || 0)
+          return (a_rfm.previsao_pedido || 0) - (b_rfm.previsao_pedido || 0)
         case 'dsv':
-          return (b.dias_sem_comprar || 0) - (a.dias_sem_comprar || 0)
+          return (b_rfm.dias_sem_comprar || 0) - (a_rfm.dias_sem_comprar || 0)
         default:
           return a.nome_fantasia.localeCompare(b.nome_fantasia)
       }
@@ -298,10 +302,10 @@ const Clientes: React.FC = () => {
         {/* Clientes List */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {clientesFiltrados.map((cliente) => {
-            const isInadimplente = cliente.status_financeiro === 'INADIMPLENTE'
+            const rfm = cliente.analise_rfm || {};
 
             // Usar atingimento já calculado pela view (não recalcular!)
-            const atingimento = Math.min(100, Math.max(0, cliente.percentual_atingimento || 0))
+            const atingimento = Math.min(100, Math.max(0, rfm.percentual_atingimento || 0))
 
             // Calcular o ângulo para o gráfico de rosca
             const circumference = 2 * Math.PI * 54
@@ -333,17 +337,10 @@ const Clientes: React.FC = () => {
                     <h3 className="text-base sm:text-lg font-bold text-gray-800 truncate flex-1">
                       {cliente.nome_fantasia}
                     </h3>
-                    {isInadimplente && (
-                      <span className="bg-orange-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
-                        INADIMPLENTE
-                      </span>
-                    )}
+                    {/* Removendo tag INADIMPLENTE pois status_financeiro não é mais selecionado diretamente */}
                   </div>
                   <p className="text-xs text-gray-500 mb-4">
                     Código: {cliente.codigo_cliente}
-                    {cliente.ultima_visita_display && cliente.ultima_visita_display !== 'Sem registro' && (
-                      <span className="ml-2">| Última visita: {cliente.ultima_visita_display}</span>
-                    )}
                   </p>
 
                   {/* Content - Horizontal */}
@@ -385,10 +382,10 @@ const Clientes: React.FC = () => {
                       {/* Saldo */}
                       <div className="mb-2.5">
                         <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
-                          {formatCurrency(cliente.saldo_meta)}
+                          {formatCurrency(rfm.saldo_meta || 0)}
                         </div>
                         <div className="text-gray-600 text-[10px] sm:text-xs">Saldo</div>
-                        <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(cliente.meta_ano_atual)}</div>
+                        <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(rfm.meta_ano_atual || 0)}</div>
                       </div>
 
                       {/* Divider */}
@@ -400,7 +397,7 @@ const Clientes: React.FC = () => {
                         <div className="flex flex-col items-center">
                           <div className="flex items-center gap-0.5">
                             <Clock className="w-3 h-3 text-gray-500" />
-                            <span className="font-bold text-xs sm:text-sm text-gray-800">{cliente.dias_sem_comprar || 0}</span>
+                            <span className="font-bold text-xs sm:text-sm text-gray-800">{rfm.dias_sem_comprar || 0}</span>
                           </div>
                           <span className="text-[9px] sm:text-[10px] text-gray-500">DSV</span>
                         </div>
@@ -418,22 +415,13 @@ const Clientes: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Ação Recomendada ou Oportunidade */}
-                {cliente.acao_recomendada ? (
-                  <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0" />
-                    <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
-                      {cliente.acao_recomendada}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
+                {/* Oportunidade */}
+                <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
                     <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
-                      Oportunidade: {formatCurrency(cliente.oportunidade)}
+                      Oportunidade: {formatCurrency(rfm.previsao_pedido || 0)}
                     </span>
                   </div>
-                )}
 
                 {/* Check Button */}
                 <div className="p-4 pt-3">

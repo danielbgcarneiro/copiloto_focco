@@ -7,61 +7,76 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
     throw new Error('Usuário não autenticado');
   }
 
-  console.log('👥 Buscando clientes para vendedor:', { 
-    userId: user.id, 
-    userIdType: typeof user.id,
-    cidade, 
-    cidadeOriginal: cidade 
+  // Buscar o cod_vendedor (INTEGER) do usuário atual a partir do UUID
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('cod_vendedor')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error('Vendedor não encontrado');
+  }
+
+  // 1. Buscar rotas do vendedor
+  const { data: rotasVendedor, error: rotasError } = await supabase
+    .from('vendedor_rotas')
+    .select('rota')
+    .eq('vendedor_id', user.id)
+    .eq('ativo', true);
+
+  if (rotasError) {
+    console.error('❌ Erro ao buscar rotas do vendedor:', rotasError);
+    return [];
+  }
+
+  const rotasAtivas = rotasVendedor?.map(r => r.rota) || [];
+  if (rotasAtivas.length === 0) {
+    console.log('⚠️ Nenhuma rota ativa encontrada para o vendedor');
+    return [];
+  }
+
+  // 2. Buscar mapeamento cidade -> rota para as rotas ativas do vendedor
+  const { data: rotasEstado, error: rotasEstadoError } = await supabase
+    .from('rotas_estado')
+    .select('codigo_ibge_cidade, rota')
+    .in('rota', rotasAtivas);
+
+  if (rotasEstadoError) {
+    console.error('❌ Erro ao buscar rotas_estado:', rotasEstadoError);
+    return [];
+  }
+
+  const cidadeRotaMap = new Map<string, string>();
+  rotasEstado?.forEach(re => {
+    if (re.codigo_ibge_cidade) {
+      cidadeRotaMap.set(re.codigo_ibge_cidade, re.rota);
+    }
   });
 
-  // Sempre usar vw_clientes_completo - RLS cuida do filtro
   let query = supabase
-    .from('vw_clientes_completo')
+    .from('tabela_clientes')
     .select(`
       codigo_cliente,
       nome_fantasia,
       cidade,
       bairro,
-      rota,
-      vendedor_uuid,
-      valor_vendas_ano_atual,
-      meta_ano_atual,
-      percentual_atingimento,
-      status_financeiro,
-      dias_sem_comprar,
-      oportunidade,
-      saldo_meta,
-      valor_limite_credito,
-      acao_recomendada,
-      ultima_visita_data,
-      ultima_visita_display
+      codigo_ibge_cidade,
+      analise_rfm (
+        valor_ano_atual,
+        meta_ano_atual,
+        dias_sem_comprar,
+        previsao_pedido
+      )
     `)
-    .eq('vendedor_uuid', user.id)
-    .not('vendedor_uuid', 'is', null); // Garantir que tem vendedor
+    .eq('cod_vendedor', profile.cod_vendedor);
 
   // Adicionar filtro por cidade se especificado (case-insensitive)
   if (cidade) {
-    query = query.ilike('cidade', cidade);
+    query = query.ilike('cidade', `%${cidade}%`);
   }
 
-  console.log('🚀 EXECUTANDO QUERY...', { temFiltoCidade: !!cidade });
-
   const { data, error } = await query.order('nome_fantasia');
-  
-  const vendedoresUnicos = data ? [...new Set(data.map(c => c.vendedor_uuid))] : [];
-  const matchUsuario = data ? data.filter(c => c.vendedor_uuid === user.id).length : 0;
-  const outrosVendedores = data ? data.filter(c => c.vendedor_uuid !== user.id).length : 0;
-  
-  console.log('📊 RESULTADO DA QUERY:', { 
-    error, 
-    dataCount: data?.length || 0, 
-    primeirosDados: data?.slice(0, 2),
-    vendedoresUnicos,
-    usuarioAtual: user.id,
-    matchUsuario,
-    outrosVendedores,
-    rlsStatus: outrosVendedores === 0 ? '✅ RLS OK' : '❌ RLS FALHOU'
-  });
   
   if (error) {
     console.error('Erro ao buscar clientes:', error);
@@ -72,26 +87,43 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
     return [];
   }
 
+  // A relação 'analise_rfm' retorna um objeto, não um array.
+  // Também calculamos saldo_meta e percentual_atingimento aqui.
+  const clientesFormatados = data.map(cliente => {
+    const rfmRaw = cliente.analise_rfm || {};
+    
+    const metaAnoAtual = rfmRaw.meta_ano_atual || 0;
+    const valorAnoAtual = rfmRaw.valor_ano_atual || 0;
+
+    const rotaDoCliente = cliente.codigo_ibge_cidade 
+      ? cidadeRotaMap.get(cliente.codigo_ibge_cidade) 
+      : undefined;
+
+    // Remover analise_rfm bruto para evitar confusão
+    const { analise_rfm, ...clienteData } = cliente;
+
+    return {
+      ...clienteData,
+      vendedor_uuid: user.id, // Adiciona o vendedor_uuid explicitamente
+      rota: rotaDoCliente, // Adiciona a rota mapeada
+      analise_rfm: {
+        valor_ano_atual: valorAnoAtual,
+        meta_ano_atual: metaAnoAtual,
+        dias_sem_comprar: rfmRaw.dias_sem_comprar || 0,
+        previsao_pedido: rfmRaw.previsao_pedido || 0,
+        saldo_meta: metaAnoAtual - valorAnoAtual,
+        percentual_atingimento: metaAnoAtual > 0 ? (valorAnoAtual / metaAnoAtual) * 100 : 0,
+      }
+    };
+  });
+
   // Buscar visitas recentes para todos os clientes
-  const codigosClientes = data.map(cliente => cliente.codigo_cliente);
+  const codigosClientes = clientesFormatados.map(cliente => cliente.codigo_cliente);
   
-  // Buscar o cod_vendedor (INTEGER) do usuário atual
-  const { data: userData, error: userError } = await supabase
-    .from('profiles')
-    .select('cod_vendedor')
-    .eq('id', user.id)
-    .single();
-
-  if (userError || !userData) {
-    console.warn('Erro ao buscar cod_vendedor:', userError);
-    // Retornar clientes sem campo visitado se não conseguir buscar vendedor
-    return data.map(cliente => ({ ...cliente, visitado: false }));
-  }
-
   const { data: visitas, error: visitasError } = await supabase
     .from('visitas_clientes')
     .select('codigo_cliente')
-    .eq('cod_vendedor', userData.cod_vendedor)
+    .eq('cod_vendedor', profile.cod_vendedor)
     .eq('status', 'ativo')
     .in('codigo_cliente', codigosClientes)
     .gte('data_visita', new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString());
@@ -104,7 +136,7 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
   const clientesVisitados = new Set(visitas?.map(v => v.codigo_cliente) || []);
 
   // Adicionar campo visitado aos dados dos clientes
-  const clientesComVisitas = data.map(cliente => ({
+  const clientesComVisitas = clientesFormatados.map(cliente => ({
     ...cliente,
     visitado: clientesVisitados.has(cliente.codigo_cliente)
   }));

@@ -1,29 +1,5 @@
 import { supabase } from '../supabase';
 
-export interface RotaCompleta {
-  rota: string;
-  nome_rota: string;
-  vendedor_uuid: string;
-  vendedor_apelido: string;
-  vendedor_nome_completo: string;
-  total_cidades: number;
-  qtd_cidades: number;
-  total_clientes: number;
-  total_oticas: number;
-  qtd_oticas: number;
-  soma_oportunidades: number;
-  clientes_sem_venda_90d: number;
-  oticas_sem_vendas_90d: number;
-  vendido_2024: number;
-  vendido_2025: number;
-  meta_2025: number;
-  percentual_meta: number;
-  oportunidade: number;
-  ranking: number;
-  ranking_vendas: number;
-  faixa_atingimento: string;
-}
-
 export interface RotaMapeada {
   nome: string;
   totalCidades: number;
@@ -38,9 +14,9 @@ export interface RotaMapeada {
 
 export async function getRotasCompleto(): Promise<RotaMapeada[]> {
   try {
-    console.log('🛣️ Buscando rotas via vw_rotas_unificada...');
+    console.log('🛣️ Buscando rotas (construindo a partir de tabelas base)...');
 
-    // Verificar sessão antes de fazer consulta
+    // 1. Verificar sessão
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
     if (sessionError) {
@@ -53,85 +29,156 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
       throw new Error('Usuário não autenticado')
     }
 
-    console.log('🔐 Sessão ativa:', {
-      userId: session.user.id,
-      email: session.user.email
-    });
+    console.log('🔐 Sessão ativa:', { userId: session.user.id });
 
-    // Buscar métricas diretamente da nova view unificada usando vendedor_uuid
-    // Especificar campos explicitamente para evitar parsing incorreto
-    const { data, error: metricsError } = await supabase
-      .from('vw_rotas_unificada')
-      .select(`
-        rota,
-        nome_rota,
-        vendedor_uuid,
-        vendedor_apelido,
-        vendedor_nome_completo,
-        total_cidades,
-        qtd_cidades,
-        total_clientes,
-        total_oticas,
-        qtd_oticas,
-        soma_oportunidades,
-        clientes_sem_venda_90d,
-        oticas_sem_vendas_90d,
-        vendido_2024,
-        vendido_2025,
-        meta_2025,
-        percentual_meta,
-        oportunidade,
-        ranking,
-        ranking_vendas,
-        faixa_atingimento
-      `)
-      .eq('vendedor_uuid', session.user.id)
-      .order('percentual_meta', { ascending: false });
+    // 2. Buscar rotas do vendedor
+    const { data: rotasVendedor, error: rotasError } = await supabase
+      .from('vendedor_rotas')
+      .select('rota')
+      .eq('vendedor_id', session.user.id)
+      .eq('ativo', true);
 
-    console.log('🛣️ Resposta da view vw_rotas_unificada:', {
-      dadosCount: data?.length || 0,
-      primeirosDados: data?.slice(0, 3),
-      error: metricsError
-    });
-
-    if (metricsError) {
-      console.error('❌ Erro ao buscar métricas das rotas:', metricsError);
-      throw metricsError;
-    }
-
-    if (!data || data.length === 0) {
-      console.log('⚠️ View vw_rotas_unificada retornou dados vazios - possível problema de RLS');
+    if (rotasError) {
+      console.error('❌ Erro ao buscar rotas do vendedor:', rotasError);
       return [];
     }
 
-    // Mapear dados da view para formato esperado pelo componente
-    const rotasMapeadas: RotaMapeada[] = data
-      .map((rota: RotaCompleta) => ({
-        nome: rota.rota || rota.nome_rota || 'Sem Rota',
-        totalCidades: rota.total_cidades || rota.qtd_cidades || 0,
-        totalOticas: rota.total_oticas || rota.qtd_oticas || rota.total_clientes || 0,
-        somaOportunidades: rota.soma_oportunidades || 0,
-        semVendas90d: rota.clientes_sem_venda_90d || rota.oticas_sem_vendas_90d || 0,
-        status: 'Ativo' as 'Ativo' | 'Inativo',
-        metaAnoAtual: rota.meta_2025 || 0,
-        saldoMeta: rota.oportunidade || 0, // Saldo da meta (meta_2025 - vendido_2025)
-        percentualMeta: rota.percentual_meta || 0
-      }))
-      // Filtrar rotas "Sem Rota" que não têm clientes
-      .filter(rota => {
-        // IMPORTANTE: "Sem Rota" só deve aparecer se houver CLIENTES (não apenas cidades)
-        if (rota.nome === 'Sem Rota' || rota.nome === null || rota.nome === '') {
-          const temClientes = rota.totalOticas > 0;
-          if (!temClientes) {
-            console.log('🚫 Filtrando rota "Sem Rota" porque não há clientes (apenas cidades vazias)');
-            return false;
-          }
-          console.log(`✅ Mantendo rota "Sem Rota" porque tem ${rota.totalOticas} clientes`);
-        }
-        return true;
-      });
+    if (!rotasVendedor || rotasVendedor.length === 0) {
+      console.log('⚠️ Nenhuma rota encontrada para o vendedor');
+      return [];
+    }
 
-    console.log(`✅ ${rotasMapeadas.length} rotas processadas (após filtrar rotas vazias)`);
+    const rotas = rotasVendedor.map(r => r.rota);
+    console.log('📍 Rotas do vendedor:', rotas);
+
+    // 3. Buscar perfil do vendedor para pegar cod_vendedor
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('cod_vendedor')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('❌ Erro ao buscar perfil do vendedor:', profileError);
+      return [];
+    }
+
+    // 4. Buscar mapeamento cidade -> rota
+    const { data: rotasEstado, error: rotasEstadoError } = await supabase
+      .from('rotas_estado')
+      .select('codigo_ibge_cidade, cidade, rota')
+      .in('rota', rotas);
+
+    if (rotasEstadoError) {
+      console.error('❌ Erro ao buscar rotas_estado:', rotasEstadoError);
+      return [];
+    }
+
+    // Criar mapeamento codigo_ibge_cidade -> rota
+    const cidadeRotaMap = new Map<string, string>();
+    rotasEstado?.forEach(re => {
+      if (re.codigo_ibge_cidade) {
+        cidadeRotaMap.set(re.codigo_ibge_cidade, re.rota);
+      }
+    });
+
+    console.log('🗺️ Mapeamento cidade->rota:', cidadeRotaMap.size, 'cidades');
+
+    // 5. Buscar clientes do vendedor com dados RFM
+    const { data: clientes, error: clientesError } = await supabase
+      .from('tabela_clientes')
+      .select(`
+        codigo_cliente,
+        codigo_ibge_cidade,
+        cidade,
+        analise_rfm (
+          valor_ano_atual,
+          meta_ano_atual,
+          previsao_pedido,
+          dias_sem_comprar
+        )
+      `)
+      .eq('cod_vendedor', profile.cod_vendedor);
+
+    if (clientesError) {
+      console.error('❌ Erro ao buscar clientes:', clientesError);
+      return [];
+    }
+
+    console.log('👥 Clientes encontrados:', clientes?.length || 0);
+
+    // 6. Agrupar dados por rota
+    interface RotaStats {
+      nome: string;
+      totalCidades: Set<string>;
+      totalOticas: number;
+      somaOportunidades: number;
+      semVendas90d: number;
+      metaAnoAtual: number;
+      valorAnoAtual: number;
+    }
+
+    const rotasMap = new Map<string, RotaStats>();
+
+    // Inicializar todas as rotas com valores zero
+    rotas.forEach(rota => {
+      rotasMap.set(rota, {
+        nome: rota,
+        totalCidades: new Set<string>(),
+        totalOticas: 0,
+        somaOportunidades: 0,
+        semVendas90d: 0,
+        metaAnoAtual: 0,
+        valorAnoAtual: 0
+      });
+    });
+
+    // Agregar dados dos clientes por rota
+    clientes?.forEach((cliente: any) => {
+      const rota = cidadeRotaMap.get(cliente.codigo_ibge_cidade);
+
+      if (rota && rotasMap.has(rota)) {
+        const stats = rotasMap.get(rota)!;
+
+        // Adicionar cidade ao Set (automaticamente evita duplicatas)
+        if (cliente.cidade) {
+          stats.totalCidades.add(cliente.cidade);
+        }
+
+        stats.totalOticas += 1;
+
+        if (cliente.analise_rfm) {
+          stats.valorAnoAtual += cliente.analise_rfm.valor_ano_atual || 0;
+          stats.metaAnoAtual += cliente.analise_rfm.meta_ano_atual || 0;
+          stats.somaOportunidades += cliente.analise_rfm.previsao_pedido || 0;
+
+          // Considerar sem vendas se dias_sem_comprar >= 90
+          if ((cliente.analise_rfm.dias_sem_comprar || 0) >= 90) {
+            stats.semVendas90d += 1;
+          }
+        }
+      }
+    });
+
+    // 7. Converter para array e calcular métricas finais
+    const rotasMapeadas: RotaMapeada[] = Array.from(rotasMap.values())
+      .map(stats => ({
+        nome: stats.nome,
+        totalCidades: stats.totalCidades.size,
+        totalOticas: stats.totalOticas,
+        somaOportunidades: stats.somaOportunidades,
+        semVendas90d: stats.semVendas90d,
+        status: 'Ativo' as 'Ativo' | 'Inativo',
+        metaAnoAtual: stats.metaAnoAtual,
+        saldoMeta: stats.metaAnoAtual - stats.valorAnoAtual,
+        percentualMeta: stats.metaAnoAtual > 0 ? (stats.valorAnoAtual / stats.metaAnoAtual) * 100 : 0
+      }))
+      // Ordenar por percentual de meta (maior primeiro)
+      .sort((a, b) => b.percentualMeta - a.percentualMeta)
+      // Filtrar rotas sem clientes
+      .filter(rota => rota.totalOticas > 0);
+
+    console.log(`✅ ${rotasMapeadas.length} rotas processadas`);
     return rotasMapeadas;
   } catch (error) {
     console.error('💥 Erro ao buscar rotas completo:', error);
