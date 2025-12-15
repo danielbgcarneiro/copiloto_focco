@@ -44,7 +44,7 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
 
     if (!profile) throw new Error('Perfil do vendedor não encontrado.');
 
-    // 1. Buscar dados de tabela_clientes com RFM aninhado (campos seguros)
+    // 1. Buscar dados básicos de tabela_clientes (sem relação embedded)
     const { data: clienteData, error: clienteError } = await supabase
       .from('tabela_clientes')
       .select(`
@@ -53,17 +53,7 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
         razao_social,
         cidade,
         bairro,
-        celular,
-        analise_rfm (
-          dias_sem_comprar,
-          valor_ano_atual,
-          valor_ano_anterior,
-          meta_ano_atual,
-          percentual_atingimento,
-          previsao_pedido,
-          qtd_compras_ano_anterior,
-          qtd_compras_ano_atual
-        )
+        celular
       `)
       .eq('codigo_cliente', codigoCliente)
       .eq('cod_vendedor', profile.cod_vendedor)
@@ -72,7 +62,27 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
     if (clienteError) throw clienteError;
     if (!clienteData) throw new Error('Cliente não encontrado ou sem permissão.');
 
-    // 2. Buscar métricas de categoria
+    // 2. Buscar dados RFM separadamente
+    const { data: rfmData, error: rfmError } = await supabase
+      .from('analise_rfm')
+      .select(`
+        dias_sem_comprar,
+        valor_ano_atual,
+        valor_ano_anterior,
+        meta_ano_atual,
+        percentual_atingimento,
+        previsao_pedido,
+        qtd_compras_ano_anterior,
+        qtd_compras_ano_atual
+      `)
+      .eq('codigo_cliente', codigoCliente)
+      .maybeSingle();
+
+    if (rfmError) {
+      console.warn('Dados RFM não disponíveis:', rfmError.message);
+    }
+
+    // 3. Buscar métricas de categoria
     const { data: metricasCategoria, error: metricasError } = await supabase
       .from('vw_metricas_categoria_cliente')
       .select('*')
@@ -82,16 +92,11 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
     if (metricasError) {
       console.warn('Métricas de categoria não disponíveis:', metricasError.message);
     }
-    
-    // 3. Combinar os resultados
-    const rfmData = Array.isArray(clienteData.analise_rfm) && clienteData.analise_rfm.length > 0
-      ? clienteData.analise_rfm[0]
-      : {};
-    const { analise_rfm, ...dadosBasicos } = clienteData;
 
+    // 4. Combinar os resultados
     const clienteCompleto: ClienteDetalhes = {
-      ...dadosBasicos,
-      ...rfmData,
+      ...clienteData,
+      ...(rfmData || {}),
       ...(metricasCategoria || {})
     };
 
