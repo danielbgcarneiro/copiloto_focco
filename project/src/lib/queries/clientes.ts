@@ -1,5 +1,13 @@
 import { supabase } from '../supabase';
 
+// Define a interface para os dados RFM retornados pelo Supabase
+interface AnaliseRfmData {
+  valor_ano_atual?: number;
+  meta_ano_atual?: number;
+  dias_sem_comprar?: number;
+  previsao_pedido?: number;
+}
+
 export async function getClientesPorVendedor(_vendedorId?: string, cidade?: string) {
   // Buscar dados do usuário atual (padrão das outras queries)
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -87,13 +95,16 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
     return [];
   }
 
-  // A relação 'analise_rfm' retorna um objeto, não um array.
-  // Também calculamos saldo_meta e percentual_atingimento aqui.
+  // A relação 'analise_rfm' retorna um array, então pegamos o primeiro elemento.
+  // Também calculamos saldo_meta e percentual_atingimento aqui, como é feito em rotas.ts
   const clientesFormatados = data.map(cliente => {
-    const rfmRaw = cliente.analise_rfm || {};
+    // Extrair o objeto RFM do array retornado pelo Supabase e tipar explicitamente
+    const rfmObject: AnaliseRfmData = Array.isArray(cliente.analise_rfm) && cliente.analise_rfm.length > 0
+      ? cliente.analise_rfm[0]
+      : {};
     
-    const metaAnoAtual = rfmRaw.meta_ano_atual || 0;
-    const valorAnoAtual = rfmRaw.valor_ano_atual || 0;
+    const metaAnoAtual = rfmObject?.meta_ano_atual || 0;
+    const valorAnoAtual = rfmObject?.valor_ano_atual || 0;
 
     const rotaDoCliente = cliente.codigo_ibge_cidade 
       ? cidadeRotaMap.get(cliente.codigo_ibge_cidade) 
@@ -109,8 +120,8 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
       analise_rfm: {
         valor_ano_atual: valorAnoAtual,
         meta_ano_atual: metaAnoAtual,
-        dias_sem_comprar: rfmRaw.dias_sem_comprar || 0,
-        previsao_pedido: rfmRaw.previsao_pedido || 0,
+        dias_sem_comprar: rfmObject?.dias_sem_comprar || 0,
+        previsao_pedido: rfmObject?.previsao_pedido || 0,
         saldo_meta: metaAnoAtual - valorAnoAtual,
         percentual_atingimento: metaAnoAtual > 0 ? (valorAnoAtual / metaAnoAtual) * 100 : 0,
       }

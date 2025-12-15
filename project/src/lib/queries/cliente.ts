@@ -84,7 +84,9 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
     }
     
     // 3. Combinar os resultados
-    const rfmData = clienteData.analise_rfm || {};
+    const rfmData = Array.isArray(clienteData.analise_rfm) && clienteData.analise_rfm.length > 0
+      ? clienteData.analise_rfm[0]
+      : {};
     const { analise_rfm, ...dadosBasicos } = clienteData;
 
     const clienteCompleto: ClienteDetalhes = {
