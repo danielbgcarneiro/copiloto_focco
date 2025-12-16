@@ -30,6 +30,11 @@ SELECT
         ELSE 0
       END DESC
   ) as ranking,
+  COUNT(DISTINCT tc.cidade) as total_cidades,
+  COUNT(DISTINCT tc.cidade) as qtd_cidades,
+  COUNT(DISTINCT CASE WHEN COALESCE(ar.dias_sem_comprar, 0) >= 90 THEN tc.codigo_cliente END) as clientes_sem_venda_90d,
+  COUNT(DISTINCT CASE WHEN COALESCE(ar.dias_sem_comprar, 0) >= 90 THEN tc.codigo_cliente END) as oticas_sem_vendas_90d,
+  COALESCE(SUM(ar.previsao_pedido), 0) as soma_oportunidades,
   CASE
     WHEN COALESCE(SUM(ar.meta_ano_atual), 0) = 0 THEN 'Sem Meta'
     WHEN (COALESCE(SUM(ar.valor_ano_atual), 0) / NULLIF(SUM(ar.meta_ano_atual), 0) * 100) >= 100 THEN 'Atingiu'
