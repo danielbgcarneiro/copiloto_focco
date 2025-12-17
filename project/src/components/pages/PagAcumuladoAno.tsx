@@ -61,7 +61,6 @@ const PagAcumuladoAno: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [anoAtual] = useState(new Date().getFullYear())
   const [selectedAno, setSelectedAno] = useState(2025)
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([])
   const [todosVendedores, setTodosVendedores] = useState<string[]>([])
