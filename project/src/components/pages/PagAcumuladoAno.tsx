@@ -57,6 +57,13 @@ interface CidadeVenda {
   total_cidades: number
 }
 
+interface CidadePositivadaPerfil {
+  ano: number
+  perfil: string
+  total_cidades: number
+  cidades_positivadas: number
+}
+
 const PagAcumuladoAno: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -70,6 +77,7 @@ const PagAcumuladoAno: React.FC = () => {
   const [vendasMensais, setVendasMensais] = useState<VendaMensal[]>([])
   const [clientesUnicos, setClientesUnicos] = useState<ClienteUnico[]>([])
   const [cidadesVendas, setCidadesVendas] = useState<CidadeVenda[]>([])
+  const [cidadesPositivadasPerfil, setCidadesPositivadasPerfil] = useState<CidadePositivadaPerfil[]>([])
 
   // Buscar dados das views
   useEffect(() => {
@@ -96,6 +104,19 @@ const PagAcumuladoAno: React.FC = () => {
         if (metasError) console.error('Erro ao buscar metas:', metasError)
         if (clientesError) console.error('Erro ao buscar clientes:', clientesError)
         if (cidadesError) console.error('Erro ao buscar cidades:', cidadesError)
+
+        // Buscar cidades positivadas por perfil da VIEW
+        const { data: cidadesPerfilData, error: cidadesPerfilError } = await supabase
+          .from('vw_cidades_positivadas_perfil')
+          .select('*')
+
+        if (cidadesPerfilError) {
+          console.error('❌ Erro ao buscar cidades por perfil:', cidadesPerfilError)
+        }
+
+        console.log('✅ Cidades por perfil da VIEW:', cidadesPerfilData)
+
+        setCidadesPositivadasPerfil(cidadesPerfilData || [])
 
         // Merge vendas com metas
         const vendasComMetas: VendaMensal[] = vendas?.map(venda => {
@@ -139,7 +160,7 @@ const PagAcumuladoAno: React.FC = () => {
     }
 
     carregarDados()
-  }, [user])
+  }, [user, selectedAno])
 
   const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
@@ -215,6 +236,29 @@ const PagAcumuladoAno: React.FC = () => {
       comVendaAnoAtual: dadosAnoAtual?.cidades_com_venda || 0
     }
   }, [cidadesVendas, selectedAno])
+
+  // Processar dados de perfis da VIEW
+  const dadosPerfis = useMemo(() => {
+    // Filtrar dados da VIEW pelo ano selecionado
+    const dadosDoAno = cidadesPositivadasPerfil.filter(d => d.ano === selectedAno)
+
+    // A VIEW já retorna tudo calculado, só precisamos formatar
+    const perfis = ['Ouro', 'Prata', 'Bronze', 'Sem Perfil']
+
+    return perfis.map(perfil => {
+      const dados = dadosDoAno.find(d => d.perfil === perfil)
+      const cidadesTotal = dados?.total_cidades || 0
+      const cidadesPos = dados?.cidades_positivadas || 0
+      const taxa = cidadesTotal > 0 ? (cidadesPos / cidadesTotal) * 100 : 0
+
+      return {
+        perfil,
+        cidadesTotal,
+        cidadesPositivadas: cidadesPos,
+        taxa
+      }
+    })
+  }, [cidadesPositivadasPerfil, selectedAno])
 
   const calcularTotaisAno = () => {
     const totalMeta = filteredDadosRealizados.reduce((acc, mes) => acc + mes.meta, 0)
@@ -346,21 +390,21 @@ const PagAcumuladoAno: React.FC = () => {
             <table className="w-full min-w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Mês</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Meta</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Vendas</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Atingimento</th>
+                  <th className="text-left py-1.5 px-4 font-semibold text-gray-700 text-sm">Mês</th>
+                  <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">Meta</th>
+                  <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">Vendas</th>
+                  <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">Atingimento</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredDadosRealizados.map((mesData) => (
                   <React.Fragment key={mesData.mes}>
                     <tr className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium text-gray-900">{mesData.mes}</td>
-                      <td className="py-3 px-4 text-right text-gray-700">R$ {mesData.meta.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-gray-900">R$ {mesData.vendas.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right">
-                        <span className={`font-bold ${
+                      <td className="py-1.5 px-4 font-medium text-gray-900 text-sm">{mesData.mes}</td>
+                      <td className="py-1.5 px-4 text-right text-gray-700 text-sm">R$ {mesData.meta.toLocaleString()}</td>
+                      <td className="py-1.5 px-4 text-right font-semibold text-gray-900 text-sm">R$ {mesData.vendas.toLocaleString()}</td>
+                      <td className="py-1.5 px-4 text-right">
+                        <span className={`font-bold text-sm ${
                           mesData.atingimento >= 100 ? 'text-green-600' :
                           mesData.atingimento >= 80 ? 'text-yellow-600' : 'text-red-600'
                         }`}>
@@ -371,11 +415,11 @@ const PagAcumuladoAno: React.FC = () => {
                   </React.Fragment>
                 ))}
                 <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold">
-                  <td className="py-3 px-4 text-gray-900">Total Geral</td>
-                  <td className="py-3 px-4 text-right text-gray-900">R$ {totalMeta.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-gray-900">R$ {totalVendas.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right">
-                    <span className={`${
+                  <td className="py-1.5 px-4 text-gray-900 text-sm">Total Geral</td>
+                  <td className="py-1.5 px-4 text-right text-gray-900 text-sm">R$ {totalMeta.toLocaleString()}</td>
+                  <td className="py-1.5 px-4 text-right text-gray-900 text-sm">R$ {totalVendas.toLocaleString()}</td>
+                  <td className="py-1.5 px-4 text-right">
+                    <span className={`text-sm ${
                       atingimentoGeral >= 100 ? 'text-green-600' :
                       atingimentoGeral >= 80 ? 'text-yellow-600' : 'text-red-600'
                     }`}>
@@ -396,55 +440,89 @@ const PagAcumuladoAno: React.FC = () => {
             <table className="w-full min-w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Mês</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">{selectedAno - 1}</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">{selectedAno}</th>
+                  <th className="text-left py-1.5 px-4 font-semibold text-gray-700 text-sm">Mês</th>
+                  <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">{selectedAno - 1}</th>
+                  <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">{selectedAno}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredDadosClientesUnicos.map((mesData) => (
                   <React.Fragment key={mesData.mes}>
                     <tr className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium text-gray-900">{mesData.mes}</td>
-                      <td className="py-3 px-4 text-right text-gray-700">{mesData.totalAnoAnterior}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-gray-900">{mesData.totalAnoAtual}</td>
+                      <td className="py-1.5 px-4 font-medium text-gray-900 text-sm">{mesData.mes}</td>
+                      <td className="py-1.5 px-4 text-right text-gray-700 text-sm">{mesData.totalAnoAnterior}</td>
+                      <td className="py-1.5 px-4 text-right font-semibold text-gray-900 text-sm">{mesData.totalAnoAtual}</td>
                     </tr>
                   </React.Fragment>
                 ))}
                 <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold">
-                  <td className="py-3 px-4 text-gray-900">Total Geral</td>
-                  <td className="py-3 px-4 text-right text-gray-900">{totalAnoAnterior}</td>
-                  <td className="py-3 px-4 text-right text-gray-900">{totalAnoAtual}</td>
+                  <td className="py-1.5 px-4 text-gray-900 text-sm">Total Geral</td>
+                  <td className="py-1.5 px-4 text-right text-gray-900 text-sm">{totalAnoAnterior}</td>
+                  <td className="py-1.5 px-4 text-right text-gray-900 text-sm">{totalAnoAtual}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Total de cidades com clientes no ERP */}
+        {/* Análise de Cidades */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Total de cidades com clientes no ERP</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Análise de Cidades</h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="text-center p-6 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-              <div className="text-3xl font-bold text-blue-900 mb-2">{cidadesERP.totalCidades}</div>
-              <div className="text-sm font-medium text-blue-700">Total de Cidades</div>
+          {/* Cards compactos - Visão Geral */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="text-2xl font-bold text-blue-900">{cidadesERP.totalCidades}</div>
+              <div className="text-xs text-blue-700 mt-1">Total</div>
             </div>
 
-            <div className="text-center p-6 bg-orange-50 rounded-lg border-l-4 border-orange-500">
-              <div className="text-3xl font-bold text-orange-900 mb-2">{cidadesERP.comVendaAnoAnterior}</div>
-              <div className="text-sm font-medium text-orange-700">Com Venda em {selectedAno - 1}</div>
+            <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
+              <div className="text-2xl font-bold text-orange-900">{cidadesERP.comVendaAnoAnterior}</div>
+              <div className="text-xs text-orange-700 mt-1">{selectedAno - 1}</div>
             </div>
 
-            <div className="text-center p-6 bg-green-50 rounded-lg border-l-4 border-green-500">
-              <div className="text-3xl font-bold text-green-900 mb-2">{cidadesERP.comVendaAnoAtual}</div>
-              <div className="text-sm font-medium text-green-700">Com Venda em {selectedAno}</div>
+            <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="text-2xl font-bold text-green-900">{cidadesERP.comVendaAnoAtual}</div>
+              <div className="text-xs text-green-700 mt-1">{selectedAno}</div>
+            </div>
+
+            <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="text-2xl font-bold text-gray-900">
+                {cidadesERP.totalCidades > 0 ? ((cidadesERP.comVendaAnoAtual / cidadesERP.totalCidades) * 100).toFixed(1) : 0}%
+              </div>
+              <div className="text-xs text-gray-700 mt-1">Cobertura</div>
             </div>
           </div>
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <div className="text-sm text-gray-600 text-center">
-              <strong>Cobertura:</strong> {cidadesERP.totalCidades > 0 ? ((cidadesERP.comVendaAnoAtual / cidadesERP.totalCidades) * 100).toFixed(1) : 0}% das cidades com vendas em {selectedAno}
+          {/* Tabela de Perfis */}
+          <div className="mb-3">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Por Perfil de Cliente</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-full border border-gray-200 rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 px-3 font-semibold text-gray-700 text-sm">Perfil</th>
+                    <th className="text-center py-2 px-3 font-semibold text-gray-700 text-sm">Cidades</th>
+                    <th className="text-center py-2 px-3 font-semibold text-gray-700 text-sm">Positivadas</th>
+                    <th className="text-center py-2 px-3 font-semibold text-gray-700 text-sm">Taxa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dadosPerfis.map((perfil, index) => (
+                    <tr key={perfil.perfil} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                      <td className="py-2 px-3 text-sm font-medium text-gray-900">
+                        {perfil.perfil === 'Ouro' && '💎 Ouro'}
+                        {perfil.perfil === 'Prata' && '🥈 Prata'}
+                        {perfil.perfil === 'Bronze' && '🥉 Bronze'}
+                        {perfil.perfil === 'Sem Perfil' && '🎯 Sem Perfil'}
+                      </td>
+                      <td className="py-2 px-3 text-center text-sm text-gray-700">{perfil.cidadesTotal}</td>
+                      <td className="py-2 px-3 text-center text-sm text-gray-900 font-semibold">{perfil.cidadesPositivadas}</td>
+                      <td className="py-2 px-3 text-center text-sm text-gray-700">{perfil.taxa.toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
