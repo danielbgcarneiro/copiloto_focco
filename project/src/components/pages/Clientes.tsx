@@ -16,7 +16,8 @@ const Clientes: React.FC = () => {
   const [showSortMenu, setShowSortMenu] = useState(false)
   const sortMenuRef = useRef<HTMLDivElement>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState('nome')
+  const [sortBy, setSortBy] = useState('perfil')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [clienteParaCancelar, setClienteParaCancelar] = useState<number | null>(null)
   const [processandoVisita, setProcessandoVisita] = useState<number | null>(null)
@@ -71,6 +72,49 @@ const Clientes: React.FC = () => {
 
 
 
+  // Função para obter as cores do perfil
+  const getPerfilColors = (perfil: string) => {
+    const perfilLower = perfil?.toLowerCase() || ''
+
+    if (perfilLower.includes('ouro')) {
+      return 'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border border-yellow-300'
+    }
+    if (perfilLower.includes('prata')) {
+      return 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 border border-gray-300'
+    }
+    if (perfilLower.includes('bronze')) {
+      return 'bg-gradient-to-br from-orange-200 to-orange-300 text-orange-900 border border-orange-400'
+    }
+
+    // Cor padrão
+    return 'bg-blue-50 text-primary border border-blue-200'
+  }
+
+  // Função para obter valor numérico do perfil (para ordenação)
+  const getPerfilValue = (perfil: string) => {
+    const perfilLower = perfil?.toLowerCase() || ''
+    if (perfilLower.includes('ouro')) return 3
+    if (perfilLower.includes('prata')) return 2
+    if (perfilLower.includes('bronze')) return 1
+    return 0
+  }
+
+  // Função para alternar ordenação
+  const toggleSort = (newSortBy: string) => {
+    if (sortBy === newSortBy) {
+      // Se clicar no mesmo, inverte a direção
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Se mudar de categoria, define direção padrão
+      setSortBy(newSortBy)
+      if (newSortBy === 'perfil' || newSortBy === 'maior-oportunidade' || newSortBy === 'dsv') {
+        setSortDirection('desc') // Perfil, Oportunidade e DSV começam do maior
+      } else {
+        setSortDirection('asc') // Nome e Bairro começam A-Z
+      }
+    }
+  }
+
   // Filtrar e ordenar clientes
   const clientesFiltrados = clientes
     .filter(cliente => {
@@ -83,25 +127,30 @@ const Clientes: React.FC = () => {
       // Acessar analise_rfm com segurança
       const a_rfm = a.analise_rfm || {};
       const b_rfm = b.analise_rfm || {};
+      let comparison = 0
 
       switch (sortBy) {
+        case 'perfil':
+          comparison = getPerfilValue(b_rfm.perfil || '') - getPerfilValue(a_rfm.perfil || '')
+          break
         case 'nome':
-          return a.nome_fantasia.localeCompare(b.nome_fantasia)
-        case 'nome-za':
-          return b.nome_fantasia.localeCompare(a.nome_fantasia)
-        case 'bairro-az':
-          return (a.bairro || '').localeCompare(b.bairro || '')
-        case 'bairro-za':
-          return (b.bairro || '').localeCompare(a.bairro || '')
-        case 'maior-oportunidade':
-          return (b_rfm.previsao_pedido || 0) - (a_rfm.previsao_pedido || 0)
-        case 'menor-oportunidade':
-          return (a_rfm.previsao_pedido || 0) - (b_rfm.previsao_pedido || 0)
+          comparison = a.nome_fantasia.localeCompare(b.nome_fantasia)
+          break
+        case 'bairro':
+          comparison = (a.bairro || '').localeCompare(b.bairro || '')
+          break
+        case 'oportunidade':
+          comparison = (b_rfm.previsao_pedido || 0) - (a_rfm.previsao_pedido || 0)
+          break
         case 'dsv':
-          return (b_rfm.dias_sem_comprar || 0) - (a_rfm.dias_sem_comprar || 0)
+          comparison = (b_rfm.dias_sem_comprar || 0) - (a_rfm.dias_sem_comprar || 0)
+          break
         default:
-          return a.nome_fantasia.localeCompare(b.nome_fantasia)
+          comparison = getPerfilValue(b_rfm.perfil || '') - getPerfilValue(a_rfm.perfil || '')
       }
+
+      // Aplicar direção de ordenação
+      return sortDirection === 'desc' ? comparison : -comparison
     })
 
   // Função para lidar com click no check button
@@ -251,48 +300,41 @@ const Clientes: React.FC = () => {
               <Filter className="h-4 w-4 text-gray-600" />
             </button>
             {showSortMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-36">
+              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-40">
                 <button
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
-                  onClick={() => { setSortBy('nome'); setShowSortMenu(false) }}
+                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200 flex items-center justify-between ${sortBy === 'perfil' ? 'bg-blue-50 font-semibold' : ''}`}
+                  onClick={() => { toggleSort('perfil'); setShowSortMenu(false) }}
                 >
-                  Nome A-Z
+                  <span>Perfil</span>
+                  {sortBy === 'perfil' && <span className="text-[10px] text-gray-500">{sortDirection === 'desc' ? '↓' : '↑'}</span>}
                 </button>
                 <button
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
-                  onClick={() => { setSortBy('nome-za'); setShowSortMenu(false) }}
+                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200 flex items-center justify-between ${sortBy === 'nome' ? 'bg-blue-50 font-semibold' : ''}`}
+                  onClick={() => { toggleSort('nome'); setShowSortMenu(false) }}
                 >
-                  Nome Z-A
+                  <span>Nome</span>
+                  {sortBy === 'nome' && <span className="text-[10px] text-gray-500">{sortDirection === 'asc' ? 'A-Z' : 'Z-A'}</span>}
                 </button>
                 <button
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
-                  onClick={() => { setSortBy('bairro-az'); setShowSortMenu(false) }}
+                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200 flex items-center justify-between ${sortBy === 'bairro' ? 'bg-blue-50 font-semibold' : ''}`}
+                  onClick={() => { toggleSort('bairro'); setShowSortMenu(false) }}
                 >
-                  Bairro A-Z
+                  <span>Bairro</span>
+                  {sortBy === 'bairro' && <span className="text-[10px] text-gray-500">{sortDirection === 'asc' ? 'A-Z' : 'Z-A'}</span>}
                 </button>
                 <button
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
-                  onClick={() => { setSortBy('bairro-za'); setShowSortMenu(false) }}
+                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200 flex items-center justify-between ${sortBy === 'oportunidade' ? 'bg-blue-50 font-semibold' : ''}`}
+                  onClick={() => { toggleSort('oportunidade'); setShowSortMenu(false) }}
                 >
-                  Bairro Z-A
+                  <span>Oportunidade</span>
+                  {sortBy === 'oportunidade' && <span className="text-[10px] text-gray-500">{sortDirection === 'desc' ? '↓' : '↑'}</span>}
                 </button>
                 <button
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
-                  onClick={() => { setSortBy('maior-oportunidade'); setShowSortMenu(false) }}
+                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 flex items-center justify-between ${sortBy === 'dsv' ? 'bg-blue-50 font-semibold' : ''}`}
+                  onClick={() => { toggleSort('dsv'); setShowSortMenu(false) }}
                 >
-                  Maior Oport
-                </button>
-                <button
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200"
-                  onClick={() => { setSortBy('menor-oportunidade'); setShowSortMenu(false) }}
-                >
-                  Menor Oport
-                </button>
-                <button
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-gray-50"
-                  onClick={() => { setSortBy('dsv'); setShowSortMenu(false) }}
-                >
-                  Maior DSV
+                  <span>DSV</span>
+                  {sortBy === 'dsv' && <span className="text-[10px] text-gray-500">{sortDirection === 'desc' ? '↓' : '↑'}</span>}
                 </button>
               </div>
             )}
@@ -337,7 +379,11 @@ const Clientes: React.FC = () => {
                     <h3 className="text-base sm:text-lg font-bold text-gray-800 truncate flex-1">
                       {cliente.nome_fantasia}
                     </h3>
-                    {/* Removendo tag INADIMPLENTE pois status_financeiro não é mais selecionado diretamente */}
+                    {rfm.perfil && (
+                      <span className={`text-xs font-semibold px-3 py-1.5 rounded-md ml-2 whitespace-nowrap ${getPerfilColors(rfm.perfil)}`}>
+                        {rfm.perfil}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500 mb-4">
                     Código: {cliente.codigo_cliente}

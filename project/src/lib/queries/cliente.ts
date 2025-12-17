@@ -19,6 +19,7 @@ interface ClienteDetalhes {
   previsao_pedido?: number;
   qtd_compras_ano_anterior?: number;
   qtd_compras_ano_atual?: number;
+  perfil?: string;
 
   // Métricas por categoria
   rx_fem_ob?: number;
@@ -73,7 +74,8 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
         percentual_atingimento,
         previsao_pedido,
         qtd_compras_ano_anterior,
-        qtd_compras_ano_atual
+        qtd_compras_ano_atual,
+        perfil
       `)
       .eq('codigo_cliente', codigoCliente)
       .maybeSingle();

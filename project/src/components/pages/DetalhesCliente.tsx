@@ -29,6 +29,24 @@ const formatarTelefone = (telefone: string) => {
   return telefone; // Retorna o original se não for 10 ou 11 dígitos
 };
 
+// Função para obter as cores do perfil
+const getPerfilColors = (perfil: string) => {
+  const perfilLower = perfil?.toLowerCase() || ''
+
+  if (perfilLower.includes('ouro')) {
+    return 'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border border-yellow-300'
+  }
+  if (perfilLower.includes('prata')) {
+    return 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 border border-gray-300'
+  }
+  if (perfilLower.includes('bronze')) {
+    return 'bg-gradient-to-br from-orange-200 to-orange-300 text-orange-900 border border-orange-400'
+  }
+
+  // Cor padrão
+  return 'bg-blue-50 text-primary border border-blue-200'
+}
+
 // Função para processar métricas por categoria
 function processarMetricasCategoria(cliente: any) {
   if (!cliente) {
@@ -46,7 +64,7 @@ function processarMetricasCategoria(cliente: any) {
       pw: cliente.rx_fem_pw || 0
     },
     {
-      nome: 'RX Masculino', 
+      nome: 'RX Masculino',
       ob: cliente.rx_mas_ob || 0,
       pw: cliente.rx_mas_pw || 0
     },
@@ -270,13 +288,18 @@ const DetalhesCliente: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <h2 className="text-base font-bold text-gray-900">{dadosCliente.nome}</h2>
               </div>
+              {cliente.perfil && (
+                <span className={`text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap ${getPerfilColors(cliente.perfil)}`}>
+                  {cliente.perfil}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-600 leading-tight">Cód: {dadosCliente.codigo}</p>
               <div className="flex items-center space-x-1">
                 <span className="text-xs text-gray-600">DSV:</span>
                 <span className="text-xs font-semibold text-red-600">{dadosCliente.dsv}d</span>
               </div>
-            </div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-600 leading-tight">Cód: {dadosCliente.codigo}</p>
             </div>
           </div>
 

@@ -106,6 +106,7 @@ const TabelaClientesPerfil: React.FC<{
                   <p className="text-[0.65rem] sm:text-xs font-bold">{clientesFiltrados.length} clientes</p>
                 </th>
                 <th className="px-2 py-0.5 text-left font-normal"></th>
+                <th className="px-2 py-0.5 text-left font-normal"></th>
                 <th className="px-2 py-0.5 text-right font-normal">
                   <p className="text-[0.65rem] sm:text-xs font-bold">TT {formatarMoedaSemDecimais(totaisFiltrados.somaObjetivo)}</p>
                 </th>

@@ -70,184 +70,132 @@ const DashboardRotas: React.FC = () => {
       try {
         setLoading(true)
 
-        // 1. Buscar todas as rotas ativas de todos os vendedores
-        const { data: rotasVendedor, error: rotasError } = await supabase
-          .from('vendedor_rotas')
-          .select('rota, vendedor_id')
-          .eq('ativo', true)
+        // 1. Buscar rotas ativas e dados agregados das cidades em paralelo
+        const [
+          { data: rotasVendedor, error: rotasError },
+          { data: cidadesComMeta, error: cidadesError }
+        ] = await Promise.all([
+          supabase
+            .from('vendedor_rotas')
+            .select(`
+              rota,
+              vendedor_id,
+              profiles!vendedor_rotas_vendedor_id_fkey (
+                id,
+                apelido,
+                cod_vendedor
+              )
+            `)
+            .eq('ativo', true)
+            .neq('rota', 'Sem Rota'),
+          supabase
+            .from('vw_cidades_com_meta')
+            .select('*')
+        ])
 
-        if (rotasError) {
-          console.error('Erro ao buscar rotas:', rotasError)
+        if (rotasError || cidadesError) {
+          console.error('Erro ao buscar dados:', rotasError || cidadesError)
           return
         }
 
-        if (!rotasVendedor || rotasVendedor.length === 0) {
+        if (!rotasVendedor?.length) {
           setRotasData([])
+          setVendedores([])
           return
         }
 
-        // 2. Buscar perfis dos vendedores
-        const vendedorIds = [...new Set(rotasVendedor.map(r => r.vendedor_id))]
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, apelido, cod_vendedor')
-          .in('id', vendedorIds)
-
-        if (profilesError) {
-          console.error('Erro ao buscar perfis:', profilesError)
-          return
-        }
-
-        const profilesMap = new Map(profiles?.map(p => [p.id, p]) || [])
-
-        // 3. Buscar mapeamento cidade -> rota
-        const rotasUnicas = [...new Set(rotasVendedor.map(r => r.rota))]
-        const { data: rotasEstado, error: rotasEstadoError } = await supabase
-          .from('rotas_estado')
-          .select('codigo_ibge_cidade, rota')
-          .in('rota', rotasUnicas)
-
-        if (rotasEstadoError) {
-          console.error('Erro ao buscar rotas_estado:', rotasEstadoError)
-          return
-        }
-
-        const cidadeRotaMap = new Map<string, string>()
-        rotasEstado?.forEach(re => {
-          if (re.codigo_ibge_cidade) {
-            cidadeRotaMap.set(re.codigo_ibge_cidade, re.rota)
+        // 2. Criar mapa de vendedores únicos
+        const vendedoresUnicos = new Map<string, { apelido: string; cod_vendedor: number }>()
+        rotasVendedor.forEach(rv => {
+          const profile = Array.isArray(rv.profiles) ? rv.profiles[0] : rv.profiles
+          if (profile) {
+            vendedoresUnicos.set(profile.id, {
+              apelido: profile.apelido || 'Sem nome',
+              cod_vendedor: profile.cod_vendedor
+            })
           }
         })
 
-        // 4. Buscar todos os clientes com dados RFM
-        const codigosVendedor = profiles?.map(p => p.cod_vendedor).filter(Boolean) || []
-        const { data: clientes, error: clientesError } = await supabase
-          .from('tabela_clientes')
-          .select(`
-            codigo_cliente,
-            codigo_ibge_cidade,
-            cidade,
-            cod_vendedor,
-            analise_rfm (
-              valor_ano_atual,
-              meta_ano_atual,
-              previsao_pedido,
-              dias_sem_comprar
-            )
-          `)
-          .in('cod_vendedor', codigosVendedor)
-
-        if (clientesError) {
-          console.error('Erro ao buscar clientes:', clientesError)
-          return
-        }
-
-        // 5. Agrupar dados por vendedor + rota
-        interface RotaStats {
+        // 3. Inicializar mapa de rotas com todas as rotas configuradas
+        const rotasStatsMap = new Map<string, {
           rota: string
           vendedor_uuid: string
           vendedor_apelido: string
-          totalCidades: Set<string>
-          totalOticas: number
-          somaOportunidades: number
+          cidades: Set<string>
+          oticas: number
+          meta: number
+          vendas: number
           semVendas90d: number
-          metaAnoAtual: number
-          valorAnoAtual: number
-        }
+        }>()
 
-        const rotasStatsMap = new Map<string, RotaStats>()
-
-        // Inicializar todas as rotas
         rotasVendedor.forEach(rv => {
-          const profile = profilesMap.get(rv.vendedor_id)
+          const profile = Array.isArray(rv.profiles) ? rv.profiles[0] : rv.profiles
           if (profile) {
             const key = `${rv.vendedor_id}-${rv.rota}`
             rotasStatsMap.set(key, {
               rota: rv.rota,
               vendedor_uuid: rv.vendedor_id,
               vendedor_apelido: profile.apelido || 'Sem nome',
-              totalCidades: new Set<string>(),
-              totalOticas: 0,
-              somaOportunidades: 0,
-              semVendas90d: 0,
-              metaAnoAtual: 0,
-              valorAnoAtual: 0
+              cidades: new Set(),
+              oticas: 0,
+              meta: 0,
+              vendas: 0,
+              semVendas90d: 0
             })
           }
         })
 
-        // Agregar dados dos clientes
-        clientes?.forEach((cliente: any) => {
-          const rota = cidadeRotaMap.get(cliente.codigo_ibge_cidade)
-          const profile = profiles?.find(p => p.cod_vendedor === cliente.cod_vendedor)
+        // 4. Agregar dados das cidades na rota correspondente
+        cidadesComMeta?.forEach(cidade => {
+          if (!cidade.rota || !cidade.vendedor_uuid) return
 
-          if (rota && profile) {
-            const key = `${profile.id}-${rota}`
-            const stats = rotasStatsMap.get(key)
+          const key = `${cidade.vendedor_uuid}-${cidade.rota}`
+          const stats = rotasStatsMap.get(key)
 
-            if (stats) {
-              if (cliente.cidade) {
-                stats.totalCidades.add(cliente.cidade)
-              }
-
-              stats.totalOticas += 1
-
-              if (cliente.analise_rfm) {
-                stats.valorAnoAtual += cliente.analise_rfm.valor_ano_atual || 0
-                stats.metaAnoAtual += cliente.analise_rfm.meta_ano_atual || 0
-                stats.somaOportunidades += cliente.analise_rfm.previsao_pedido || 0
-
-                if ((cliente.analise_rfm.dias_sem_comprar || 0) >= 90) {
-                  stats.semVendas90d += 1
-                }
-              }
-            }
+          if (stats) {
+            stats.cidades.add(cidade.cidade)
+            stats.oticas += cidade.qtd_clientes || 0
+            stats.meta += cidade.meta_cidade || 0
+            stats.vendas += cidade.vendas_cidade || 0
+            // semVendas90d seria calculado pela view se necessário
           }
         })
 
-        // 6. Converter para formato esperado pelo componente
+        // 5. Converter para formato final
         const rotasProcessadas: RotaData[] = Array.from(rotasStatsMap.values())
           .map(stats => ({
             rota: stats.rota,
             nome_rota: stats.rota,
             vendedor_apelido: stats.vendedor_apelido,
             vendedor_uuid: stats.vendedor_uuid,
-            qtd_oticas: stats.totalOticas,
-            total_oticas: stats.totalOticas,
-            vendido_2025: stats.valorAnoAtual,
-            meta_2025: stats.metaAnoAtual,
-            percentual_meta: stats.metaAnoAtual > 0 ? (stats.valorAnoAtual / stats.metaAnoAtual) * 100 : 0,
-            ranking: 0, // Será calculado depois
-            total_cidades: stats.totalCidades.size,
-            qtd_cidades: stats.totalCidades.size,
+            qtd_oticas: stats.oticas,
+            total_oticas: stats.oticas,
+            vendido_2025: stats.vendas,
+            meta_2025: stats.meta,
+            percentual_meta: stats.meta > 0 ? (stats.vendas / stats.meta) * 100 : 0,
+            ranking: 0,
+            total_cidades: stats.cidades.size,
+            qtd_cidades: stats.cidades.size,
             clientes_sem_venda_90d: stats.semVendas90d,
             oticas_sem_vendas_90d: stats.semVendas90d,
-            soma_oportunidades: stats.somaOportunidades
+            soma_oportunidades: 0 // Não disponível na view, mas pode ser adicionado
           }))
-          .filter(rota => rota.total_oticas > 0)
           .sort((a, b) => b.percentual_meta - a.percentual_meta)
 
-        // Calcular ranking por vendedor
-        const vendedorRankings = new Map<string, number>()
+        // 6. Calcular ranking
+        const rankings = new Map<string, number>()
         rotasProcessadas.forEach(rota => {
-          const count = vendedorRankings.get(rota.vendedor_uuid) || 0
-          vendedorRankings.set(rota.vendedor_uuid, count + 1)
-          rota.ranking = count + 1
+          const rank = (rankings.get(rota.vendedor_uuid) || 0) + 1
+          rankings.set(rota.vendedor_uuid, rank)
+          rota.ranking = rank
         })
 
         setRotasData(rotasProcessadas)
 
-        // Extrair lista de vendedores únicos
-        const vendedoresUnicos = new Map<string, string>()
-        rotasProcessadas.forEach(rota => {
-          if (rota.vendedor_uuid && rota.vendedor_apelido) {
-            vendedoresUnicos.set(rota.vendedor_uuid, rota.vendedor_apelido)
-          }
-        })
-
-        const vendedoresList = Array.from(vendedoresUnicos.entries()).map(([uuid, nome]) => ({
+        // 7. Lista de vendedores para o filtro
+        const vendedoresList = Array.from(vendedoresUnicos.entries()).map(([uuid, data]) => ({
           uuid,
-          nome
+          nome: data.apelido
         }))
 
         setVendedores(vendedoresList)

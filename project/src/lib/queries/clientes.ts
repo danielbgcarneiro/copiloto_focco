@@ -7,6 +7,7 @@ interface AnaliseRfmData {
   meta_ano_atual?: number;
   dias_sem_comprar?: number;
   previsao_pedido?: number;
+  perfil?: string;
 }
 
 export async function getClientesPorVendedor(_vendedorId?: string, cidade?: string) {
@@ -95,7 +96,7 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
   const codigosClientes = data.map(c => c.codigo_cliente);
   const { data: rfmData, error: rfmError } = await supabase
     .from('analise_rfm')
-    .select('codigo_cliente, valor_ano_atual, meta_ano_atual, dias_sem_comprar, previsao_pedido')
+    .select('codigo_cliente, valor_ano_atual, meta_ano_atual, dias_sem_comprar, previsao_pedido, perfil')
     .in('codigo_cliente', codigosClientes);
 
   if (rfmError) {
@@ -130,6 +131,7 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
         previsao_pedido: rfmObject?.previsao_pedido || 0,
         saldo_meta: metaAnoAtual - valorAnoAtual,
         percentual_atingimento: metaAnoAtual > 0 ? (valorAnoAtual / metaAnoAtual) * 100 : 0,
+        perfil: rfmObject?.perfil,
       }
     };
   });

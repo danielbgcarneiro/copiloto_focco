@@ -50,10 +50,12 @@ const Rotas: React.FC = () => {
     }
   }
 
-  const filteredRotas = rotas.filter(rota => {
-    const normalizedSearchTerm = normalizeText(searchTerm)
-    return normalizeText(rota.nome).includes(normalizedSearchTerm)
-  })
+  const filteredRotas = rotas
+    .filter(rota => {
+      const normalizedSearchTerm = normalizeText(searchTerm)
+      return normalizeText(rota.nome).includes(normalizedSearchTerm)
+    })
+    .sort((a, b) => (b.somaOportunidades || 0) - (a.somaOportunidades || 0))
 
   // Função para formatar valores em reais
   const formatCurrency = (value: number) => {
