@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -66,13 +65,7 @@ const PagAcumuladoAno: React.FC = () => {
   const [selectedAno, setSelectedAno] = useState(2025)
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([])
   const [todosVendedores, setTodosVendedores] = useState<string[]>([])
-  const [selectedVendedoresRealizado, setSelectedVendedoresRealizado] = useState<string[]>([])
-  const [selectedVendedoresClientes, setSelectedVendedoresClientes] = useState<string[]>([])
-  const [expandidoVendedores, setExpandidoVendedores] = useState(false)
-  const [expandidoVendedoresClientesDropdown, setExpandidoVendedoresClientesDropdown] = useState(false)
-
-  const dropdownVendedoresRealizadoRef = useRef<HTMLDivElement>(null)
-  const dropdownVendedoresClientesRef = useRef<HTMLDivElement>(null)
+  const [filtroVendedor, setFiltroVendedor] = useState<string>('')
 
   // Estados para dados das views
   const [vendasMensais, setVendasMensais] = useState<VendaMensal[]>([])
@@ -87,36 +80,57 @@ const PagAcumuladoAno: React.FC = () => {
       try {
         setLoading(true)
 
-        // Buscar todas as views em paralelo
+        // Buscar tabelas e views em paralelo
         const [
           { data: vendas, error: vendasError },
+          { data: metas, error: metasError },
           { data: clientes, error: clientesError },
           { data: cidades, error: cidadesError }
         ] = await Promise.all([
-          supabase.from('vw_vendas_mensais_vendedor').select('*'),
+          supabase.from('vendas_mensais_vendedor').select('*'),
+          supabase.from('metas_vendedores').select('*'),
           supabase.from('vw_clientes_unicos_mensais').select('*'),
           supabase.from('vw_cidades_com_vendas').select('*')
         ])
 
         if (vendasError) console.error('Erro ao buscar vendas:', vendasError)
+        if (metasError) console.error('Erro ao buscar metas:', metasError)
         if (clientesError) console.error('Erro ao buscar clientes:', clientesError)
         if (cidadesError) console.error('Erro ao buscar cidades:', cidadesError)
 
-        setVendasMensais(vendas || [])
+        // Merge vendas com metas
+        const vendasComMetas: VendaMensal[] = vendas?.map(venda => {
+          const meta = metas?.find(m =>
+            m.cod_vendedor === venda.cod_vendedor &&
+            m.ano === venda.ano &&
+            m.mes === venda.mes
+          )
+
+          const metaValor = meta?.meta_valor || 0
+          const atingimento = metaValor > 0 ? (venda.total_vendas / metaValor) * 100 : 0
+
+          return {
+            ano: venda.ano,
+            mes: venda.mes,
+            cod_vendedor: venda.cod_vendedor,
+            nome_vendedor: venda.nome_vendedor,
+            total_vendas: venda.total_vendas,
+            meta: metaValor,
+            atingimento: Number(atingimento.toFixed(1))
+          }
+        }) || []
+
+        setVendasMensais(vendasComMetas)
         setClientesUnicos(clientes || [])
         setCidadesVendas(cidades || [])
 
         // Extrair anos disponíveis
-        const anosVendas = [...new Set(vendas?.map(v => v.ano) || [])]
+        const anosVendas = [...new Set(vendasComMetas.map(v => v.ano))]
         setAnosDisponiveis(anosVendas.sort((a, b) => b - a))
 
         // Extrair vendedores únicos
-        const vendedoresUnicos = [...new Set(vendas?.map(v => v.nome_vendedor) || [])]
+        const vendedoresUnicos = [...new Set(vendasComMetas.map(v => v.nome_vendedor))]
         setTodosVendedores(vendedoresUnicos.sort())
-
-        // Selecionar todos os vendedores por padrão
-        setSelectedVendedoresRealizado(vendedoresUnicos)
-        setSelectedVendedoresClientes(vendedoresUnicos)
 
       } catch (error) {
         console.error('Erro ao carregar dados:', error)
@@ -219,50 +233,39 @@ const PagAcumuladoAno: React.FC = () => {
   }
 
   const filteredDadosRealizados = useMemo(() => {
-    return dadosRealizados.map((mes) => ({
-      ...mes,
-      vendedores: mes.vendedores.filter((v) => selectedVendedoresRealizado.includes(v.nome)),
-      meta: mes.vendedores
-        .filter((v) => selectedVendedoresRealizado.includes(v.nome))
-        .reduce((acc, v) => acc + v.meta, 0),
-      vendas: mes.vendedores
-        .filter((v) => selectedVendedoresRealizado.includes(v.nome))
-        .reduce((acc, v) => acc + v.vendas, 0),
-      atingimento: (() => {
-        const filteredVendedores = mes.vendedores.filter((v) => selectedVendedoresRealizado.includes(v.nome))
-        const totalMeta = filteredVendedores.reduce((acc, v) => acc + v.meta, 0)
-        const totalVendas = filteredVendedores.reduce((acc, v) => acc + v.vendas, 0)
-        return totalMeta > 0 ? (totalVendas / totalMeta) * 100 : 0
-      })()
-    }))
-  }, [dadosRealizados, selectedVendedoresRealizado])
+    return dadosRealizados.map((mes) => {
+      const vendedoresFiltrados = filtroVendedor
+        ? mes.vendedores.filter((v) => v.nome === filtroVendedor)
+        : mes.vendedores
+
+      const totalMeta = vendedoresFiltrados.reduce((acc, v) => acc + v.meta, 0)
+      const totalVendas = vendedoresFiltrados.reduce((acc, v) => acc + v.vendas, 0)
+      const atingimento = totalMeta > 0 ? (totalVendas / totalMeta) * 100 : 0
+
+      return {
+        ...mes,
+        vendedores: vendedoresFiltrados,
+        meta: totalMeta,
+        vendas: totalVendas,
+        atingimento
+      }
+    })
+  }, [dadosRealizados, filtroVendedor])
 
   const filteredDadosClientesUnicos = useMemo(() => {
-    return dadosClientesUnicos.map((mes) => ({
-      ...mes,
-      vendedores: mes.vendedores.filter((v) => selectedVendedoresClientes.includes(v.nome)),
-      totalAnoAnterior: mes.vendedores
-        .filter((v) => selectedVendedoresClientes.includes(v.nome))
-        .reduce((acc, v) => acc + v.clientesAnoAnterior, 0),
-      totalAnoAtual: mes.vendedores
-        .filter((v) => selectedVendedoresClientes.includes(v.nome))
-        .reduce((acc, v) => acc + v.clientesAnoAtual, 0)
-    }))
-  }, [dadosClientesUnicos, selectedVendedoresClientes])
+    return dadosClientesUnicos.map((mes) => {
+      const vendedoresFiltrados = filtroVendedor
+        ? mes.vendedores.filter((v) => v.nome === filtroVendedor)
+        : mes.vendedores
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownVendedoresRealizadoRef.current && !dropdownVendedoresRealizadoRef.current.contains(event.target as Node)) {
-        setExpandidoVendedores(false)
+      return {
+        ...mes,
+        vendedores: vendedoresFiltrados,
+        totalAnoAnterior: vendedoresFiltrados.reduce((acc, v) => acc + v.clientesAnoAnterior, 0),
+        totalAnoAtual: vendedoresFiltrados.reduce((acc, v) => acc + v.clientesAnoAtual, 0)
       }
-      if (dropdownVendedoresClientesRef.current && !dropdownVendedoresClientesRef.current.contains(event.target as Node)) {
-        setExpandidoVendedoresClientesDropdown(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    })
+  }, [dadosClientesUnicos, filtroVendedor])
 
   useEffect(() => {
     if (!user) {
@@ -301,82 +304,44 @@ const PagAcumuladoAno: React.FC = () => {
           </p>
         </div>
 
-        {/* Realizado */}
+        {/* Card de Filtros */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Realizado</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Filtros</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Ano Filter */}
+            <div className="relative">
+              <select
+                value={selectedAno}
+                onChange={(e) => setSelectedAno(parseInt(e.target.value))}
+                className="w-full pl-3 pr-10 py-2 border rounded-lg text-sm shadow-sm appearance-none"
+              >
+                {anosDisponiveis.map(ano => (
+                  <option key={ano} value={ano}>{ano}</option>
+                ))}
+              </select>
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
 
-            {/* Filtros dentro da tabela */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full sm:w-auto">
-              {/* Ano Filter */}
-              <div>
-                <select
-                  value={selectedAno}
-                  onChange={(e) => setSelectedAno(parseInt(e.target.value))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm"
-                >
-                  {anosDisponiveis.map(ano => (
-                    <option key={ano} value={ano}>{ano}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Vendedor Filter */}
-              {expandidoVendedores ? (
-                <div className="relative" ref={dropdownVendedoresRealizadoRef}>
-                  <button
-                    onClick={() => setExpandidoVendedores(!expandidoVendedores)}
-                    className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm flex items-center justify-between"
-                  >
-                    <span>
-                      <span className="font-semibold">Vendedores</span>
-                      <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
-                        {selectedVendedoresRealizado.length}/{todosVendedores.length}
-                      </span>
-                    </span>
-                    <ChevronUp className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
-                  </button>
-
-                  <div className="absolute top-full left-0 right-0 mt-1 border border-gray-300 rounded-lg bg-white p-3 space-y-2 z-10 shadow-lg">
-                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
-                      {todosVendedores.map((vendedor) => (
-                        <label key={vendedor} className="flex items-center cursor-pointer group text-sm">
-                          <input
-                            type="checkbox"
-                            checked={selectedVendedoresRealizado.includes(vendedor)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedVendedoresRealizado([...selectedVendedoresRealizado, vendedor])
-                              } else {
-                                setSelectedVendedoresRealizado(selectedVendedoresRealizado.filter(v => v !== vendedor))
-                              }
-                            }}
-                            className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-2 focus:ring-primary focus:ring-offset-0 cursor-pointer transition-all"
-                          />
-                          <span className="ml-2 text-gray-700 group-hover:text-primary transition-colors">{vendedor}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div ref={dropdownVendedoresRealizadoRef}>
-                  <button
-                    onClick={() => setExpandidoVendedores(!expandidoVendedores)}
-                    className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm flex items-center justify-between"
-                  >
-                    <span>
-                      <span className="font-semibold">Vendedores</span>
-                      <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
-                        {selectedVendedoresRealizado.length}/{todosVendedores.length}
-                      </span>
-                    </span>
-                    <ChevronDown className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
-                  </button>
-                </div>
-              )}
+            {/* Vendedor Filter */}
+            <div className="relative">
+              <select
+                value={filtroVendedor}
+                onChange={(e) => setFiltroVendedor(e.target.value)}
+                className="w-full pl-3 pr-10 py-2 border rounded-lg text-sm shadow-sm appearance-none"
+              >
+                <option value="">Todos os Vendedores</option>
+                {todosVendedores.map(vendedor => (
+                  <option key={vendedor} value={vendedor}>{vendedor}</option>
+                ))}
+              </select>
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
             </div>
           </div>
+        </div>
+
+        {/* Realizado */}
+        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Realizado</h3>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-full">
@@ -426,64 +391,7 @@ const PagAcumuladoAno: React.FC = () => {
 
         {/* Clientes únicos por mês */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Clientes por mês</h3>
-
-            {/* Filtro de Vendedor */}
-            {expandidoVendedoresClientesDropdown ? (
-              <div className="relative w-full sm:w-auto" ref={dropdownVendedoresClientesRef}>
-                <button
-                  onClick={() => setExpandidoVendedoresClientesDropdown(!expandidoVendedoresClientesDropdown)}
-                  className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm flex items-center justify-between"
-                >
-                  <span>
-                    <span className="font-semibold">Vendedores</span>
-                    <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
-                      {selectedVendedoresClientes.length}/{todosVendedores.length}
-                    </span>
-                  </span>
-                  <ChevronUp className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
-                </button>
-
-                <div className="absolute top-full left-0 right-0 mt-1 border border-gray-300 rounded-lg bg-white p-3 space-y-2 z-10 shadow-lg">
-                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
-                    {todosVendedores.map((vendedor) => (
-                      <label key={vendedor} className="flex items-center cursor-pointer group text-sm">
-                        <input
-                          type="checkbox"
-                          checked={selectedVendedoresClientes.includes(vendedor)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedVendedoresClientes([...selectedVendedoresClientes, vendedor])
-                            } else {
-                              setSelectedVendedoresClientes(selectedVendedoresClientes.filter(v => v !== vendedor))
-                            }
-                          }}
-                          className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-2 focus:ring-primary focus:ring-offset-0 cursor-pointer transition-all"
-                        />
-                        <span className="ml-2 text-gray-700 group-hover:text-primary transition-colors">{vendedor}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div ref={dropdownVendedoresClientesRef}>
-                <button
-                  onClick={() => setExpandidoVendedoresClientesDropdown(!expandidoVendedoresClientesDropdown)}
-                  className="w-full sm:w-auto px-4 py-2 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm flex items-center justify-between"
-                >
-                  <span>
-                    <span className="font-semibold">Vendedores</span>
-                    <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
-                      {selectedVendedoresClientes.length}/{todosVendedores.length}
-                    </span>
-                  </span>
-                  <ChevronDown className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
-                </button>
-              </div>
-            )}
-          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Clientes por mês</h3>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-full">
