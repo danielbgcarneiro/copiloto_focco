@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 
 interface DadosMensal {
   mes: string
@@ -18,19 +19,43 @@ interface DadosMensal {
 
 interface ClientesMensal {
   mes: string
-  total2024: number
-  total2025: number
+  totalAnoAnterior: number
+  totalAnoAtual: number
   vendedores: {
     nome: string
-    clientes2024: number
-    clientes2025: number
+    clientesAnoAnterior: number
+    clientesAnoAtual: number
   }[]
 }
 
 interface CidadesERP {
   totalCidades: number
-  comVenda2024: number
-  comVenda2025: number
+  comVendaAnoAnterior: number
+  comVendaAnoAtual: number
+}
+
+interface VendaMensal {
+  ano: number
+  mes: number
+  cod_vendedor: number
+  nome_vendedor: string
+  total_vendas: number
+  meta: number
+  atingimento: number
+}
+
+interface ClienteUnico {
+  ano: number
+  mes: number
+  cod_vendedor: number
+  nome_vendedor: string
+  qtd_clientes_unicos: number
+}
+
+interface CidadeVenda {
+  ano: number
+  cidades_com_venda: number
+  total_cidades: number
 }
 
 const PagAcumuladoAno: React.FC = () => {
@@ -39,212 +64,144 @@ const PagAcumuladoAno: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [anoAtual] = useState(new Date().getFullYear())
   const [selectedAno, setSelectedAno] = useState(2025)
-  const [selectedVendedoresRealizado, setSelectedVendedoresRealizado] = useState<string[]>([
-    'João Silva',
-    'Maria Santos',
-    'Pedro Costa',
-    'Ana Oliveira',
-    'Carlos Lima'
-  ])
-  const [selectedVendedoresClientes, setSelectedVendedoresClientes] = useState<string[]>([
-    'João Silva',
-    'Maria Santos',
-    'Pedro Costa',
-    'Ana Oliveira',
-    'Carlos Lima'
-  ])
+  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([])
+  const [todosVendedores, setTodosVendedores] = useState<string[]>([])
+  const [selectedVendedoresRealizado, setSelectedVendedoresRealizado] = useState<string[]>([])
+  const [selectedVendedoresClientes, setSelectedVendedoresClientes] = useState<string[]>([])
   const [expandidoVendedores, setExpandidoVendedores] = useState(false)
   const [expandidoVendedoresClientesDropdown, setExpandidoVendedoresClientesDropdown] = useState(false)
 
   const dropdownVendedoresRealizadoRef = useRef<HTMLDivElement>(null)
   const dropdownVendedoresClientesRef = useRef<HTMLDivElement>(null)
 
-  const [dadosRealizados] = useState<DadosMensal[]>([
-    {
-      mes: 'Janeiro',
-      meta: 100000,
-      vendas: 127000,
-      atingimento: 127,
-      vendedores: [
-        { nome: 'João Silva', meta: 25000, vendas: 32000, atingimento: 128 },
-        { nome: 'Maria Santos', meta: 22000, vendas: 26500, atingimento: 120.5 },
-        { nome: 'Pedro Costa', meta: 20000, vendas: 18500, atingimento: 92.5 },
-        { nome: 'Ana Oliveira', meta: 18000, vendas: 19200, atingimento: 106.7 },
-        { nome: 'Carlos Lima', meta: 15000, vendas: 12800, atingimento: 85.3 }
-      ]
-    },
-    {
-      mes: 'Fevereiro',
-      meta: 95000,
-      vendas: 115000,
-      atingimento: 121.1,
-      vendedores: [
-        { nome: 'João Silva', meta: 24000, vendas: 28500, atingimento: 118.8 },
-        { nome: 'Maria Santos', meta: 21000, vendas: 25000, atingimento: 119.0 },
-        { nome: 'Pedro Costa', meta: 19000, vendas: 17000, atingimento: 89.5 },
-        { nome: 'Ana Oliveira', meta: 17000, vendas: 18500, atingimento: 108.8 },
-        { nome: 'Carlos Lima', meta: 14000, vendas: 11500, atingimento: 82.1 }
-      ]
-    },
-    {
-      mes: 'Março',
-      meta: 110000,
-      vendas: 135000,
-      atingimento: 122.7,
-      vendedores: [
-        { nome: 'João Silva', meta: 27000, vendas: 35000, atingimento: 129.6 },
-        { nome: 'Maria Santos', meta: 24000, vendas: 28000, atingimento: 116.7 },
-        { nome: 'Pedro Costa', meta: 22000, vendas: 19500, atingimento: 88.6 },
-        { nome: 'Ana Oliveira', meta: 20000, vendas: 20000, atingimento: 100.0 },
-        { nome: 'Carlos Lima', meta: 17000, vendas: 13500, atingimento: 79.4 }
-      ]
-    },
-    {
-      mes: 'Abril',
-      meta: 105000,
-      vendas: 125000,
-      atingimento: 119.0,
-      vendedores: [
-        { nome: 'João Silva', meta: 26000, vendas: 31000, atingimento: 119.2 },
-        { nome: 'Maria Santos', meta: 23000, vendas: 27500, atingimento: 119.6 },
-        { nome: 'Pedro Costa', meta: 21000, vendas: 18000, atingimento: 85.7 },
-        { nome: 'Ana Oliveira', meta: 19000, vendas: 19500, atingimento: 102.6 },
-        { nome: 'Carlos Lima', meta: 16000, vendas: 12000, atingimento: 75.0 }
-      ]
-    },
-    {
-      mes: 'Maio',
-      meta: 115000,
-      vendas: 130000,
-      atingimento: 113.0,
-      vendedores: [
-        { nome: 'João Silva', meta: 28000, vendas: 33500, atingimento: 119.6 },
-        { nome: 'Maria Santos', meta: 25000, vendas: 26000, atingimento: 104.0 },
-        { nome: 'Pedro Costa', meta: 23000, vendas: 19000, atingimento: 82.6 },
-        { nome: 'Ana Oliveira', meta: 21000, vendas: 19000, atingimento: 90.5 },
-        { nome: 'Carlos Lima', meta: 18000, vendas: 13000, atingimento: 72.2 }
-      ]
-    },
-    {
-      mes: 'Junho',
-      meta: 108000,
-      vendas: 120000,
-      atingimento: 111.1,
-      vendedores: [
-        { nome: 'João Silva', meta: 26500, vendas: 30000, atingimento: 113.2 },
-        { nome: 'Maria Santos', meta: 23500, vendas: 27000, atingimento: 114.9 },
-        { nome: 'Pedro Costa', meta: 21500, vendas: 18500, atingimento: 86.0 },
-        { nome: 'Ana Oliveira', meta: 19500, vendas: 19500, atingimento: 100.0 },
-        { nome: 'Carlos Lima', meta: 17000, vendas: 12500, atingimento: 73.5 }
-      ]
-    },
-    {
-      mes: 'Julho',
-      meta: 112000,
-      vendas: 125000,
-      atingimento: 111.6,
-      vendedores: [
-        { nome: 'João Silva', meta: 27500, vendas: 32000, atingimento: 116.4 },
-        { nome: 'Maria Santos', meta: 24500, vendas: 26500, atingimento: 108.2 },
-        { nome: 'Pedro Costa', meta: 22500, vendas: 18500, atingimento: 82.2 },
-        { nome: 'Ana Oliveira', meta: 20500, vendas: 19200, atingimento: 93.7 },
-        { nome: 'Carlos Lima', meta: 17000, vendas: 12800, atingimento: 75.3 }
-      ]
-    }
-  ])
+  // Estados para dados das views
+  const [vendasMensais, setVendasMensais] = useState<VendaMensal[]>([])
+  const [clientesUnicos, setClientesUnicos] = useState<ClienteUnico[]>([])
+  const [cidadesVendas, setCidadesVendas] = useState<CidadeVenda[]>([])
 
-  const [dadosClientesUnicos] = useState<ClientesMensal[]>([
-    {
-      mes: 'Janeiro',
-      total2024: 175,
-      total2025: 103,
-      vendedores: [
-        { nome: 'João Silva', clientes2024: 45, clientes2025: 25 },
-        { nome: 'Maria Santos', clientes2024: 38, clientes2025: 21 },
-        { nome: 'Pedro Costa', clientes2024: 29, clientes2025: 15 },
-        { nome: 'Ana Oliveira', clientes2024: 31, clientes2025: 16 },
-        { nome: 'Carlos Lima', clientes2024: 22, clientes2025: 11 }
-      ]
-    },
-    {
-      mes: 'Fevereiro',
-      total2024: 163,
-      total2025: 91,
-      vendedores: [
-        { nome: 'João Silva', clientes2024: 42, clientes2025: 23 },
-        { nome: 'Maria Santos', clientes2024: 36, clientes2025: 19 },
-        { nome: 'Pedro Costa', clientes2024: 27, clientes2025: 14 },
-        { nome: 'Ana Oliveira', clientes2024: 29, clientes2025: 15 },
-        { nome: 'Carlos Lima', clientes2024: 20, clientes2025: 10 }
-      ]
-    },
-    {
-      mes: 'Março',
-      total2024: 181,
-      total2025: 105,
-      vendedores: [
-        { nome: 'João Silva', clientes2024: 48, clientes2025: 26 },
-        { nome: 'Maria Santos', clientes2024: 40, clientes2025: 22 },
-        { nome: 'Pedro Costa', clientes2024: 31, clientes2025: 16 },
-        { nome: 'Ana Oliveira', clientes2024: 33, clientes2025: 17 },
-        { nome: 'Carlos Lima', clientes2024: 24, clientes2025: 12 }
-      ]
-    },
-    {
-      mes: 'Abril',
-      total2024: 170,
-      total2025: 96,
-      vendedores: [
-        { nome: 'João Silva', clientes2024: 44, clientes2025: 24 },
-        { nome: 'Maria Santos', clientes2024: 37, clientes2025: 20 },
-        { nome: 'Pedro Costa', clientes2024: 28, clientes2025: 15 },
-        { nome: 'Ana Oliveira', clientes2024: 30, clientes2025: 16 },
-        { nome: 'Carlos Lima', clientes2024: 21, clientes2025: 11 }
-      ]
-    },
-    {
-      mes: 'Maio',
-      total2024: 185,
-      total2025: 109,
-      vendedores: [
-        { nome: 'João Silva', clientes2024: 46, clientes2025: 25 },
-        { nome: 'Maria Santos', clientes2024: 39, clientes2025: 21 },
-        { nome: 'Pedro Costa', clientes2024: 30, clientes2025: 16 },
-        { nome: 'Ana Oliveira', clientes2024: 32, clientes2025: 17 },
-        { nome: 'Carlos Lima', clientes2024: 23, clientes2025: 12 }
-      ]
-    },
-    {
-      mes: 'Junho',
-      total2024: 165,
-      total2025: 93,
-      vendedores: [
-        { nome: 'João Silva', clientes2024: 43, clientes2025: 23 },
-        { nome: 'Maria Santos', clientes2024: 36, clientes2025: 19 },
-        { nome: 'Pedro Costa', clientes2024: 27, clientes2025: 14 },
-        { nome: 'Ana Oliveira', clientes2024: 29, clientes2025: 15 },
-        { nome: 'Carlos Lima', clientes2024: 20, clientes2025: 10 }
-      ]
-    },
-    {
-      mes: 'Julho',
-      total2024: 173,
-      total2025: 98,
-      vendedores: [
-        { nome: 'João Silva', clientes2024: 45, clientes2025: 25 },
-        { nome: 'Maria Santos', clientes2024: 38, clientes2025: 21 },
-        { nome: 'Pedro Costa', clientes2024: 29, clientes2025: 15 },
-        { nome: 'Ana Oliveira', clientes2024: 31, clientes2025: 16 },
-        { nome: 'Carlos Lima', clientes2024: 22, clientes2025: 11 }
-      ]
-    }
-  ])
+  // Buscar dados das views
+  useEffect(() => {
+    const carregarDados = async () => {
+      if (!user) return
 
-  const [cidadesERP] = useState<CidadesERP>({
-    totalCidades: 534,
-    comVenda2024: 350,
-    comVenda2025: 235
-  })
+      try {
+        setLoading(true)
+
+        // Buscar todas as views em paralelo
+        const [
+          { data: vendas, error: vendasError },
+          { data: clientes, error: clientesError },
+          { data: cidades, error: cidadesError }
+        ] = await Promise.all([
+          supabase.from('vw_vendas_mensais_vendedor').select('*'),
+          supabase.from('vw_clientes_unicos_mensais').select('*'),
+          supabase.from('vw_cidades_com_vendas').select('*')
+        ])
+
+        if (vendasError) console.error('Erro ao buscar vendas:', vendasError)
+        if (clientesError) console.error('Erro ao buscar clientes:', clientesError)
+        if (cidadesError) console.error('Erro ao buscar cidades:', cidadesError)
+
+        setVendasMensais(vendas || [])
+        setClientesUnicos(clientes || [])
+        setCidadesVendas(cidades || [])
+
+        // Extrair anos disponíveis
+        const anosVendas = [...new Set(vendas?.map(v => v.ano) || [])]
+        setAnosDisponiveis(anosVendas.sort((a, b) => b - a))
+
+        // Extrair vendedores únicos
+        const vendedoresUnicos = [...new Set(vendas?.map(v => v.nome_vendedor) || [])]
+        setTodosVendedores(vendedoresUnicos.sort())
+
+        // Selecionar todos os vendedores por padrão
+        setSelectedVendedoresRealizado(vendedoresUnicos)
+        setSelectedVendedoresClientes(vendedoresUnicos)
+
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    carregarDados()
+  }, [user])
+
+  const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+  // Processar dados de vendas para o formato da UI
+  const dadosRealizados = useMemo<DadosMensal[]>(() => {
+    const vendasDoAno = vendasMensais.filter(v => v.ano === selectedAno)
+
+    return Array.from({ length: 12 }, (_, i) => {
+      const mes = i + 1
+      const vendasDoMes = vendasDoAno.filter(v => v.mes === mes)
+
+      const vendedores = vendasDoMes.map(v => ({
+        nome: v.nome_vendedor,
+        meta: v.meta,
+        vendas: v.total_vendas,
+        atingimento: v.atingimento
+      }))
+
+      const meta = vendedores.reduce((acc, v) => acc + v.meta, 0)
+      const vendas = vendedores.reduce((acc, v) => acc + v.vendas, 0)
+      const atingimento = meta > 0 ? (vendas / meta) * 100 : 0
+
+      return {
+        mes: nomesMeses[i],
+        meta,
+        vendas,
+        atingimento,
+        vendedores
+      }
+    })
+  }, [vendasMensais, selectedAno])
+
+  // Processar dados de clientes únicos
+  const dadosClientesUnicos = useMemo<ClientesMensal[]>(() => {
+    const anoAnterior = selectedAno - 1
+    const clientesAnoAnterior = clientesUnicos.filter(c => c.ano === anoAnterior)
+    const clientesAnoAtual = clientesUnicos.filter(c => c.ano === selectedAno)
+
+    return Array.from({ length: 12 }, (_, i) => {
+      const mes = i + 1
+      const clientesMesAnterior = clientesAnoAnterior.filter(c => c.mes === mes)
+      const clientesMesAtual = clientesAnoAtual.filter(c => c.mes === mes)
+
+      const vendedores = todosVendedores.map(nome => {
+        const dadosAnterior = clientesMesAnterior.find(c => c.nome_vendedor === nome)
+        const dadosAtual = clientesMesAtual.find(c => c.nome_vendedor === nome)
+
+        return {
+          nome,
+          clientesAnoAnterior: dadosAnterior?.qtd_clientes_unicos || 0,
+          clientesAnoAtual: dadosAtual?.qtd_clientes_unicos || 0
+        }
+      })
+
+      return {
+        mes: nomesMeses[i],
+        totalAnoAnterior: vendedores.reduce((acc, v) => acc + v.clientesAnoAnterior, 0),
+        totalAnoAtual: vendedores.reduce((acc, v) => acc + v.clientesAnoAtual, 0),
+        vendedores
+      }
+    })
+  }, [clientesUnicos, selectedAno, todosVendedores])
+
+  // Processar dados de cidades
+  const cidadesERP = useMemo<CidadesERP>(() => {
+    const anoAnterior = selectedAno - 1
+    const dadosAnoAnterior = cidadesVendas.find(c => c.ano === anoAnterior)
+    const dadosAnoAtual = cidadesVendas.find(c => c.ano === selectedAno)
+
+    return {
+      totalCidades: dadosAnoAtual?.total_cidades || dadosAnoAnterior?.total_cidades || 0,
+      comVendaAnoAnterior: dadosAnoAnterior?.cidades_com_venda || 0,
+      comVendaAnoAtual: dadosAnoAtual?.cidades_com_venda || 0
+    }
+  }, [cidadesVendas, selectedAno])
 
   const calcularTotaisAno = () => {
     const totalMeta = filteredDadosRealizados.reduce((acc, mes) => acc + mes.meta, 0)
@@ -255,10 +212,10 @@ const PagAcumuladoAno: React.FC = () => {
   }
 
   const calcularTotaisClientesAno = () => {
-    const total2024 = filteredDadosClientesUnicos.reduce((acc, mes) => acc + mes.total2024, 0)
-    const total2025 = filteredDadosClientesUnicos.reduce((acc, mes) => acc + mes.total2025, 0)
+    const totalAnoAnterior = filteredDadosClientesUnicos.reduce((acc, mes) => acc + mes.totalAnoAnterior, 0)
+    const totalAnoAtual = filteredDadosClientesUnicos.reduce((acc, mes) => acc + mes.totalAnoAtual, 0)
 
-    return { total2024, total2025 }
+    return { totalAnoAnterior, totalAnoAtual }
   }
 
   const filteredDadosRealizados = useMemo(() => {
@@ -284,12 +241,12 @@ const PagAcumuladoAno: React.FC = () => {
     return dadosClientesUnicos.map((mes) => ({
       ...mes,
       vendedores: mes.vendedores.filter((v) => selectedVendedoresClientes.includes(v.nome)),
-      total2024: mes.vendedores
+      totalAnoAnterior: mes.vendedores
         .filter((v) => selectedVendedoresClientes.includes(v.nome))
-        .reduce((acc, v) => acc + v.clientes2024, 0),
-      total2025: mes.vendedores
+        .reduce((acc, v) => acc + v.clientesAnoAnterior, 0),
+      totalAnoAtual: mes.vendedores
         .filter((v) => selectedVendedoresClientes.includes(v.nome))
-        .reduce((acc, v) => acc + v.clientes2025, 0)
+        .reduce((acc, v) => acc + v.clientesAnoAtual, 0)
     }))
   }, [dadosClientesUnicos, selectedVendedoresClientes])
 
@@ -317,8 +274,6 @@ const PagAcumuladoAno: React.FC = () => {
       navigate('/dashboard')
       return
     }
-
-    setLoading(false)
   }, [user, navigate])
 
   if (loading) {
@@ -330,7 +285,7 @@ const PagAcumuladoAno: React.FC = () => {
   }
 
   const { totalMeta, totalVendas, atingimentoGeral } = calcularTotaisAno()
-  const { total2024, total2025 } = calcularTotaisClientesAno()
+  const { totalAnoAnterior, totalAnoAtual } = calcularTotaisClientesAno()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -346,11 +301,11 @@ const PagAcumuladoAno: React.FC = () => {
           </p>
         </div>
 
-        {/* Realizado 2025 */}
+        {/* Realizado */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Realizado</h3>
-            
+
             {/* Filtros dentro da tabela */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full sm:w-auto">
               {/* Ano Filter */}
@@ -360,8 +315,9 @@ const PagAcumuladoAno: React.FC = () => {
                   onChange={(e) => setSelectedAno(parseInt(e.target.value))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white hover:border-gray-400 text-gray-900 font-medium text-sm"
                 >
-                  <option value={2024}>2024</option>
-                  <option value={2025}>2025</option>
+                  {anosDisponiveis.map(ano => (
+                    <option key={ano} value={ano}>{ano}</option>
+                  ))}
                 </select>
               </div>
 
@@ -375,7 +331,7 @@ const PagAcumuladoAno: React.FC = () => {
                     <span>
                       <span className="font-semibold">Vendedores</span>
                       <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
-                        {selectedVendedoresRealizado.length}/{5}
+                        {selectedVendedoresRealizado.length}/{todosVendedores.length}
                       </span>
                     </span>
                     <ChevronUp className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
@@ -383,7 +339,7 @@ const PagAcumuladoAno: React.FC = () => {
 
                   <div className="absolute top-full left-0 right-0 mt-1 border border-gray-300 rounded-lg bg-white p-3 space-y-2 z-10 shadow-lg">
                     <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
-                      {['João Silva', 'Maria Santos', 'Pedro Costa', 'Ana Oliveira', 'Carlos Lima'].map((vendedor) => (
+                      {todosVendedores.map((vendedor) => (
                         <label key={vendedor} className="flex items-center cursor-pointer group text-sm">
                           <input
                             type="checkbox"
@@ -412,7 +368,7 @@ const PagAcumuladoAno: React.FC = () => {
                     <span>
                       <span className="font-semibold">Vendedores</span>
                       <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
-                        {selectedVendedoresRealizado.length}/{5}
+                        {selectedVendedoresRealizado.length}/{todosVendedores.length}
                       </span>
                     </span>
                     <ChevronDown className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
@@ -421,7 +377,7 @@ const PagAcumuladoAno: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full min-w-full">
               <thead>
@@ -472,7 +428,7 @@ const PagAcumuladoAno: React.FC = () => {
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Clientes por mês</h3>
-            
+
             {/* Filtro de Vendedor */}
             {expandidoVendedoresClientesDropdown ? (
               <div className="relative w-full sm:w-auto" ref={dropdownVendedoresClientesRef}>
@@ -483,7 +439,7 @@ const PagAcumuladoAno: React.FC = () => {
                   <span>
                     <span className="font-semibold">Vendedores</span>
                     <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
-                      {selectedVendedoresClientes.length}/{5}
+                      {selectedVendedoresClientes.length}/{todosVendedores.length}
                     </span>
                   </span>
                   <ChevronUp className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
@@ -491,7 +447,7 @@ const PagAcumuladoAno: React.FC = () => {
 
                 <div className="absolute top-full left-0 right-0 mt-1 border border-gray-300 rounded-lg bg-white p-3 space-y-2 z-10 shadow-lg">
                   <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
-                    {['João Silva', 'Maria Santos', 'Pedro Costa', 'Ana Oliveira', 'Carlos Lima'].map((vendedor) => (
+                    {todosVendedores.map((vendedor) => (
                       <label key={vendedor} className="flex items-center cursor-pointer group text-sm">
                         <input
                           type="checkbox"
@@ -520,7 +476,7 @@ const PagAcumuladoAno: React.FC = () => {
                   <span>
                     <span className="font-semibold">Vendedores</span>
                     <span className="ml-2 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block">
-                      {selectedVendedoresClientes.length}/{5}
+                      {selectedVendedoresClientes.length}/{todosVendedores.length}
                     </span>
                   </span>
                   <ChevronDown className="h-4 w-4 text-gray-500 transition-transform flex-shrink-0" />
@@ -528,14 +484,14 @@ const PagAcumuladoAno: React.FC = () => {
               </div>
             )}
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full min-w-full">
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Mês</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">2024</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">2025</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">{selectedAno - 1}</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">{selectedAno}</th>
                 </tr>
               </thead>
               <tbody>
@@ -543,15 +499,15 @@ const PagAcumuladoAno: React.FC = () => {
                   <React.Fragment key={mesData.mes}>
                     <tr className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4 font-medium text-gray-900">{mesData.mes}</td>
-                      <td className="py-3 px-4 text-right text-gray-700">{mesData.total2024}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-gray-900">{mesData.total2025}</td>
+                      <td className="py-3 px-4 text-right text-gray-700">{mesData.totalAnoAnterior}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-gray-900">{mesData.totalAnoAtual}</td>
                     </tr>
                   </React.Fragment>
                 ))}
                 <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold">
                   <td className="py-3 px-4 text-gray-900">Total Geral</td>
-                  <td className="py-3 px-4 text-right text-gray-900">{total2024}</td>
-                  <td className="py-3 px-4 text-right text-gray-900">{total2025}</td>
+                  <td className="py-3 px-4 text-right text-gray-900">{totalAnoAnterior}</td>
+                  <td className="py-3 px-4 text-right text-gray-900">{totalAnoAtual}</td>
                 </tr>
               </tbody>
             </table>
@@ -561,27 +517,27 @@ const PagAcumuladoAno: React.FC = () => {
         {/* Total de cidades com clientes no ERP */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Total de cidades com clientes no ERP</h3>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="text-center p-6 bg-blue-50 rounded-lg border-l-4 border-blue-500">
               <div className="text-3xl font-bold text-blue-900 mb-2">{cidadesERP.totalCidades}</div>
               <div className="text-sm font-medium text-blue-700">Total de Cidades</div>
             </div>
-            
+
             <div className="text-center p-6 bg-orange-50 rounded-lg border-l-4 border-orange-500">
-              <div className="text-3xl font-bold text-orange-900 mb-2">{cidadesERP.comVenda2024}</div>
-              <div className="text-sm font-medium text-orange-700">Com Venda em 2024</div>
+              <div className="text-3xl font-bold text-orange-900 mb-2">{cidadesERP.comVendaAnoAnterior}</div>
+              <div className="text-sm font-medium text-orange-700">Com Venda em {selectedAno - 1}</div>
             </div>
-            
+
             <div className="text-center p-6 bg-green-50 rounded-lg border-l-4 border-green-500">
-              <div className="text-3xl font-bold text-green-900 mb-2">{cidadesERP.comVenda2025}</div>
-              <div className="text-sm font-medium text-green-700">Com Venda em 2025</div>
+              <div className="text-3xl font-bold text-green-900 mb-2">{cidadesERP.comVendaAnoAtual}</div>
+              <div className="text-sm font-medium text-green-700">Com Venda em {selectedAno}</div>
             </div>
           </div>
-          
+
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <div className="text-sm text-gray-600 text-center">
-              <strong>Cobertura:</strong> {((cidadesERP.comVenda2025 / cidadesERP.totalCidades) * 100).toFixed(1)}% das cidades com vendas em {anoAtual}
+              <strong>Cobertura:</strong> {cidadesERP.totalCidades > 0 ? ((cidadesERP.comVendaAnoAtual / cidadesERP.totalCidades) * 100).toFixed(1) : 0}% das cidades com vendas em {selectedAno}
             </div>
           </div>
         </div>
