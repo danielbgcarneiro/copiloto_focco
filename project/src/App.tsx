@@ -10,6 +10,7 @@ import DetalhesCliente from './components/pages/DetalhesCliente'
 import Inadimplentes from './components/pages/Inadimplentes'
 import DashboardGestao from './components/pages/DashboardGestao'
 import PagAcumuladoAno from './components/pages/PagAcumuladoAno'
+import PagAnalytics from './components/pages/PagAnalytics'
 import DashboardRotas from './components/pages/DashboardRotas'
 import TopClientes from './components/pages/TopClientes'
 import MetasPorCliente from './components/pages/MetasPorCliente' // New import
@@ -53,6 +54,10 @@ const router = createBrowserRouter([
       {
         path: "acumulado-ano",
         element: <PagAcumuladoAno />,
+      },
+      {
+        path: "analytics",
+        element: <PagAnalytics />,
       },
       {
         path: "dashboard-rotas",
