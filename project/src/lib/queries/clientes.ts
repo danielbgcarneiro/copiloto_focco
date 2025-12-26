@@ -1,3 +1,10 @@
+/**
+ * Copiloto Focco Brasil
+ * Desenvolvedor: Daniel Carneiro
+ * Copyright © 2025 Daniel Carneiro. Todos os direitos reservados.
+ */
+
+
 import { supabase } from '../supabase';
 
 // Define a interface para os dados RFM retornados pelo Supabase

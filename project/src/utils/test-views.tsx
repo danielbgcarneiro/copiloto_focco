@@ -1,3 +1,10 @@
+/**
+ * Copiloto Focco Brasil
+ * Desenvolvedor: Daniel Carneiro
+ * Copyright © 2025 Daniel Carneiro. Todos os direitos reservados.
+ */
+
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 

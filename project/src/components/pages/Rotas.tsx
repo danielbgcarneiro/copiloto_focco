@@ -1,3 +1,10 @@
+/**
+ * Copiloto Focco Brasil
+ * Desenvolvedor: Daniel Carneiro
+ * Copyright © 2025 Daniel Carneiro. Todos os direitos reservados.
+ */
+
+
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'

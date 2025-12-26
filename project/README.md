@@ -1,15 +1,19 @@
-# Copiloto Focco Brasil
+# Copiloto
 
-Uma aplicação moderna e completa para gestão de representantes, rotas e óticas da Focco Brasil, desenvolvida com React, TypeScript e Tailwind CSS.
+Uma aplicação moderna e completa para gestão de vendedores, desenvolvida por **Daniel Carneiro** com React, TypeScript e Tailwind CSS.
+
+**Desenvolvedor**: Daniel Carneiro
+**Todos os direitos reservados**
 
 ## ✅ Status do Projeto
 
-**CONCLUÍDO**: Sistema frontend 100% implementado com dados reais, autenticação funcionando e novo módulo de Gestão Executiva.
+**CONCLUÍDO**: Sistema frontend 100% implementado com dados reais, autenticação funcionando e módulo de Gestão Executiva completo.
 
 - ✅ **Frontend Completo**: Todas as páginas implementadas com dados reais
 - ✅ **Autenticação**: Sistema RLS funcionando perfeitamente
 - ✅ **Debug Avançado**: Sistema completo de logging e identificação de problemas
 - ✅ **Análise RFM Avançada**: Sistema completo com scores, classificação A-E e perfis Ouro/Prata/Bronze
+- ✅ **Analytics RFM Visual**: Matriz 5x5 interativa com cache inteligente e carregamento otimizado
 - ✅ **Módulo Gestão**: Dashboard executivo com análises avançadas
 - ⚠️ **Pendência Backend**: RPC `get_cliente_detalhes` precisa ser corrigida para retornar quantidades de compras
 
@@ -58,13 +62,24 @@ Uma aplicação moderna e completa para gestão de representantes, rotas e ótic
 - **Ranking Visual**: Posicionamento com medalhas e cores
 - **Otimização**: Sistema de memo para reduzir consultas ao banco
 
-#### Metas por Cliente (NOVO)
+#### Metas por Cliente
 - **Classificação por Perfil**: Tabelas separadas para Ouro, Prata e Bronze
 - **Filtros Inteligentes**: Busca por vendedor e cidade com normalização
 - **Tabelas Ordenáveis**: Clique em colunas para ordenar (código, nome, vendedor, cidade, objetivo, vendas, %)
 - **Totais Dinâmicos**: Soma automática de objetivos, vendas e percentual geral por perfil
 - **Sistema de Cores**: Visual diferenciado por perfil (amarelo/ouro, cinza/prata, laranja/bronze)
 - **Contador de Clientes**: Exibição automática da quantidade de clientes filtrados por perfil
+
+#### Analytics RFM
+- **Matriz RFM Visual 5x5**: Visualização interativa de Recência x Frequência+Monetário
+- **Segmentação em 11 Categorias**: Campeões, Clientes Fiéis, Em Risco, Perdidos, etc.
+- **Cache Inteligente**: LocalStorage com TTL de 30 minutos para performance
+- **Carregamento Paginado**: Lotes de 1000 registros com barra de progresso
+- **Filtros Avançados**: Por perfil, tendência e alerta de risco
+- **Busca em Tempo Real**: Por nome ou código de cliente
+- **Estatísticas Consolidadas**: Total, crescimento, queda e alertas
+- **Legenda Visual**: Cores por segmento e perfil
+- **Tooltip Detalhado**: Informações ao hover nas células da matriz
 
 ### Sistema de Rotas
 - **Gestão Completa**: Visualização de oportunidades, cidades e óticas por rota
@@ -149,9 +164,10 @@ A aplicação possui três níveis de acesso:
 ### Páginas Gestão (Diretor)
 1. **Dashboard Gestão**: Visão executiva com métricas da empresa
 2. **Acumulado do Ano**: Performance anual por mês e vendedor
-3. **Dashboard Rotas**: Análise de rotas e cidades top performers
-4. **Top Clientes**: Ranking de clientes com filtros avançados
-5. **Metas por Cliente**: Análise detalhada por perfil (Ouro, Prata, Bronze) com filtros dinâmicos
+3. **Analytics RFM**: Matriz visual 5x5 com segmentação de clientes
+4. **Dashboard Rotas**: Análise de rotas e cidades top performers
+5. **Top Clientes**: Ranking de clientes com filtros avançados
+6. **Metas por Cliente**: Análise detalhada por perfil (Ouro, Prata, Bronze) com filtros dinâmicos
 
 ### Indicadores Críticos
 - **DSV (Dias Sem Vendas)**: Presente em clientes e detalhes
@@ -160,6 +176,7 @@ A aplicação possui três níveis de acesso:
 - **Status Dinâmico**: Cálculo em tempo real de dias de atraso
 - **Meta em Risco**: Alerta visual automático para clientes com <50% de atingimento
 - **Análise RFM**: Scores detalhados, classificação A-E e perfis Ouro/Prata/Bronze
+- **Segmentação RFM**: 11 categorias de clientes na matriz 5x5 (Analytics)
 - **Tendências e Alertas**: Sistema inteligente de previsão e alertas de risco
 
 ## 🎨 Design System
@@ -194,6 +211,9 @@ Integração com Supabase para:
 - **useMemo**: Cálculos pesados otimizados
 - **useCallback**: Funções memoizadas para filtros
 - **Lazy Loading**: Componentes carregados sob demanda
+- **Cache LocalStorage**: Sistema com TTL de 30 minutos (Analytics RFM)
+- **Carregamento Paginado**: Lotes de 1000 registros com feedback visual
+- **Fallback Automático**: Tentativas de JOIN com recuperação em caso de erro
 
 ### UX/UI
 - **Feedback Visual**: Estados de loading e transições
@@ -260,7 +280,17 @@ npm run build
 
 ## 📈 Changelog Recente
 
-### v3.3 - Sistema RFM Avançado (Atual)
+### v3.4 - Analytics RFM Visual (Atual)
+- ✅ Nova página PagAnalytics com matriz RFM 5x5 interativa
+- ✅ Segmentação automática em 11 categorias de clientes
+- ✅ Sistema de cache LocalStorage com TTL de 30 minutos
+- ✅ Carregamento paginado de grandes volumes (lotes de 1000)
+- ✅ Filtros avançados por perfil, tendência e alerta
+- ✅ Busca em tempo real por nome ou código
+- ✅ Estatísticas consolidadas e legendas visuais
+- ✅ Tooltip detalhado ao hover nas células da matriz
+
+### v3.3 - Sistema RFM Avançado
 - ✅ Reestruturação completa da tabela `analise_rfm`
 - ✅ Implementação de scores RFM individuais (Recency, Frequency, Monetary)
 - ✅ Sistema de classificação final A-E baseado em scores
@@ -295,6 +325,9 @@ npm run build
 - ✅ Otimizações de performance com memo
 - ✅ Design responsivo em todas as páginas
 
-## 📄 Licença
+## 📄 Licença e Créditos
 
-© 2025 Focco Brasil. Todos os direitos reservados.
+**Desenvolvedor**: Daniel Carneiro
+**Copyright**: © 2025 Daniel Carneiro. Todos os direitos reservados.
+
+Sistema de gestão de vendedores desenvolvido por Daniel Carneiro.

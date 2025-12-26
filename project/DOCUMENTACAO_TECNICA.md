@@ -1,10 +1,13 @@
-# Documentação Técnica - Copiloto Focco Brasil
+# Documentação Técnica - Copiloto
+
+**Desenvolvedor**: Daniel Carneiro
+**Copyright**: © 2025 Daniel Carneiro. Todos os direitos reservados.
 
 ## 1. Visão Geral do Projeto
 
-Bem-vindo ao Copiloto Focco Brasil.
+Bem-vindo ao Copiloto, desenvolvido por **Daniel Carneiro**.
 
-Esta é uma aplicação web moderna de página única (SPA) desenvolvida para a equipe de vendas da Focco Brasil. O sistema oferece dashboards e ferramentas para gestão de representantes, rotas de vendas, clientes (óticas), metas e performance financeira.
+Esta é uma aplicação web moderna de página única (SPA) para gestão de vendedores. O sistema oferece dashboards e ferramentas para gestão de representantes, rotas de vendas, clientes, metas e performance financeira.
 
 O projeto inclui dois módulos principais:
 1.  **Módulo Representante**: Ferramentas operacionais para o dia a dia dos vendedores.
@@ -116,6 +119,7 @@ src/
 │       ├── PedidosVendedor.tsx  # Visualização de pedidos por período
 │       ├── DashboardGestao.tsx  # Dashboard executivo
 │       ├── PagAcumuladoAno.tsx  # Análise anual
+│       ├── PagAnalytics.tsx     # Análise RFM com matriz visual
 │       ├── DashboardRotas.tsx   # Dashboard rotas executivo
 │       ├── TopClientes.tsx      # Top clientes executivo
 │       └── MetasPorCliente.tsx  # Metas por cliente executivo
@@ -170,10 +174,13 @@ O coração da lógica de negócio reside no banco de dados PostgreSQL do Supaba
     - **Score final**: soma dos scores (3-15)
     - **Classificação**: A-E baseada no score final
     - **Perfil**: 'Ouro', 'Prata' ou 'Bronze' (valores textuais)
+    - **FM Score**: score_f + score_m para uso na matriz RFM 5x5
+    - **Segmentação**: 11 categorias de clientes baseadas na matriz RFM (Campeões, Clientes Fiéis, Potencial Fidelizador, etc.)
     - **Indicadores**: potencial_crescimento, tendencia, alerta_risco
     - **Métricas**: quantidade e valor de compras por ano, metas e percentual de atingimento
     - **RLS**: Vendedores veem apenas dados RFM dos seus clientes; Gestores/Diretores têm acesso total
     - **Observação**: Sistema de estrelas (1-5) foi removido; valores numéricos de perfil (30, 10, 5) foram substituídos por textuais
+    - **Uso na Aplicação**: Página PagAnalytics exibe matriz visual 5x5 com carregamento paginado e cache LocalStorage
 
 - **Views (Visões)**:
   - Views como `vw_clientes_completo` são usadas para desnormalizar e consolidar dados de múltiplas tabelas, simplificando as queries do frontend.
@@ -186,6 +193,10 @@ O coração da lógica de negócio reside no banco de dados PostgreSQL do Supaba
 ## 9. Diretrizes e Boas Práticas
 
 - **Performance**: A performance do frontend é uma prioridade. Utilize `React.memo` em componentes que não devem re-renderizar desnecessariamente. Para cálculos computacionalmente caros ou para memoizar objetos/arrays, use `useMemo`. Para funções passadas como props, use `useCallback`.
+- **Cache e Paginação**: Para grandes volumes de dados (como na página PagAnalytics), implemente:
+  - **Cache LocalStorage**: Armazene dados com TTL (Time To Live) para reduzir requisições
+  - **Carregamento Paginado**: Busque dados em lotes (ex: 1000 registros) com feedback visual
+  - **Fallback Automático**: Implemente tentativas de JOIN com fallback em caso de erro
 - **Centralização de Queries**: Toda a comunicação com o Supabase deve ser abstraída em funções dentro do diretório `src/lib/queries/`. Componentes não devem chamar o `supabase.from(...)` diretamente.
 - **Estilo de Código**: O projeto é configurado com ESLint para garantir um padrão de código consistente. Rode `npm run lint` para verificar seu código antes de commitar.
 - **Tipagem**: Seja explícito com os tipos. Defina interfaces e tipos no diretório `src/types/` ou localmente quando apropriado.
@@ -196,3 +207,8 @@ O deploy é automatizado via **GitHub Actions**. Qualquer push na branch `main` 
 ## 11. Documentação Adicional
 
 Esta documentação fornece uma visão geral completa para começar. Para um mergulho profundo em detalhes de implementação, schema do banco, políticas de RLS e decisões arquitetônicas, consulte o arquivo [ARQUITETURA.md](ARQUITETURA.md).
+
+---
+
+**Sistema desenvolvido por Daniel Carneiro**
+© 2025 Daniel Carneiro. Todos os direitos reservados.

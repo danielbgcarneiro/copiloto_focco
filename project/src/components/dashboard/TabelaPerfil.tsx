@@ -1,3 +1,10 @@
+/**
+ * Copiloto Focco Brasil
+ * Desenvolvedor: Daniel Carneiro
+ * Copyright © 2025 Daniel Carneiro. Todos os direitos reservados.
+ */
+
+
 import React, { useState, useMemo } from 'react'
 import { TabelaPerfil as TabelaPerfilType } from '../../lib/queries/dashboard'
 import { formatarMoeda } from '../../lib/queries/dashboard'

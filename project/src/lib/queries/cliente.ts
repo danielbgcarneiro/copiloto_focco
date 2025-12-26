@@ -1,3 +1,10 @@
+/**
+ * Copiloto Focco Brasil
+ * Desenvolvedor: Daniel Carneiro
+ * Copyright © 2025 Daniel Carneiro. Todos os direitos reservados.
+ */
+
+
 import { supabase } from '../supabase';
 
 // Interface para tipo de retorno (simplificada para refletir dados disponíveis)
