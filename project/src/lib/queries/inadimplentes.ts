@@ -161,3 +161,61 @@ export function formatarTelefone(telefone: string | null): string {
   
   return telefone;
 }
+
+// Função para buscar dados de inadimplência de um cliente específico
+export async function getClienteInadimplenteDetalhes(codigoCliente: number): Promise<ClienteInadimplente | null> {
+  try {
+    // Buscar dados do usuário atual
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    // Buscar dados do cliente específico
+    const { data: dadosInadimplentes, error: inadimplentesError } = await supabase
+      .from('vw_titulos_vencidos_detalhado')
+      .select('*')
+      .eq('codigo_cliente', codigoCliente)
+      .eq('vendedor_uuid', user.id)
+      .order('dias_atraso', { ascending: false });
+    
+    if (inadimplentesError) {
+      console.error('Erro ao buscar inadimplência do cliente:', inadimplentesError);
+      throw inadimplentesError;
+    }
+    
+    // Se não houver títulos vencidos, retorna null
+    if (!dadosInadimplentes || dadosInadimplentes.length === 0) {
+      return null;
+    }
+    
+    // Processar dados do cliente
+    const primeiroRegistro = dadosInadimplentes[0];
+    const titulos: TituloAberto[] = dadosInadimplentes.map(registro => ({
+      numero: registro.titulo_uuid,
+      vencimento: new Date(registro.data_vencimento).toLocaleDateString('pt-BR'),
+      valor: registro.valor_saldo || registro.valor_original,
+      dias_atraso: registro.dias_atraso
+    }));
+
+    const valorTotal = titulos.reduce((sum, titulo) => sum + titulo.valor, 0);
+    const maiorDiasAtraso = Math.max(...titulos.map(t => t.dias_atraso), 0);
+
+    return {
+      codigo_cliente: primeiroRegistro.codigo_cliente,
+      nome_fantasia: primeiroRegistro.nome_fantasia,
+      cidade: primeiroRegistro.cidade || 'Sem cidade',
+      rota: primeiroRegistro.rota || 'Sem rota',
+      status_financeiro: 'INADIMPLENTE',
+      valor_total_titulos: valorTotal,
+      qtd_titulos_abertos: titulos.length,
+      maior_dias_atraso: maiorDiasAtraso,
+      ultimo_pagamento: null,
+      telefone: primeiroRegistro.celular || null,
+      titulos: titulos
+    };
+  } catch (error) {
+    console.error('Erro ao buscar inadimplência do cliente:', error);
+    return null;
+  }
+}

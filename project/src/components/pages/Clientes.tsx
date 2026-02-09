@@ -11,6 +11,7 @@ import { ArrowLeft, Search, Filter, User, LogOut, Check, Clock, MapPin, CheckCir
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
 import { getClientesPorVendedor, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
+import { getClienteInadimplenteDetalhes, ClienteInadimplente } from '../../lib/queries/inadimplentes'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 
 const Clientes: React.FC = () => {
@@ -28,6 +29,15 @@ const Clientes: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [clienteParaCancelar, setClienteParaCancelar] = useState<number | null>(null)
   const [processandoVisita, setProcessandoVisita] = useState<number | null>(null)
+  
+  // Cache otimizado com timestamp para TTL
+  const inadimplenciaCache = useRef<{ 
+    [key: number]: { 
+      dados: ClienteInadimplente | null; 
+      timestamp: number 
+    } 
+  }>({})
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutos em ms
 
   // Decodificar parâmetros da URL
   const rotaNome = rotaId ? decodeURIComponent(rotaId) : null
@@ -60,11 +70,74 @@ const Clientes: React.FC = () => {
       console.log('✅ Clientes carregados:', dados)
       
       setClientes(dados)
+      
+      // Pré-carregar dados de inadimplência em lote (de forma otimizada)
+      console.log('⚙️ Pré-carregando dados de inadimplência para', dados.length, 'clientes...')
+      precarregarInadimplencia(dados)
+      
     } catch (error) {
       console.error('Erro ao carregar clientes:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  /**
+   * Pré-carrega dados de inadimplência para múltiplos clientes em paralelo
+   * Otimizado para não sobrecarregar o servidor
+   */
+  async function precarregarInadimplencia(clientesList: any[]) {
+    // Limpar cache expirado
+    const agora = Date.now()
+    Object.entries(inadimplenciaCache.current).forEach(([key, value]) => {
+      if (agora - value.timestamp > CACHE_TTL) {
+        delete inadimplenciaCache.current[parseInt(key)]
+      }
+    })
+
+    // Filtrar clientes que não têm dados no cache válido
+    const clientesParaBuscar = clientesList.filter(cliente => {
+      const cached = inadimplenciaCache.current[cliente.codigo_cliente]
+      return !cached || (agora - cached.timestamp > CACHE_TTL)
+    })
+
+    if (clientesParaBuscar.length === 0) {
+      console.log('✅ Todos os clientes já estão em cache')
+      return
+    }
+
+    console.log(`📊 Buscando inadimplência para ${clientesParaBuscar.length} clientes...`)
+
+    // Carregar em lotes para não sobrecarregar o servidor
+    const tamanhoLote = 5
+    for (let i = 0; i < clientesParaBuscar.length; i += tamanhoLote) {
+      const lote = clientesParaBuscar.slice(i, i + tamanhoLote)
+      
+      // Fazer requisições em paralelo para cada lote
+      const promessas = lote.map(cliente =>
+        getClienteInadimplenteDetalhes(cliente.codigo_cliente)
+          .then(dados => {
+            // Armazenar no cache com timestamp
+            inadimplenciaCache.current[cliente.codigo_cliente] = {
+              dados,
+              timestamp: Date.now()
+            }
+          })
+          .catch(error => {
+            console.warn(`⚠️ Erro ao buscar inadimplência do cliente ${cliente.codigo_cliente}:`, error)
+            // Armazenar erro no cache também para evitar re-tentativas imediatas
+            inadimplenciaCache.current[cliente.codigo_cliente] = {
+              dados: null,
+              timestamp: Date.now()
+            }
+          })
+      )
+
+      // Aguardar lote ser processado antes de iniciar próximo
+      await Promise.all(promessas)
+    }
+
+    console.log('✅ Pré-carregamento de inadimplência concluído')
   }
 
   // Função para normalizar texto removendo acentos e caracteres especiais
@@ -97,7 +170,274 @@ const Clientes: React.FC = () => {
     return 'bg-blue-50 text-primary border border-blue-200'
   }
 
-  // Função para obter valor numérico do perfil (para ordenação)
+  /**
+   * Função para obter as cores do status de inadimplência
+   * Usado para exibir um badge visual indicando o status financeiro do cliente
+   */
+  const getStatusInadimplenciaColors = (temInadimplencia: boolean, diasAtraso?: number) => {
+    if (!temInadimplencia) {
+      // Cliente sem inadimplência - Verde
+      return {
+        status: 'Adimplente',
+        statusColor: 'bg-gradient-to-br from-green-100 to-green-200 text-green-800 border border-green-400'
+      }
+    }
+
+    // Cliente com inadimplência - usar dias de atraso para determinar severidade
+    const dias = diasAtraso || 0
+    
+    if (dias > 90) {
+      return {
+        status: 'Crítico',
+        statusColor: 'bg-gradient-to-br from-red-100 to-red-200 text-red-800 border border-red-400'
+      }
+    } else if (dias > 60) {
+      return {
+        status: 'Alto Risco',
+        statusColor: 'bg-gradient-to-br from-orange-100 to-orange-200 text-orange-800 border border-orange-400'
+      }
+    } else if (dias > 30) {
+      return {
+        status: 'Médio',
+        statusColor: 'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border border-yellow-400'
+      }
+    } else {
+      return {
+        status: 'Baixo',
+        statusColor: 'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 border border-blue-400'
+      }
+    }
+  }
+
+  /**
+   * Função para buscar dados de inadimplência do cache
+   * Não faz requisição, apenas retorna dados já carregados
+   */
+  const obterInadimplenciaDoCache = (codigoCliente: number): ClienteInadimplente | null | undefined => {
+    const cached = inadimplenciaCache.current[codigoCliente]
+    
+    if (!cached) {
+      return undefined // Dados não carregados ainda
+    }
+
+    // Verificar se cache expirou
+    const agora = Date.now()
+    if (agora - cached.timestamp > CACHE_TTL) {
+      return undefined // Cache expirado
+    }
+
+    return cached.dados || null // Retorna dados (pode ser null se sem inadimplência)
+  }
+
+  /**
+   * Componente para renderizar um card de cliente com lazy loading
+   */
+  const CardCliente: React.FC<{ cliente: any }> = ({ cliente }) => {
+    const [inadimplencia, setInadimplencia] = useState<ClienteInadimplente | null | undefined>(undefined)
+    const [isVisible, setIsVisible] = useState(false)
+    const cardRef = useRef<HTMLDivElement>(null)
+    const rfm = cliente.analise_rfm || {}
+
+    // Usar Intersection Observer para lazy loading
+    useEffect(() => {
+      const observer = new IntersectionObserver(
+        entries => {
+          if (entries[0].isIntersecting) {
+            setIsVisible(true)
+            // Parar de observar após card ficar visível
+            if (cardRef.current) {
+              observer.unobserve(cardRef.current)
+            }
+          }
+        },
+        { threshold: 0.1 } // Carregar quando 10% do card fica visível
+      )
+
+      if (cardRef.current) {
+        observer.observe(cardRef.current)
+      }
+
+      return () => {
+        if (cardRef.current) {
+          observer.unobserve(cardRef.current)
+        }
+      }
+    }, [])
+
+    // Carregar dados de inadimplência apenas quando o card fica visível
+    useEffect(() => {
+      if (isVisible) {
+        const dados = obterInadimplenciaDoCache(cliente.codigo_cliente)
+        setInadimplencia(dados)
+      }
+    }, [isVisible, cliente.codigo_cliente])
+
+    // Usar atingimento já calculado pela view (não recalcular!)
+    const atingimento = Math.min(100, Math.max(0, rfm.percentual_atingimento || 0))
+
+    // Calcular o ângulo para o gráfico de rosca
+    const circumference = 2 * Math.PI * 54
+    const greenOffset = circumference * (1 - atingimento / 100)
+
+    // Função para formatar valores em reais
+    const formatCurrency = (value: number) => {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(value)
+    }
+
+    // Obter status de inadimplência
+    const temInadimplencia = inadimplencia !== null && inadimplencia !== undefined
+    const diasAtraso = inadimplencia?.maior_dias_atraso
+    const statusInfo = getStatusInadimplenciaColors(temInadimplencia, diasAtraso)
+
+    return (
+      <div
+        ref={cardRef}
+        className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden"
+        onClick={() => {
+          const rotaPath = rotaNome ? encodeURIComponent(rotaNome) : 'sem-rota'
+          const cidadePath = cidadeDecodificada ? encodeURIComponent(cidadeDecodificada) : 'sem-cidade'
+          navigate(`/rotas/${rotaPath}/cidades/${cidadePath}/clientes/${cliente.codigo_cliente}/detalhes`)
+        }}
+      >
+        {/* Header */}
+        <div className="p-4">
+          <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 truncate flex-1 min-w-0">
+              {cliente.nome_fantasia}
+            </h3>
+            {/* Badges de Status e Perfil */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {/* Badge de Status de Inadimplência */}
+              {isVisible && inadimplencia !== undefined && (
+                <span className={`text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-1 rounded-md whitespace-nowrap ${statusInfo.statusColor}`}>
+                  {statusInfo.status}
+                </span>
+              )}
+              {/* Badge de Perfil */}
+              {rfm.perfil && (
+                <span className={`text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-1 rounded-md whitespace-nowrap ${getPerfilColors(rfm.perfil)}`}>
+                  {rfm.perfil}
+                </span>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">
+            Código: {cliente.codigo_cliente}
+          </p>
+
+          {/* Content - Horizontal */}
+          <div className="flex items-center gap-4 sm:gap-6">
+            {/* Donut Chart */}
+            <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                {/* Background circle (red) */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke="#DC2626"
+                  strokeWidth="12"
+                />
+                {/* Progress circle (green) */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke="#16A34A"
+                  strokeWidth="12"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={greenOffset}
+                  strokeLinecap="butt"
+                />
+              </svg>
+              {/* Center text */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl sm:text-2xl font-bold text-gray-900">{atingimento.toFixed(1)}%</span>
+                <span className="text-[10px] sm:text-xs text-gray-600">Atingimento</span>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="flex-1 min-w-0">
+              {/* Saldo */}
+              <div className="mb-2.5">
+                <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
+                  {formatCurrency(rfm.saldo_meta || 0)}
+                </div>
+                <div className="text-gray-600 text-[10px] sm:text-xs">Saldo</div>
+                <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(rfm.meta_ano_atual || 0)}</div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 my-2.5"></div>
+
+              {/* Metrics row */}
+              <div className="grid grid-cols-[1fr_2fr] gap-2 text-center">
+                {/* DSV */}
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-0.5">
+                    <Clock className="w-3 h-3 text-gray-500" />
+                    <span className="font-bold text-xs sm:text-sm text-gray-800">{rfm.dias_sem_comprar || 0}</span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">DSV</span>
+                </div>
+
+                {/* Bairro */}
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-0.5">
+                    <MapPin className="w-3 h-3 text-gray-500" />
+                    <span className="font-bold text-xs sm:text-sm text-gray-800 truncate max-w-[100px]">{cliente.bairro || '-'}</span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">Bairro</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Oportunidade */}
+        <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
+            <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
+              Oportunidade: {formatCurrency(rfm.previsao_pedido || 0)}
+            </span>
+          </div>
+
+        {/* Check Button */}
+        <div className="p-4 pt-3">
+          <button
+            onClick={(e) => handleCheckClick(cliente, e)}
+            disabled={processandoVisita === cliente.codigo_cliente}
+            className={`
+              w-full py-2.5 rounded-lg transition-all duration-200 ease-in-out flex items-center justify-center gap-2 font-medium text-sm
+              ${cliente.visitado
+                ? 'bg-green-500 text-white shadow-md hover:bg-green-600'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }
+              ${processandoVisita === cliente.codigo_cliente ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+            `}
+            title={cliente.visitado ? 'Cliente visitado - Clique para cancelar' : 'Registrar visita'}
+          >
+            {processandoVisita === cliente.codigo_cliente ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+            ) : (
+              <>
+                <Check className="h-4 w-4" />
+                {cliente.visitado ? 'Visitado' : 'Registrar Visita'}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    )
+  }
   const getPerfilValue = (perfil: string) => {
     const perfilLower = perfil?.toLowerCase() || ''
     if (perfilLower.includes('ouro')) return 3
@@ -350,160 +690,9 @@ const Clientes: React.FC = () => {
 
         {/* Clientes List */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {clientesFiltrados.map((cliente) => {
-            const rfm = cliente.analise_rfm || {};
-
-            // Usar atingimento já calculado pela view (não recalcular!)
-            const atingimento = Math.min(100, Math.max(0, rfm.percentual_atingimento || 0))
-
-            // Calcular o ângulo para o gráfico de rosca
-            const circumference = 2 * Math.PI * 54
-            const greenOffset = circumference * (1 - atingimento / 100)
-
-            // Função para formatar valores em reais
-            const formatCurrency = (value: number) => {
-              return new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-              }).format(value)
-            }
-
-            return (
-              <div
-                key={cliente.codigo_cliente}
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden"
-                onClick={() => {
-                  const rotaPath = rotaNome ? encodeURIComponent(rotaNome) : 'sem-rota'
-                  const cidadePath = cidadeDecodificada ? encodeURIComponent(cidadeDecodificada) : 'sem-cidade'
-                  navigate(`/rotas/${rotaPath}/cidades/${cidadePath}/clientes/${cliente.codigo_cliente}/detalhes`)
-                }}
-              >
-                {/* Header */}
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-base sm:text-lg font-bold text-gray-800 truncate flex-1">
-                      {cliente.nome_fantasia}
-                    </h3>
-                    {rfm.perfil && (
-                      <span className={`text-xs font-semibold px-3 py-1.5 rounded-md ml-2 whitespace-nowrap ${getPerfilColors(rfm.perfil)}`}>
-                        {rfm.perfil}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mb-4">
-                    Código: {cliente.codigo_cliente}
-                  </p>
-
-                  {/* Content - Horizontal */}
-                  <div className="flex items-center gap-4 sm:gap-6">
-                    {/* Donut Chart */}
-                    <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0">
-                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-                        {/* Background circle (red) */}
-                        <circle
-                          cx="60"
-                          cy="60"
-                          r="54"
-                          fill="none"
-                          stroke="#DC2626"
-                          strokeWidth="12"
-                        />
-                        {/* Progress circle (green) */}
-                        <circle
-                          cx="60"
-                          cy="60"
-                          r="54"
-                          fill="none"
-                          stroke="#16A34A"
-                          strokeWidth="12"
-                          strokeDasharray={circumference}
-                          strokeDashoffset={greenOffset}
-                          strokeLinecap="butt"
-                        />
-                      </svg>
-                      {/* Center text */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-xl sm:text-2xl font-bold text-gray-900">{atingimento.toFixed(1)}%</span>
-                        <span className="text-[10px] sm:text-xs text-gray-600">Atingimento</span>
-                      </div>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex-1 min-w-0">
-                      {/* Saldo */}
-                      <div className="mb-2.5">
-                        <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
-                          {formatCurrency(rfm.saldo_meta || 0)}
-                        </div>
-                        <div className="text-gray-600 text-[10px] sm:text-xs">Saldo</div>
-                        <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(rfm.meta_ano_atual || 0)}</div>
-                      </div>
-
-                      {/* Divider */}
-                      <div className="border-t border-gray-200 my-2.5"></div>
-
-                      {/* Metrics row */}
-                      <div className="grid grid-cols-[1fr_2fr] gap-2 text-center">
-                        {/* DSV */}
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center gap-0.5">
-                            <Clock className="w-3 h-3 text-gray-500" />
-                            <span className="font-bold text-xs sm:text-sm text-gray-800">{rfm.dias_sem_comprar || 0}</span>
-                          </div>
-                          <span className="text-[9px] sm:text-[10px] text-gray-500">DSV</span>
-                        </div>
-
-                        {/* Bairro */}
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center gap-0.5">
-                            <MapPin className="w-3 h-3 text-gray-500" />
-                            <span className="font-bold text-xs sm:text-sm text-gray-800 truncate max-w-[100px]">{cliente.bairro || '-'}</span>
-                          </div>
-                          <span className="text-[9px] sm:text-[10px] text-gray-500">Bairro</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Oportunidade */}
-                <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
-                    <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
-                      Oportunidade: {formatCurrency(rfm.previsao_pedido || 0)}
-                    </span>
-                  </div>
-
-                {/* Check Button */}
-                <div className="p-4 pt-3">
-                  <button
-                    onClick={(e) => handleCheckClick(cliente, e)}
-                    disabled={processandoVisita === cliente.codigo_cliente}
-                    className={`
-                      w-full py-2.5 rounded-lg transition-all duration-200 ease-in-out flex items-center justify-center gap-2 font-medium text-sm
-                      ${cliente.visitado
-                        ? 'bg-green-500 text-white shadow-md hover:bg-green-600'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }
-                      ${processandoVisita === cliente.codigo_cliente ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                    `}
-                    title={cliente.visitado ? 'Cliente visitado - Clique para cancelar' : 'Registrar visita'}
-                  >
-                    {processandoVisita === cliente.codigo_cliente ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4" />
-                        {cliente.visitado ? 'Visitado' : 'Registrar Visita'}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+          {clientesFiltrados.map((cliente) => (
+            <CardCliente key={cliente.codigo_cliente} cliente={cliente} />
+          ))}
         </div>
 
         {/* Mensagem se não houver clientes */}

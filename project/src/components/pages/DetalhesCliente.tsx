@@ -7,10 +7,11 @@
 
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, User, LogOut, Phone, MessageCircle } from 'lucide-react'
+import { ArrowLeft, User, LogOut, Phone, MessageCircle, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getClienteDetalhes } from '../../lib/queries/cliente'
 import { getHistoricoVisitas } from '../../lib/queries/clientes'
+import { getClienteInadimplenteDetalhes, getStatusInadimplencia, ClienteInadimplente } from '../../lib/queries/inadimplentes'
 
 // Funções de formatação
 const formatarMoeda = (valor: number) => {
@@ -52,6 +53,58 @@ const getPerfilColors = (perfil: string) => {
 
   // Cor padrão
   return 'bg-blue-50 text-primary border border-blue-200'
+}
+
+/**
+ * Função para obter as cores do status de inadimplência
+ * Usado para exibir um badge visual indicando o status financeiro do cliente
+ * 
+ * Baseado na estrutura de status da página Inadimplentes:
+ * - INADIMPLENTE (com dias_atraso) → cores específicas do risco
+ * - Sem inadimplência → verde (OK)
+ * 
+ * @param temInadimplencia - Boolean indicando se o cliente tem inadimplência
+ * @param diasAtraso - Número de dias de atraso (opcional)
+ * @returns Objeto com status e classes Tailwind para estilizar o badge
+ */
+const getStatusInadimplenciaColors = (temInadimplencia: boolean, diasAtraso?: number) => {
+  if (!temInadimplencia) {
+    // Cliente sem inadimplência - Verde
+    return {
+      status: 'Adimplente',
+      statusColor: 'bg-gradient-to-br from-green-100 to-green-200 text-green-800 border border-green-400',
+      prioridade: 0
+    }
+  }
+
+  // Cliente com inadimplência - usar dias de atraso para determinar severidade
+  const dias = diasAtraso || 0
+  
+  if (dias > 90) {
+    return {
+      status: 'Crítico',
+      statusColor: 'bg-gradient-to-br from-red-100 to-red-200 text-red-800 border border-red-400',
+      prioridade: 4
+    }
+  } else if (dias > 60) {
+    return {
+      status: 'Alto Risco',
+      statusColor: 'bg-gradient-to-br from-orange-100 to-orange-200 text-orange-800 border border-orange-400',
+      prioridade: 3
+    }
+  } else if (dias > 30) {
+    return {
+      status: 'Médio',
+      statusColor: 'bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border border-yellow-400',
+      prioridade: 2
+    }
+  } else {
+    return {
+      status: 'Baixo',
+      statusColor: 'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 border border-blue-400',
+      prioridade: 1
+    }
+  }
 }
 
 // Função para processar métricas por categoria
@@ -113,6 +166,8 @@ const DetalhesCliente: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [historicoVisitas, setHistoricoVisitas] = useState<any[]>([])
   const [loadingVisitas, setLoadingVisitas] = useState(false)
+  const [inadimplenciaData, setInadimplenciaData] = useState<ClienteInadimplente | null>(null)
+  const [loadingInadimplencia, setLoadingInadimplencia] = useState(false)
 
   // Determinar qual ID usar (hierárquico ou direto)
   const codigoCliente = clienteId || id
@@ -142,6 +197,18 @@ const DetalhesCliente: React.FC = () => {
     }
   }
 
+  async function carregarInadimplencia(clienteIdNumerico: number) {
+    try {
+      setLoadingInadimplencia(true);
+      const inadimplencia = await getClienteInadimplenteDetalhes(clienteIdNumerico);
+      setInadimplenciaData(inadimplencia);
+    } catch (error) {
+      console.error('Erro ao carregar dados de inadimplência:', error);
+    } finally {
+      setLoadingInadimplencia(false);
+    }
+  }
+
   useEffect(() => {
     async function carregarCliente() {
       if (!codigoCliente) {
@@ -163,6 +230,7 @@ const DetalhesCliente: React.FC = () => {
         setCliente(dadosCompletos);
         
         await carregarHistoricoVisitas(clienteIdNumerico);
+        await carregarInadimplencia(clienteIdNumerico);
       } catch (err) {
         console.error('❌ Erro ao carregar cliente:', err);
         const mensagemErro = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
@@ -295,11 +363,26 @@ const DetalhesCliente: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <h2 className="text-base font-bold text-gray-900">{dadosCliente.nome}</h2>
               </div>
-              {cliente.perfil && (
-                <span className={`text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap ${getPerfilColors(cliente.perfil)}`}>
-                  {cliente.perfil}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Badge de Status de Inadimplência */}
+                {(() => {
+                  const temInadimplencia = inadimplenciaData !== null
+                  const diasAtraso = inadimplenciaData?.maior_dias_atraso
+                  const statusInfo = getStatusInadimplenciaColors(temInadimplencia, diasAtraso)
+                  return (
+                    <span className={`text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap ${statusInfo.statusColor}`}>
+                      {statusInfo.status}
+                    </span>
+                  )
+                })()}
+                
+                {/* Badge de Perfil */}
+                {cliente.perfil && (
+                  <span className={`text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap ${getPerfilColors(cliente.perfil)}`}>
+                    {cliente.perfil}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-gray-600 leading-tight">Cód: {dadosCliente.codigo}</p>
@@ -458,6 +541,78 @@ const DetalhesCliente: React.FC = () => {
               </div>
             ) : (
               <p className="text-xs text-gray-500 py-2">Nenhuma visita registrada</p>
+            )}
+          </div>
+
+          {/* Seção de Inadimplência */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                Títulos Vencidos
+              </h3>
+            </div>
+
+            {loadingInadimplencia ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <span className="ml-2 text-sm text-gray-600">Carregando dados...</span>
+              </div>
+            ) : inadimplenciaData ? (
+              <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                {/* Resumo de Inadimplência */}
+                <div className="mb-3 pb-3 border-b border-red-200">
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-red-600 font-medium">Valor Total:</span>
+                      <div className="font-bold text-red-700">{formatarMoeda(inadimplenciaData.valor_total_titulos)}</div>
+                    </div>
+                    <div>
+                      <span className="text-red-600 font-medium">Títulos:</span>
+                      <div className="font-bold text-red-700">{inadimplenciaData.qtd_titulos_abertos}</div>
+                    </div>
+                    <div>
+                      <span className="text-red-600 font-medium">Dias Atraso:</span>
+                      <div className="font-bold text-red-700">{inadimplenciaData.maior_dias_atraso}d</div>
+                    </div>
+                  </div>
+
+                  {/* Status Badge */}
+                  <div className="mt-2">
+                    {(() => {
+                      const { status, statusColor } = getStatusInadimplencia(inadimplenciaData.maior_dias_atraso);
+                      return (
+                        <span className={`text-xs font-semibold px-2 py-1 rounded ${statusColor}`}>
+                          {status}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Lista de Títulos */}
+                <div className="max-h-40 overflow-y-auto">
+                  <p className="text-xs font-medium text-red-700 mb-2">Títulos Atrasados:</p>
+                  {/* Cabeçalho da tabela */}
+                  <div className="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600 mb-1 px-2">
+                    <span>Vencimento</span>
+                    <span className="text-center">Atraso</span>
+                    <span className="text-right">Valor</span>
+                  </div>
+                  {/* Linhas de dados */}
+                  <div className="space-y-1">
+                    {inadimplenciaData.titulos.map((titulo, index) => (
+                      <div key={index} className="grid grid-cols-3 gap-2 text-xs items-center px-2 py-1">
+                        <span className="text-gray-700 font-semibold">{titulo.vencimento}</span>
+                        <span className="text-center text-red-600 font-bold">{titulo.dias_atraso}d</span>
+                        <span className="text-right text-red-700 font-semibold">{formatarMoeda(titulo.valor)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-green-600 font-medium py-2">✓ Sem títulos vencidos</p>
             )}
           </div>
         </div>

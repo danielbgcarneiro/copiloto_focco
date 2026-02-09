@@ -37,6 +37,9 @@ interface ClienteDetalhes {
   sol_fem_pw?: number;
   sol_mas_ob?: number;
   sol_mas_pw?: number;
+
+  // Status financeiro (opcional, indicador de inadimplência)
+  status_financeiro?: string;
 }
 
 export async function getClienteDetalhes(codigoCliente: number): Promise<ClienteDetalhes> {
