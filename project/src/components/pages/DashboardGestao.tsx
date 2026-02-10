@@ -22,6 +22,7 @@ interface MetricasExecutivas {
   clientesFaturados: number
   clientesAFaturar: number
   atingimentoPercent: number
+  metaTotal: number
 }
 
 interface DadosSemana {
@@ -158,75 +159,6 @@ const DashboardGestao: React.FC = () => {
     return valor.toString();
   }
 
-  const metricas = useMemo<MetricasExecutivas>(() => {
-    if (!dashboardData || dashboardData.length === 0) {
-      return { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, clientesFaturados: 0, clientesAFaturar: 0, atingimentoPercent: 0 };
-    }
-    const totais = dashboardData.reduce((acc, vendedor) => {
-      acc.vendasTotais += vendedor.total_vendas || 0;
-      acc.vendasFaturadas += vendedor.total_faturado || 0;
-      acc.vendasAFaturar += vendedor.total_a_faturar || 0;
-      acc.clientesAtendidos += vendedor.clientes_atendidos || 0;
-      acc.metaTotal += vendedor.meta_mensal || 0;
-      return acc;
-    }, { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, metaTotal: 0 });
-    
-    // Estas contagens específicas de clientes vêm do estado detailedClientCounts separado
-    totais.clientesFaturados = detailedClientCounts.faturados;
-    totais.clientesAFaturar = detailedClientCounts.aberto;
-
-    const atingimentoGeral = totais.metaTotal > 0 ? (totais.vendasFaturadas / totais.metaTotal) * 100 : 0;
-    return { ...totais, atingimentoPercent: atingimentoGeral };
-  }, [dashboardData, detailedClientCounts]); // Adicionar detailedClientCounts às dependências
-
-  const dadosSemanas = useMemo<DadosSemana[]>(() => {
-    const metaMensalTotal = metasData.reduce((sum, meta) => sum + (meta.meta_valor || 0), 0);
-    const metaSemanal = metaMensalTotal / 4;
-
-    const vendasPorSemana = vendasSemanais.reduce((acc, venda) => {
-      const semana = venda.semana;
-      if (!acc[semana]) acc[semana] = 0;
-      acc[semana] += venda.valor_total || 0;
-      return acc;
-    }, {} as Record<number, number>);
-
-    const semanasAbsolutasDoMes = [...new Set(vendasSemanais.map(v => v.semana))].sort((a, b) => a - b);
-    let vendasAcumuladas = 0;
-    const resultadoGrafico = [];
-
-    for (let i = 0; i < 4; i++) {
-      const semanaRelativa = i + 1;
-      const semanaAbsoluta = semanasAbsolutasDoMes[i];
-      const vendas = semanaAbsoluta ? (vendasPorSemana[semanaAbsoluta] || 0) : 0;
-      vendasAcumuladas += vendas;
-
-      resultadoGrafico.push({
-        semana: `${semanaRelativa}ª Sem`,
-        vendas: vendas,
-        meta: metaSemanal * semanaRelativa,
-        vendasAcumuladas: vendasAcumuladas
-      });
-    }
-
-    return resultadoGrafico;
-  }, [vendasSemanais, metasData]);
-
-  const valorMaximoGrafico = useMemo(() => {
-    if (!dadosSemanas || dadosSemanas.length === 0) return 100000;
-    const maxValor = Math.max(...dadosSemanas.map(d => Math.max(d.vendas, d.meta, d.vendasAcumuladas)));
-    return Math.ceil(maxValor * 1.1);
-  }, [dadosSemanas]);
-
-  const rankingVendedores = useMemo<VendedorRanking[]>(() => {
-    return (dashboardData || []).map((vendedor: any) => ({
-      nome: vendedor.vendedor_apelido,
-      meta: vendedor.meta_mensal || 0,
-      vendas: vendedor.total_vendas || 0,
-      atingimento: vendedor.percentual_atingimento || 0,
-      numeroClientes: vendedor.clientes_atendidos || 0
-    })).sort((a, b) => b.vendas - a.vendas);
-  }, [dashboardData]);
-
   const rankingSemanal = useMemo<VendedorRankingSemanal[]>(() => {
     console.log('🔍 [rankingSemanal] Reconstruindo ranking...', {
       vendedoresCount: allVendedores?.length || 0,
@@ -287,6 +219,77 @@ const DashboardGestao: React.FC = () => {
     console.log('✅ [rankingSemanal] Final:', result);
     return result;
   }, [vendasSemanais, allVendedores]);
+
+  const metricas = useMemo<MetricasExecutivas>(() => {
+    if (!dashboardData || dashboardData.length === 0) {
+      return { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, clientesFaturados: 0, clientesAFaturar: 0, atingimentoPercent: 0, metaTotal: 0 };
+    }
+    const totais = dashboardData.reduce((acc, vendedor) => {
+      acc.vendasFaturadas += vendedor.total_faturado || 0;
+      acc.vendasAFaturar += vendedor.total_a_faturar || 0;
+      acc.clientesAtendidos += vendedor.clientes_atendidos || 0;
+      acc.metaTotal += vendedor.meta_mensal || 0;
+      return acc;
+    }, { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, metaTotal: 0 });
+    
+    // Usar os totais de vendas do Ranking Semanal para consistência com a tabela
+    const vendasTotalDasSemanais = rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0);
+    
+    // Estas contagens específicas de clientes vêm do estado detailedClientCounts separado
+    totais.clientesFaturados = detailedClientCounts.faturados;
+    totais.clientesAFaturar = detailedClientCounts.aberto;
+    totais.vendasTotais = vendasTotalDasSemanais;
+
+    const atingimentoGeral = totais.metaTotal > 0 ? (totais.vendasTotais / totais.metaTotal) * 100 : 0;
+    return { ...totais, atingimentoPercent: atingimentoGeral };
+  }, [dashboardData, detailedClientCounts, rankingSemanal]); // Adicionar detailedClientCounts às dependências
+
+  const dadosSemanas = useMemo<DadosSemana[]>(() => {
+    const metaMensalTotal = metasData.reduce((sum, meta) => sum + (meta.meta_valor || 0), 0);
+    const metaSemanal = metaMensalTotal / 4;
+
+    // Usar totais de rankingSemanal para consistência com a tabela
+    const semana1Total = rankingSemanal.reduce((sum, v) => sum + v.semana1, 0);
+    const semana2Total = rankingSemanal.reduce((sum, v) => sum + v.semana2, 0);
+    const semana3Total = rankingSemanal.reduce((sum, v) => sum + v.semana3, 0);
+    const semana4Total = rankingSemanal.reduce((sum, v) => sum + v.semana4, 0);
+
+    const vendasPorSemana = [semana1Total, semana2Total, semana3Total, semana4Total];
+    
+    let vendasAcumuladas = 0;
+    const resultadoGrafico = [];
+
+    for (let i = 0; i < 4; i++) {
+      const semanaRelativa = i + 1;
+      const vendas = vendasPorSemana[i] || 0;
+      vendasAcumuladas += vendas;
+
+      resultadoGrafico.push({
+        semana: `${semanaRelativa}ª Sem`,
+        vendas: vendas,
+        meta: metaSemanal * semanaRelativa,
+        vendasAcumuladas: vendasAcumuladas
+      });
+    }
+
+    return resultadoGrafico;
+  }, [metasData, rankingSemanal]);
+
+  const valorMaximoGrafico = useMemo(() => {
+    if (!dadosSemanas || dadosSemanas.length === 0) return 100000;
+    const maxValor = Math.max(...dadosSemanas.map(d => Math.max(d.vendas, d.meta, d.vendasAcumuladas)));
+    return Math.ceil(maxValor * 1.1);
+  }, [dadosSemanas]);
+
+  const rankingVendedores = useMemo<VendedorRanking[]>(() => {
+    return (dashboardData || []).map((vendedor: any) => ({
+      nome: vendedor.vendedor_apelido,
+      meta: vendedor.meta_mensal || 0,
+      vendas: vendedor.total_vendas || 0,
+      atingimento: vendedor.percentual_atingimento || 0,
+      numeroClientes: vendedor.clientes_atendidos || 0
+    })).sort((a, b) => b.vendas - a.vendas);
+  }, [dashboardData]);
 
   useEffect(() => {
     if (!user) navigate('/login');
@@ -382,7 +385,7 @@ const DashboardGestao: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Vendas Totais</p><p className="text-base sm:text-xl font-bold text-gray-900 truncate">R$ {formatarMoeda(metricas.vendasTotais)}</p></div><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" /></div></div>
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Vendas Totais</p><p className="text-base sm:text-xl font-bold text-gray-900 truncate">R$ {formatarMoeda(metricas.vendasTotais)}</p><p className="text-xs text-gray-500 mt-1">Meta: R$ {formatarMoeda(metricas.metaTotal || 0)}</p></div><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" /></div></div>
                 <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Faturadas</p><p className="text-base sm:text-xl font-bold text-blue-900 truncate">R$ {formatarMoeda(metricas.vendasFaturadas)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesFaturados}</p></div><BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" /></div></div>
                 <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">A Faturar</p><p className="text-base sm:text-xl font-bold text-orange-900 truncate">R$ {formatarMoeda(metricas.vendasAFaturar)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesAFaturar}</p></div><Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" /></div></div>
                 <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Clientes</p><p className="text-base sm:text-xl font-bold text-purple-900 truncate">{metricas.clientesAtendidos}</p></div><Users className="h-5 w-5 sm:h-6 sm:w-6 text-purple-500" /></div></div>
@@ -449,6 +452,15 @@ const DashboardGestao: React.FC = () => {
                         <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 text-xs sm:text-sm hidden sm:table-cell">{vendedor.numeroClientes}</td>
                       </tr>
                     ))}
+                    {rankingVendedores.length > 0 && (
+                      <tr className="border-t-2 border-gray-300 bg-gray-50 hover:bg-gray-50">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4"><span className="font-bold text-gray-900 text-xs sm:text-base">Total</span></td>
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-right font-bold text-gray-900 text-xs sm:text-sm hidden sm:table-cell">R$ {formatarMoeda(rankingVendedores.reduce((sum, v) => sum + v.meta, 0))}</td>
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-right font-bold text-gray-900 text-xs sm:text-sm">R$ {formatarMoeda(rankingVendedores.reduce((sum, v) => sum + v.vendas, 0))}</td>
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-right"><span className="font-bold text-xs sm:text-sm text-blue-600">{(rankingVendedores.reduce((sum, v) => sum + v.vendas, 0) / rankingVendedores.reduce((sum, v) => sum + v.meta, 0) * 100).toFixed(1)}%</span></td>
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-right font-bold text-gray-900 text-xs sm:text-sm hidden sm:table-cell">{rankingVendedores.reduce((sum, v) => sum + v.numeroClientes, 0)}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -554,6 +566,37 @@ const DashboardGestao: React.FC = () => {
                             </td>
                           </tr>
                         ))}
+                        {rankingSemanal.length > 0 && (
+                          <tr className="border-t-2 border-gray-300 bg-gray-50 hover:bg-gray-50">
+                            <td className="p-2 whitespace-nowrap text-xs sm:text-sm sm:px-4">
+                              <span className="font-bold text-gray-900">Total</span>
+                            </td>
+                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana1, 0))}</span>
+                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana1, 0))}</span>
+                            </td>
+                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana2, 0))}</span>
+                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana2, 0))}</span>
+                            </td>
+                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana3, 0))}</span>
+                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana3, 0))}</span>
+                            </td>
+                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana4, 0))}</span>
+                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana4, 0))}</span>
+                            </td>
+                            {temSemana5 && <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + (v.semana5 || 0), 0))}</span>
+                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + (v.semana5 || 0), 0))}</span>
+                            </td>}
+                            <td className="p-2 text-right text-gray-900 text-xs sm:text-sm sm:px-4">
+                              <span className="sm:hidden font-bold">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0))}</span>
+                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0))}</span>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   );
