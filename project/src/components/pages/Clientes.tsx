@@ -5,14 +5,23 @@
  */
 
 
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Search, Filter, User, LogOut, Check, Clock, MapPin, CheckCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUserData } from '../../contexts/VendedorDataContext'
 import { getClientesPorVendedor, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
 import { getClienteInadimplenteDetalhes, ClienteInadimplente } from '../../lib/queries/inadimplentes'
+import { getTitulosClienteResumo, TitulosClienteResumo } from '../../lib/queries/titulos'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
+
+// Cache de formatadores (criado uma única vez)
+const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+})
 
 const Clientes: React.FC = () => {
   const navigate = useNavigate()
@@ -31,13 +40,21 @@ const Clientes: React.FC = () => {
   const [processandoVisita, setProcessandoVisita] = useState<number | null>(null)
   
   // Cache otimizado com timestamp para TTL
-  const inadimplenciaCache = useRef<{ 
-    [key: number]: { 
-      dados: ClienteInadimplente | null; 
-      timestamp: number 
-    } 
+  const inadimplenciaCache = useRef<{
+    [key: number]: {
+      dados: ClienteInadimplente | null;
+      timestamp: number
+    }
   }>({})
-  const CACHE_TTL = 5 * 60 * 1000; // 5 minutos em ms
+
+  const titulosCache = useRef<{
+    [key: number]: {
+      dados: TitulosClienteResumo | null;
+      timestamp: number
+    }
+  }>({})
+
+  const CACHE_TTL = 30 * 60 * 1000; // 30 minutos em ms
 
   // Decodificar parâmetros da URL
   const rotaNome = rotaId ? decodeURIComponent(rotaId) : null
@@ -64,29 +81,30 @@ const Clientes: React.FC = () => {
     try {
       setLoading(true)
       console.log('🔍 Carregando clientes para cidade:', cidadeDecodificada)
-      
+
       // Buscar clientes direto com filtro por cidade (se especificada)
       const dados = await getClientesPorVendedor(undefined, cidadeDecodificada || undefined)
       console.log('✅ Clientes carregados:', dados)
-      
+
+      // Setar clientes e remover loading imediatamente para UX rápida
       setClientes(dados)
-      
-      // Pré-carregar dados de inadimplência em lote (de forma otimizada)
-      console.log('⚙️ Pré-carregando dados de inadimplência para', dados.length, 'clientes...')
-      precarregarInadimplencia(dados)
-      
+      setLoading(false)
+
+      // Pré-carregar dados de inadimplência e títulos em background (não bloqueia UI)
+      console.log('⚙️ Pré-carregando dados de inadimplência e títulos para', dados.length, 'clientes em background...')
+      precarregarDadosAdicionais(dados)
+
     } catch (error) {
       console.error('Erro ao carregar clientes:', error)
-    } finally {
       setLoading(false)
     }
   }
 
   /**
-   * Pré-carrega dados de inadimplência para múltiplos clientes em paralelo
-   * Otimizado para não sobrecarregar o servidor
+   * Pré-carrega dados de inadimplência e títulos para múltiplos clientes em paralelo
+   * Otimizado com carregamento prioritário para clientes visíveis
    */
-  async function precarregarInadimplencia(clientesList: any[]) {
+  async function precarregarDadosAdicionais(clientesList: any[]) {
     // Limpar cache expirado
     const agora = Date.now()
     Object.entries(inadimplenciaCache.current).forEach(([key, value]) => {
@@ -94,11 +112,19 @@ const Clientes: React.FC = () => {
         delete inadimplenciaCache.current[parseInt(key)]
       }
     })
+    Object.entries(titulosCache.current).forEach(([key, value]) => {
+      if (agora - value.timestamp > CACHE_TTL) {
+        delete titulosCache.current[parseInt(key)]
+      }
+    })
 
-    // Filtrar clientes que não têm dados no cache válido
+    // Filtrar clientes que precisam de dados (inadimplência OU títulos)
     const clientesParaBuscar = clientesList.filter(cliente => {
-      const cached = inadimplenciaCache.current[cliente.codigo_cliente]
-      return !cached || (agora - cached.timestamp > CACHE_TTL)
+      const cachedInad = inadimplenciaCache.current[cliente.codigo_cliente]
+      const cachedTit = titulosCache.current[cliente.codigo_cliente]
+      const precisaInad = !cachedInad || (agora - cachedInad.timestamp > CACHE_TTL)
+      const precisaTit = !cachedTit || (agora - cachedTit.timestamp > CACHE_TTL)
+      return precisaInad || precisaTit
     })
 
     if (clientesParaBuscar.length === 0) {
@@ -106,18 +132,18 @@ const Clientes: React.FC = () => {
       return
     }
 
-    console.log(`📊 Buscando inadimplência para ${clientesParaBuscar.length} clientes...`)
+    console.log(`📊 Buscando dados adicionais para ${clientesParaBuscar.length} clientes...`)
 
-    // Carregar em lotes para não sobrecarregar o servidor
-    const tamanhoLote = 5
-    for (let i = 0; i < clientesParaBuscar.length; i += tamanhoLote) {
-      const lote = clientesParaBuscar.slice(i, i + tamanhoLote)
-      
-      // Fazer requisições em paralelo para cada lote
-      const promessas = lote.map(cliente =>
+    // OTIMIZAÇÃO: Priorizar primeiros 12 clientes (provavelmente visíveis na tela)
+    const clientesPrioritarios = clientesParaBuscar.slice(0, 12)
+    const clientesRestantes = clientesParaBuscar.slice(12)
+
+    // Função helper para buscar lote de clientes (inadimplência e títulos em paralelo)
+    const buscarLote = async (lote: any[]) => {
+      const promessas = lote.flatMap(cliente => [
+        // Buscar inadimplência
         getClienteInadimplenteDetalhes(cliente.codigo_cliente)
           .then(dados => {
-            // Armazenar no cache com timestamp
             inadimplenciaCache.current[cliente.codigo_cliente] = {
               dados,
               timestamp: Date.now()
@@ -125,19 +151,49 @@ const Clientes: React.FC = () => {
           })
           .catch(error => {
             console.warn(`⚠️ Erro ao buscar inadimplência do cliente ${cliente.codigo_cliente}:`, error)
-            // Armazenar erro no cache também para evitar re-tentativas imediatas
             inadimplenciaCache.current[cliente.codigo_cliente] = {
               dados: null,
               timestamp: Date.now()
             }
+          }),
+        // Buscar títulos
+        getTitulosClienteResumo(cliente.codigo_cliente)
+          .then(dados => {
+            titulosCache.current[cliente.codigo_cliente] = {
+              dados,
+              timestamp: Date.now()
+            }
           })
-      )
-
-      // Aguardar lote ser processado antes de iniciar próximo
-      await Promise.all(promessas)
+          .catch(error => {
+            console.warn(`⚠️ Erro ao buscar títulos do cliente ${cliente.codigo_cliente}:`, error)
+            titulosCache.current[cliente.codigo_cliente] = {
+              dados: null,
+              timestamp: Date.now()
+            }
+          })
+      ])
+      return Promise.all(promessas)
     }
 
-    console.log('✅ Pré-carregamento de inadimplência concluído')
+    // FASE 1: Carregar clientes prioritários rapidamente (lotes de 6)
+    console.log(`⚡ Fase 1: Carregando ${clientesPrioritarios.length} clientes prioritários...`)
+    const tamanhoLotePrioritario = 6
+    for (let i = 0; i < clientesPrioritarios.length; i += tamanhoLotePrioritario) {
+      const lote = clientesPrioritarios.slice(i, i + tamanhoLotePrioritario)
+      await buscarLote(lote)
+    }
+    console.log('✅ Clientes prioritários carregados')
+
+    // FASE 2: Carregar restante em background (lotes de 5)
+    if (clientesRestantes.length > 0) {
+      console.log(`⏳ Fase 2: Carregando ${clientesRestantes.length} clientes restantes em background...`)
+      const tamanhoLoteRestante = 5
+      for (let i = 0; i < clientesRestantes.length; i += tamanhoLoteRestante) {
+        const lote = clientesRestantes.slice(i, i + tamanhoLoteRestante)
+        await buscarLote(lote)
+      }
+      console.log('✅ Todos os clientes carregados')
+    }
   }
 
   // Função para normalizar texto removendo acentos e caracteres especiais
@@ -215,7 +271,7 @@ const Clientes: React.FC = () => {
    */
   const obterInadimplenciaDoCache = (codigoCliente: number): ClienteInadimplente | null | undefined => {
     const cached = inadimplenciaCache.current[codigoCliente]
-    
+
     if (!cached) {
       return undefined // Dados não carregados ainda
     }
@@ -230,10 +286,41 @@ const Clientes: React.FC = () => {
   }
 
   /**
-   * Componente para renderizar um card de cliente com lazy loading
+   * Função para buscar dados de títulos do cache
+   * Não faz requisição, apenas retorna dados já carregados
    */
-  const CardCliente: React.FC<{ cliente: any }> = ({ cliente }) => {
+  const obterTitulosDoCache = (codigoCliente: number): TitulosClienteResumo | null | undefined => {
+    const cached = titulosCache.current[codigoCliente]
+
+    if (!cached) {
+      return undefined // Dados não carregados ainda
+    }
+
+    // Verificar se cache expirou
+    const agora = Date.now()
+    if (agora - cached.timestamp > CACHE_TTL) {
+      return undefined // Cache expirado
+    }
+
+    return cached.dados || null // Retorna dados (pode ser null se sem títulos)
+  }
+
+  /**
+   * Componente para renderizar um card de cliente com lazy loading
+   * Otimizado com React.memo para evitar re-renders desnecessários
+   */
+  const CardCliente: React.FC<{
+    cliente: any;
+    onCheckClick: (cliente: any, e: React.MouseEvent) => void;
+    processando: boolean;
+    rotaNome: string | null;
+    cidadeDecodificada: string | null;
+    obterCache: (id: number) => ClienteInadimplente | null | undefined;
+    obterCacheTitulos: (id: number) => TitulosClienteResumo | null | undefined;
+  }> = React.memo(({ cliente, onCheckClick, processando, rotaNome, cidadeDecodificada, obterCache, obterCacheTitulos }) => {
+    const navigate = useNavigate()
     const [inadimplencia, setInadimplencia] = useState<ClienteInadimplente | null | undefined>(undefined)
+    const [titulos, setTitulos] = useState<TitulosClienteResumo | null | undefined>(undefined)
     const [isVisible, setIsVisible] = useState(false)
     const cardRef = useRef<HTMLDivElement>(null)
     const rfm = cliente.analise_rfm || {}
@@ -267,32 +354,113 @@ const Clientes: React.FC = () => {
     // Carregar dados de inadimplência apenas quando o card fica visível
     useEffect(() => {
       if (isVisible) {
-        const dados = obterInadimplenciaDoCache(cliente.codigo_cliente)
+        const dados = obterCache(cliente.codigo_cliente)
         setInadimplencia(dados)
+
+        // Se dados ainda não estão no cache, adicionar listener para atualização
+        if (dados === undefined) {
+          const checkInterval = setInterval(() => {
+            const novosDados = obterCache(cliente.codigo_cliente)
+            if (novosDados !== undefined) {
+              setInadimplencia(novosDados)
+              clearInterval(checkInterval)
+            }
+          }, 500) // Verificar a cada 500ms
+
+          // Limpar após 10 segundos
+          setTimeout(() => clearInterval(checkInterval), 10000)
+
+          return () => clearInterval(checkInterval)
+        }
       }
-    }, [isVisible, cliente.codigo_cliente])
+    }, [isVisible, cliente.codigo_cliente, obterCache])
 
-    // Usar atingimento já calculado pela view (não recalcular!)
-    const atingimento = Math.min(100, Math.max(0, rfm.percentual_atingimento || 0))
+    // Carregar dados de títulos apenas quando o card fica visível
+    useEffect(() => {
+      if (isVisible) {
+        const dados = obterCacheTitulos(cliente.codigo_cliente)
+        setTitulos(dados)
 
-    // Calcular o ângulo para o gráfico de rosca
-    const circumference = 2 * Math.PI * 54
-    const greenOffset = circumference * (1 - atingimento / 100)
+        // Se dados ainda não estão no cache, adicionar listener para atualização
+        if (dados === undefined) {
+          const checkInterval = setInterval(() => {
+            const novosDados = obterCacheTitulos(cliente.codigo_cliente)
+            if (novosDados !== undefined) {
+              setTitulos(novosDados)
+              clearInterval(checkInterval)
+            }
+          }, 500) // Verificar a cada 500ms
 
-    // Função para formatar valores em reais
-    const formatCurrency = (value: number) => {
-      return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(value)
-    }
+          // Limpar após 10 segundos
+          setTimeout(() => clearInterval(checkInterval), 10000)
 
-    // Obter status de inadimplência
-    const temInadimplencia = inadimplencia !== null && inadimplencia !== undefined
-    const diasAtraso = inadimplencia?.maior_dias_atraso
-    const statusInfo = getStatusInadimplenciaColors(temInadimplencia, diasAtraso)
+          return () => clearInterval(checkInterval)
+        }
+      }
+    }, [isVisible, cliente.codigo_cliente, obterCacheTitulos])
+
+    // Memoizar cálculos pesados
+    const atingimento = useMemo(() =>
+      Math.min(100, Math.max(0, rfm.percentual_atingimento || 0))
+    , [rfm.percentual_atingimento])
+
+    const { circumference, greenOffset } = useMemo(() => {
+      const circ = 2 * Math.PI * 54
+      return {
+        circumference: circ,
+        greenOffset: circ * (1 - atingimento / 100)
+      }
+    }, [atingimento])
+
+    // Obter status de inadimplência (memoizado)
+    const statusInfo = useMemo(() => {
+      const temInadimplencia = inadimplencia !== null && inadimplencia !== undefined
+      const diasAtraso = inadimplencia?.maior_dias_atraso
+      return getStatusInadimplenciaColors(temInadimplencia, diasAtraso)
+    }, [inadimplencia])
+
+    // Calcular dados de títulos (memoizado)
+    const dadosTitulos = useMemo(() => {
+      if (!titulos || titulos === null) {
+        return {
+          qtd: 0,
+          dias: 0,
+          dataFormatada: '-'
+        }
+      }
+
+      const qtd = titulos.qtd_titulos
+
+      // Calcular dias até a última data de vencimento
+      if (!titulos.ultima_data_vencimento) {
+        return {
+          qtd,
+          dias: 0,
+          dataFormatada: '-'
+        }
+      }
+
+      const hoje = new Date()
+      hoje.setHours(0, 0, 0, 0)
+
+      const dataVenc = new Date(titulos.ultima_data_vencimento)
+      dataVenc.setHours(0, 0, 0, 0)
+
+      const diffTime = dataVenc.getTime() - hoje.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+      // Formatar data como dd/mm/aa
+      const dia = dataVenc.getDate().toString().padStart(2, '0')
+      const mes = (dataVenc.getMonth() + 1).toString().padStart(2, '0')
+      const ano = dataVenc.getFullYear().toString().slice(-2)
+      const dataFormatada = `${dia}/${mes}/${ano}`
+
+      return {
+        qtd,
+        dias: diffDays,
+        dataFormatada
+      }
+    }, [titulos])
 
     return (
       <div
@@ -313,10 +481,16 @@ const Clientes: React.FC = () => {
             {/* Badges de Status e Perfil */}
             <div className="flex items-center gap-1 flex-shrink-0">
               {/* Badge de Status de Inadimplência */}
-              {isVisible && inadimplencia !== undefined && (
-                <span className={`text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-1 rounded-md whitespace-nowrap ${statusInfo.statusColor}`}>
-                  {statusInfo.status}
-                </span>
+              {isVisible && (
+                inadimplencia !== undefined ? (
+                  <span className={`text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-1 rounded-md whitespace-nowrap ${statusInfo.statusColor}`}>
+                    {statusInfo.status}
+                  </span>
+                ) : (
+                  <span className="text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-1 rounded-md whitespace-nowrap bg-gray-100 text-gray-400 border border-gray-300 animate-pulse">
+                    Carregando...
+                  </span>
+                )
               )}
               {/* Badge de Perfil */}
               {rfm.perfil && (
@@ -369,17 +543,17 @@ const Clientes: React.FC = () => {
               {/* Saldo */}
               <div className="mb-2.5">
                 <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
-                  {formatCurrency(rfm.saldo_meta || 0)}
+                  {formatadorMoeda.format(rfm.saldo_meta || 0)}
                 </div>
                 <div className="text-gray-600 text-[10px] sm:text-xs">Saldo</div>
-                <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(rfm.meta_ano_atual || 0)}</div>
+                <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatadorMoeda.format(rfm.meta_ano_atual || 0)}</div>
               </div>
 
               {/* Divider */}
               <div className="border-t border-gray-200 my-2.5"></div>
 
-              {/* Metrics row */}
-              <div className="grid grid-cols-[1fr_2fr] gap-2 text-center">
+              {/* Metrics row - DSV e Bairro */}
+              <div className="grid grid-cols-[1fr_2fr] gap-2 text-center mb-2">
                 {/* DSV */}
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-0.5">
@@ -398,6 +572,29 @@ const Clientes: React.FC = () => {
                   <span className="text-[9px] sm:text-[10px] text-gray-500">Bairro</span>
                 </div>
               </div>
+
+              {/* Metrics row - Títulos */}
+              <div className="grid grid-cols-3 gap-1 text-center pt-2 border-t border-gray-200">
+                {/* Títulos */}
+                <div className="flex flex-col items-center">
+                  <span className="font-bold text-xs sm:text-sm text-gray-800">{isVisible ? dadosTitulos.qtd : '-'}</span>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">Títulos</span>
+                </div>
+
+                {/* Dias */}
+                <div className="flex flex-col items-center">
+                  <span className={`font-bold text-xs sm:text-sm ${isVisible && dadosTitulos.dias < 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                    {isVisible ? dadosTitulos.dias : '-'}
+                  </span>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">Dias</span>
+                </div>
+
+                {/* Ult. Venc */}
+                <div className="flex flex-col items-center">
+                  <span className="font-bold text-[10px] sm:text-xs text-gray-800">{isVisible ? dadosTitulos.dataFormatada : '-'}</span>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">Ult. Venc</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -406,26 +603,26 @@ const Clientes: React.FC = () => {
         <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
             <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
-              Oportunidade: {formatCurrency(rfm.previsao_pedido || 0)}
+              Oportunidade: {formatadorMoeda.format(rfm.previsao_pedido || 0)}
             </span>
           </div>
 
         {/* Check Button */}
         <div className="p-4 pt-3">
           <button
-            onClick={(e) => handleCheckClick(cliente, e)}
-            disabled={processandoVisita === cliente.codigo_cliente}
+            onClick={(e) => onCheckClick(cliente, e)}
+            disabled={processando}
             className={`
               w-full py-2.5 rounded-lg transition-all duration-200 ease-in-out flex items-center justify-center gap-2 font-medium text-sm
               ${cliente.visitado
                 ? 'bg-green-500 text-white shadow-md hover:bg-green-600'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }
-              ${processandoVisita === cliente.codigo_cliente ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+              ${processando ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             `}
             title={cliente.visitado ? 'Cliente visitado - Clique para cancelar' : 'Registrar visita'}
           >
-            {processandoVisita === cliente.codigo_cliente ? (
+            {processando ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
             ) : (
               <>
@@ -437,7 +634,15 @@ const Clientes: React.FC = () => {
         </div>
       </div>
     )
-  }
+  }, (prevProps, nextProps) => {
+    // Comparação customizada para React.memo
+    return (
+      prevProps.cliente.codigo_cliente === nextProps.cliente.codigo_cliente &&
+      prevProps.cliente.visitado === nextProps.cliente.visitado &&
+      prevProps.processando === nextProps.processando &&
+      prevProps.cliente.analise_rfm === nextProps.cliente.analise_rfm
+    )
+  })
   const getPerfilValue = (perfil: string) => {
     const perfilLower = perfil?.toLowerCase() || ''
     if (perfilLower.includes('ouro')) return 3
@@ -446,8 +651,8 @@ const Clientes: React.FC = () => {
     return 0
   }
 
-  // Função para alternar ordenação
-  const toggleSort = (newSortBy: string) => {
+  // Função para alternar ordenação (otimizada com useCallback)
+  const toggleSort = useCallback((newSortBy: string) => {
     if (sortBy === newSortBy) {
       // Se clicar no mesmo, inverte a direção
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -460,50 +665,12 @@ const Clientes: React.FC = () => {
         setSortDirection('asc') // Nome e Bairro começam A-Z
       }
     }
-  }
+  }, [sortBy, sortDirection])
 
-  // Filtrar e ordenar clientes
-  const clientesFiltrados = clientes
-    .filter(cliente => {
-      const normalizedSearchTerm = normalizeText(searchTerm)
-      return normalizeText(cliente.nome_fantasia).includes(normalizedSearchTerm) ||
-             normalizeText(cliente.codigo_cliente.toString()).includes(normalizedSearchTerm) ||
-             normalizeText(cliente.bairro || '').includes(normalizedSearchTerm)
-    })
-    .sort((a, b) => {
-      // Acessar analise_rfm com segurança
-      const a_rfm = a.analise_rfm || {};
-      const b_rfm = b.analise_rfm || {};
-      let comparison = 0
-
-      switch (sortBy) {
-        case 'perfil':
-          comparison = getPerfilValue(b_rfm.perfil || '') - getPerfilValue(a_rfm.perfil || '')
-          break
-        case 'nome':
-          comparison = a.nome_fantasia.localeCompare(b.nome_fantasia)
-          break
-        case 'bairro':
-          comparison = (a.bairro || '').localeCompare(b.bairro || '')
-          break
-        case 'oportunidade':
-          comparison = (b_rfm.previsao_pedido || 0) - (a_rfm.previsao_pedido || 0)
-          break
-        case 'dsv':
-          comparison = (b_rfm.dias_sem_comprar || 0) - (a_rfm.dias_sem_comprar || 0)
-          break
-        default:
-          comparison = getPerfilValue(b_rfm.perfil || '') - getPerfilValue(a_rfm.perfil || '')
-      }
-
-      // Aplicar direção de ordenação
-      return sortDirection === 'desc' ? comparison : -comparison
-    })
-
-  // Função para lidar com click no check button
-  const handleCheckClick = async (cliente: any, event: React.MouseEvent) => {
+  // Função para lidar com click no check button (otimizada com useCallback)
+  const handleCheckClick = useCallback(async (cliente: any, event: React.MouseEvent) => {
     event.stopPropagation() // Evita navegação para detalhes do cliente
-    
+
     if (processandoVisita === cliente.codigo_cliente) {
       return // Já está processando
     }
@@ -516,7 +683,47 @@ const Clientes: React.FC = () => {
       // Se não visitado, fazer check-in
       await realizarCheckIn(cliente.codigo_cliente)
     }
-  }
+  }, [processandoVisita])
+
+  // Filtrar e ordenar clientes (otimizado com useMemo)
+  const clientesFiltrados = useMemo(() => {
+    return clientes
+      .filter(cliente => {
+        const normalizedSearchTerm = normalizeText(searchTerm)
+        return normalizeText(cliente.nome_fantasia).includes(normalizedSearchTerm) ||
+               normalizeText(cliente.codigo_cliente.toString()).includes(normalizedSearchTerm) ||
+               normalizeText(cliente.bairro || '').includes(normalizedSearchTerm)
+      })
+      .sort((a, b) => {
+        // Acessar analise_rfm com segurança
+        const a_rfm = a.analise_rfm || {};
+        const b_rfm = b.analise_rfm || {};
+        let comparison = 0
+
+        switch (sortBy) {
+          case 'perfil':
+            comparison = getPerfilValue(b_rfm.perfil || '') - getPerfilValue(a_rfm.perfil || '')
+            break
+          case 'nome':
+            comparison = a.nome_fantasia.localeCompare(b.nome_fantasia)
+            break
+          case 'bairro':
+            comparison = (a.bairro || '').localeCompare(b.bairro || '')
+            break
+          case 'oportunidade':
+            comparison = (b_rfm.previsao_pedido || 0) - (a_rfm.previsao_pedido || 0)
+            break
+          case 'dsv':
+            comparison = (b_rfm.dias_sem_comprar || 0) - (a_rfm.dias_sem_comprar || 0)
+            break
+          default:
+            comparison = getPerfilValue(b_rfm.perfil || '') - getPerfilValue(a_rfm.perfil || '')
+        }
+
+        // Aplicar direção de ordenação
+        return sortDirection === 'desc' ? comparison : -comparison
+      })
+  }, [clientes, searchTerm, sortBy, sortDirection])
 
   // Função para realizar check-in
   const realizarCheckIn = async (codigoCliente: number) => {
@@ -691,7 +898,16 @@ const Clientes: React.FC = () => {
         {/* Clientes List */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {clientesFiltrados.map((cliente) => (
-            <CardCliente key={cliente.codigo_cliente} cliente={cliente} />
+            <CardCliente
+              key={cliente.codigo_cliente}
+              cliente={cliente}
+              onCheckClick={handleCheckClick}
+              processando={processandoVisita === cliente.codigo_cliente}
+              rotaNome={rotaNome}
+              cidadeDecodificada={cidadeDecodificada}
+              obterCache={obterInadimplenciaDoCache}
+              obterCacheTitulos={obterTitulosDoCache}
+            />
           ))}
         </div>
 

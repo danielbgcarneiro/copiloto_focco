@@ -11,7 +11,8 @@ import { ArrowLeft, User, LogOut, Phone, MessageCircle, AlertTriangle } from 'lu
 import { useAuth } from '../../contexts/AuthContext'
 import { getClienteDetalhes } from '../../lib/queries/cliente'
 import { getHistoricoVisitas } from '../../lib/queries/clientes'
-import { getClienteInadimplenteDetalhes, getStatusInadimplencia, ClienteInadimplente } from '../../lib/queries/inadimplentes'
+import { getClienteInadimplenteDetalhes, ClienteInadimplente } from '../../lib/queries/inadimplentes'
+import { getTitulosClienteDetalhes, TituloAberto } from '../../lib/queries/titulos'
 
 // Funções de formatação
 const formatarMoeda = (valor: number) => {
@@ -167,7 +168,8 @@ const DetalhesCliente: React.FC = () => {
   const [historicoVisitas, setHistoricoVisitas] = useState<any[]>([])
   const [loadingVisitas, setLoadingVisitas] = useState(false)
   const [inadimplenciaData, setInadimplenciaData] = useState<ClienteInadimplente | null>(null)
-  const [loadingInadimplencia, setLoadingInadimplencia] = useState(false)
+  const [titulosData, setTitulosData] = useState<TituloAberto[]>([])
+  const [loadingTitulos, setLoadingTitulos] = useState(false)
 
   // Determinar qual ID usar (hierárquico ou direto)
   const codigoCliente = clienteId || id
@@ -199,13 +201,22 @@ const DetalhesCliente: React.FC = () => {
 
   async function carregarInadimplencia(clienteIdNumerico: number) {
     try {
-      setLoadingInadimplencia(true);
       const inadimplencia = await getClienteInadimplenteDetalhes(clienteIdNumerico);
       setInadimplenciaData(inadimplencia);
     } catch (error) {
       console.error('Erro ao carregar dados de inadimplência:', error);
+    }
+  }
+
+  async function carregarTitulos(clienteIdNumerico: number) {
+    try {
+      setLoadingTitulos(true);
+      const titulos = await getTitulosClienteDetalhes(clienteIdNumerico);
+      setTitulosData(titulos);
+    } catch (error) {
+      console.error('Erro ao carregar títulos:', error);
     } finally {
-      setLoadingInadimplencia(false);
+      setLoadingTitulos(false);
     }
   }
 
@@ -231,6 +242,7 @@ const DetalhesCliente: React.FC = () => {
         
         await carregarHistoricoVisitas(clienteIdNumerico);
         await carregarInadimplencia(clienteIdNumerico);
+        await carregarTitulos(clienteIdNumerico);
       } catch (err) {
         console.error('❌ Erro ao carregar cliente:', err);
         const mensagemErro = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
@@ -544,75 +556,55 @@ const DetalhesCliente: React.FC = () => {
             )}
           </div>
 
-          {/* Seção de Inadimplência */}
+          {/* Seção de Títulos Abertos */}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                Títulos Vencidos
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
+                Títulos Abertos
               </h3>
             </div>
 
-            {loadingInadimplencia ? (
+            {loadingTitulos ? (
               <div className="flex items-center justify-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                <span className="ml-2 text-sm text-gray-600">Carregando dados...</span>
+                <span className="ml-2 text-sm text-gray-600">Carregando títulos...</span>
               </div>
-            ) : inadimplenciaData ? (
-              <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-                {/* Resumo de Inadimplência */}
-                <div className="mb-3 pb-3 border-b border-red-200">
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div>
-                      <span className="text-red-600 font-medium">Valor Total:</span>
-                      <div className="font-bold text-red-700">{formatarMoeda(inadimplenciaData.valor_total_titulos)}</div>
-                    </div>
-                    <div>
-                      <span className="text-red-600 font-medium">Títulos:</span>
-                      <div className="font-bold text-red-700">{inadimplenciaData.qtd_titulos_abertos}</div>
-                    </div>
-                    <div>
-                      <span className="text-red-600 font-medium">Dias Atraso:</span>
-                      <div className="font-bold text-red-700">{inadimplenciaData.maior_dias_atraso}d</div>
-                    </div>
-                  </div>
-
-                  {/* Status Badge */}
-                  <div className="mt-2">
-                    {(() => {
-                      const { status, statusColor } = getStatusInadimplencia(inadimplenciaData.maior_dias_atraso);
-                      return (
-                        <span className={`text-xs font-semibold px-2 py-1 rounded ${statusColor}`}>
-                          {status}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                </div>
-
+            ) : titulosData.length > 0 ? (
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                 {/* Lista de Títulos */}
-                <div className="max-h-40 overflow-y-auto">
-                  <p className="text-xs font-medium text-red-700 mb-2">Títulos Atrasados:</p>
+                <div className="max-h-60 overflow-y-auto">
                   {/* Cabeçalho da tabela */}
-                  <div className="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600 mb-1 px-2">
+                  <div className="grid grid-cols-3 gap-2 text-xs font-medium text-gray-600 mb-2 px-2">
                     <span>Vencimento</span>
                     <span className="text-center">Atraso</span>
                     <span className="text-right">Valor</span>
                   </div>
                   {/* Linhas de dados */}
                   <div className="space-y-1">
-                    {inadimplenciaData.titulos.map((titulo, index) => (
-                      <div key={index} className="grid grid-cols-3 gap-2 text-xs items-center px-2 py-1">
-                        <span className="text-gray-700 font-semibold">{titulo.vencimento}</span>
-                        <span className="text-center text-red-600 font-bold">{titulo.dias_atraso}d</span>
-                        <span className="text-right text-red-700 font-semibold">{formatarMoeda(titulo.valor)}</span>
-                      </div>
-                    ))}
+                    {titulosData.map((titulo, index) => {
+                      const estaVencido = titulo.dias_atraso > 0
+                      const dataVenc = new Date(titulo.data_vencimento)
+                      const dia = dataVenc.getDate().toString().padStart(2, '0')
+                      const mes = (dataVenc.getMonth() + 1).toString().padStart(2, '0')
+                      const ano = dataVenc.getFullYear().toString().slice(-2)
+                      const dataFormatada = `${dia}/${mes}/${ano}`
+
+                      return (
+                        <div key={index} className={`grid grid-cols-3 gap-2 text-xs items-center px-2 py-1.5 rounded ${estaVencido ? 'bg-red-50' : ''}`}>
+                          <span className={`font-semibold ${estaVencido ? 'text-red-700' : 'text-gray-700'}`}>{dataFormatada}</span>
+                          <span className={`text-center font-bold ${estaVencido ? 'text-red-600' : 'text-gray-600'}`}>
+                            {titulo.dias_atraso > 0 ? `${titulo.dias_atraso}d` : `${Math.abs(titulo.dias_atraso)}d`}
+                          </span>
+                          <span className={`text-right font-semibold ${estaVencido ? 'text-red-700' : 'text-gray-700'}`}>{formatarMoeda(titulo.valor_titulo)}</span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-green-600 font-medium py-2">✓ Sem títulos vencidos</p>
+              <p className="text-xs text-green-600 font-medium py-2">✓ Sem títulos em aberto</p>
             )}
           </div>
         </div>
