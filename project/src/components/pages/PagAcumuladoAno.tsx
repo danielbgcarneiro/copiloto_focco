@@ -25,10 +25,12 @@ interface DadosMensal {
 
 interface ClientesMensal {
   mes: string
+  totalDoisAnosAntes: number
   totalAnoAnterior: number
   totalAnoAtual: number
   vendedores: {
     nome: string
+    clientesDoisAnosAntes: number
     clientesAnoAnterior: number
     clientesAnoAtual: number
   }[]
@@ -38,6 +40,14 @@ interface CidadesERP {
   totalCidades: number
   comVendaAnoAnterior: number
   comVendaAnoAtual: number
+}
+
+interface VendaMesRaw {
+  codigo_vendedor: number
+  nome_vendedor: string
+  mes_referencia: string
+  total_vendas: number
+  qtd_clientes_total: number
 }
 
 interface VendaMensal {
@@ -55,7 +65,7 @@ interface ClienteUnico {
   mes: number
   cod_vendedor: number
   nome_vendedor: string
-  qtd_clientes_unicos: number
+  qtd_clientes: number
 }
 
 interface CidadeVenda {
@@ -75,7 +85,7 @@ const PagAcumuladoAno: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [selectedAno, setSelectedAno] = useState(2025)
+  const [selectedAno, setSelectedAno] = useState(new Date().getFullYear())
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([])
   const [todosVendedores, setTodosVendedores] = useState<string[]>([])
   const [filtroVendedor, setFiltroVendedor] = useState<string>('')
@@ -98,18 +108,15 @@ const PagAcumuladoAno: React.FC = () => {
         const [
           { data: vendas, error: vendasError },
           { data: metas, error: metasError },
-          { data: clientes, error: clientesError },
           { data: cidades, error: cidadesError }
         ] = await Promise.all([
-          supabase.from('vendas_mensais_vendedor').select('*'),
+          supabase.from('vendas_mes').select('codigo_vendedor, nome_vendedor, mes_referencia, total_vendas, qtd_clientes_total'),
           supabase.from('metas_vendedores').select('*'),
-          supabase.from('vw_clientes_unicos_mensais').select('*'),
           supabase.from('vw_cidades_com_vendas').select('*')
         ])
 
         if (vendasError) console.error('Erro ao buscar vendas:', vendasError)
         if (metasError) console.error('Erro ao buscar metas:', metasError)
-        if (clientesError) console.error('Erro ao buscar clientes:', clientesError)
         if (cidadesError) console.error('Erro ao buscar cidades:', cidadesError)
 
         // Buscar cidades positivadas por perfil da VIEW
@@ -125,30 +132,46 @@ const PagAcumuladoAno: React.FC = () => {
 
         setCidadesPositivadasPerfil(cidadesPerfilData || [])
 
-        // Merge vendas com metas
-        const vendasComMetas: VendaMensal[] = vendas?.map(venda => {
+        // Transformar vendas_mes extraindo ano e mes de mes_referencia
+        const vendasComMetas: VendaMensal[] = (vendas as VendaMesRaw[] || []).map(venda => {
+          const [anoStr, mesStr] = venda.mes_referencia.split('-')
+          const ano = parseInt(anoStr)
+          const mes = parseInt(mesStr)
+
           const meta = metas?.find(m =>
-            m.cod_vendedor === venda.cod_vendedor &&
-            m.ano === venda.ano &&
-            m.mes === venda.mes
+            m.cod_vendedor === venda.codigo_vendedor &&
+            m.ano === ano &&
+            m.mes === mes
           )
 
           const metaValor = meta?.meta_valor || 0
           const atingimento = metaValor > 0 ? (venda.total_vendas / metaValor) * 100 : 0
 
           return {
-            ano: venda.ano,
-            mes: venda.mes,
-            cod_vendedor: venda.cod_vendedor,
+            ano,
+            mes,
+            cod_vendedor: venda.codigo_vendedor,
             nome_vendedor: venda.nome_vendedor,
-            total_vendas: venda.total_vendas,
+            total_vendas: Number(venda.total_vendas) || 0,
             meta: metaValor,
             atingimento: Number(atingimento.toFixed(1))
           }
-        }) || []
+        })
+
+        // Extrair dados de clientes da mesma tabela vendas_mes
+        const clientesExtraidos: ClienteUnico[] = (vendas as VendaMesRaw[] || []).map(venda => {
+          const [aStr, mStr] = venda.mes_referencia.split('-')
+          return {
+            ano: parseInt(aStr),
+            mes: parseInt(mStr),
+            cod_vendedor: venda.codigo_vendedor,
+            nome_vendedor: venda.nome_vendedor,
+            qtd_clientes: Number(venda.qtd_clientes_total) || 0
+          }
+        })
 
         setVendasMensais(vendasComMetas)
-        setClientesUnicos(clientes || [])
+        setClientesUnicos(clientesExtraidos)
         setCidadesVendas(cidades || [])
 
         // Extrair anos disponíveis
@@ -202,28 +225,34 @@ const PagAcumuladoAno: React.FC = () => {
 
   // Processar dados de clientes únicos
   const dadosClientesUnicos = useMemo<ClientesMensal[]>(() => {
+    const doisAnosAntes = selectedAno - 2
     const anoAnterior = selectedAno - 1
+    const clientesDoisAnosAntes = clientesUnicos.filter(c => c.ano === doisAnosAntes)
     const clientesAnoAnterior = clientesUnicos.filter(c => c.ano === anoAnterior)
     const clientesAnoAtual = clientesUnicos.filter(c => c.ano === selectedAno)
 
     return Array.from({ length: 12 }, (_, i) => {
       const mes = i + 1
+      const clientesMesDoisAnos = clientesDoisAnosAntes.filter(c => c.mes === mes)
       const clientesMesAnterior = clientesAnoAnterior.filter(c => c.mes === mes)
       const clientesMesAtual = clientesAnoAtual.filter(c => c.mes === mes)
 
       const vendedores = todosVendedores.map(nome => {
+        const dadosDoisAnos = clientesMesDoisAnos.find(c => c.nome_vendedor === nome)
         const dadosAnterior = clientesMesAnterior.find(c => c.nome_vendedor === nome)
         const dadosAtual = clientesMesAtual.find(c => c.nome_vendedor === nome)
 
         return {
           nome,
-          clientesAnoAnterior: dadosAnterior?.qtd_clientes_unicos || 0,
-          clientesAnoAtual: dadosAtual?.qtd_clientes_unicos || 0
+          clientesDoisAnosAntes: dadosDoisAnos?.qtd_clientes || 0,
+          clientesAnoAnterior: dadosAnterior?.qtd_clientes || 0,
+          clientesAnoAtual: dadosAtual?.qtd_clientes || 0
         }
       })
 
       return {
         mes: nomesMeses[i],
+        totalDoisAnosAntes: vendedores.reduce((acc, v) => acc + v.clientesDoisAnosAntes, 0),
         totalAnoAnterior: vendedores.reduce((acc, v) => acc + v.clientesAnoAnterior, 0),
         totalAnoAtual: vendedores.reduce((acc, v) => acc + v.clientesAnoAtual, 0),
         vendedores
@@ -276,10 +305,11 @@ const PagAcumuladoAno: React.FC = () => {
   }
 
   const calcularTotaisClientesAno = () => {
+    const totalDoisAnosAntes = filteredDadosClientesUnicos.reduce((acc, mes) => acc + mes.totalDoisAnosAntes, 0)
     const totalAnoAnterior = filteredDadosClientesUnicos.reduce((acc, mes) => acc + mes.totalAnoAnterior, 0)
     const totalAnoAtual = filteredDadosClientesUnicos.reduce((acc, mes) => acc + mes.totalAnoAtual, 0)
 
-    return { totalAnoAnterior, totalAnoAtual }
+    return { totalDoisAnosAntes, totalAnoAnterior, totalAnoAtual }
   }
 
   const filteredDadosRealizados = useMemo(() => {
@@ -311,6 +341,7 @@ const PagAcumuladoAno: React.FC = () => {
       return {
         ...mes,
         vendedores: vendedoresFiltrados,
+        totalDoisAnosAntes: vendedoresFiltrados.reduce((acc, v) => acc + v.clientesDoisAnosAntes, 0),
         totalAnoAnterior: vendedoresFiltrados.reduce((acc, v) => acc + v.clientesAnoAnterior, 0),
         totalAnoAtual: vendedoresFiltrados.reduce((acc, v) => acc + v.clientesAnoAtual, 0)
       }
@@ -338,7 +369,7 @@ const PagAcumuladoAno: React.FC = () => {
   }
 
   const { totalMeta, totalVendas, atingimentoGeral } = calcularTotaisAno()
-  const { totalAnoAnterior, totalAnoAtual } = calcularTotaisClientesAno()
+  const { totalDoisAnosAntes, totalAnoAnterior, totalAnoAtual } = calcularTotaisClientesAno()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -448,6 +479,7 @@ const PagAcumuladoAno: React.FC = () => {
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-1.5 px-4 font-semibold text-gray-700 text-sm">Mês</th>
+                  <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">{selectedAno - 2}</th>
                   <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">{selectedAno - 1}</th>
                   <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">{selectedAno}</th>
                 </tr>
@@ -457,6 +489,7 @@ const PagAcumuladoAno: React.FC = () => {
                   <React.Fragment key={mesData.mes}>
                     <tr className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-1.5 px-4 font-medium text-gray-900 text-sm">{mesData.mes}</td>
+                      <td className="py-1.5 px-4 text-right text-gray-700 text-sm">{mesData.totalDoisAnosAntes}</td>
                       <td className="py-1.5 px-4 text-right text-gray-700 text-sm">{mesData.totalAnoAnterior}</td>
                       <td className="py-1.5 px-4 text-right font-semibold text-gray-900 text-sm">{mesData.totalAnoAtual}</td>
                     </tr>
@@ -464,6 +497,7 @@ const PagAcumuladoAno: React.FC = () => {
                 ))}
                 <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold">
                   <td className="py-1.5 px-4 text-gray-900 text-sm">Total Geral</td>
+                  <td className="py-1.5 px-4 text-right text-gray-900 text-sm">{totalDoisAnosAntes}</td>
                   <td className="py-1.5 px-4 text-right text-gray-900 text-sm">{totalAnoAnterior}</td>
                   <td className="py-1.5 px-4 text-right text-gray-900 text-sm">{totalAnoAtual}</td>
                 </tr>
