@@ -71,10 +71,12 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
     }
 
     // 4. Buscar mapeamento cidade -> rota
+    // Excluir 'Sem Rota': tem 4000+ entradas em rotas_estado e causa truncamento no limite de 1000 linhas do Supabase
+    const rotasParaMapa = rotas.filter(r => r !== 'Sem Rota');
     const { data: rotasEstado, error: rotasEstadoError } = await supabase
       .from('rotas_estado')
       .select('codigo_ibge_cidade, cidade, rota')
-      .in('rota', rotas);
+      .in('rota', rotasParaMapa);
 
     if (rotasEstadoError) {
       console.error('❌ Erro ao buscar rotas_estado:', rotasEstadoError);
