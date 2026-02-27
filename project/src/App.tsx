@@ -7,7 +7,6 @@
 
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
-import { UserDataProvider } from './contexts/VendedorDataContext'
 import Login from './components/auth/Login'
 import Dashboard from './components/dashboard/Dashboard'
 import Clientes from './components/pages/Clientes'
@@ -42,9 +41,7 @@ const router = createBrowserRouter([
     path: "/dashboard",
     element: (
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <UserDataProvider>
-          <Dashboard />
-        </UserDataProvider>
+        <Dashboard />
       </ProtectedRoute>
     )
   },
@@ -52,9 +49,7 @@ const router = createBrowserRouter([
     path: "/gestao",
     element: (
       <ProtectedRoute allowedRoles={['diretor']}>
-        <UserDataProvider>
-          <DashboardGestao />
-        </UserDataProvider>
+        <DashboardGestao />
       </ProtectedRoute>
     ),
     children: [
@@ -84,9 +79,7 @@ const router = createBrowserRouter([
     path: "/rotas",
     element: (
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <UserDataProvider>
-          <Rotas />
-        </UserDataProvider>
+        <Rotas />
       </ProtectedRoute>
     )
   },
@@ -94,9 +87,7 @@ const router = createBrowserRouter([
     path: "/rotas/:rotaId/cidades",
     element: (
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <UserDataProvider>
-          <Cidades />
-        </UserDataProvider>
+        <Cidades />
       </ProtectedRoute>
     )
   },
@@ -104,9 +95,7 @@ const router = createBrowserRouter([
     path: "/rotas/:rotaId/cidades/:cidadeNome/clientes",
     element: (
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <UserDataProvider>
-          <Clientes />
-        </UserDataProvider>
+        <Clientes />
       </ProtectedRoute>
     )
   },
@@ -114,9 +103,7 @@ const router = createBrowserRouter([
     path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes",
     element: (
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <UserDataProvider>
-          <DetalhesCliente />
-        </UserDataProvider>
+        <DetalhesCliente />
       </ProtectedRoute>
     )
   },
@@ -124,9 +111,7 @@ const router = createBrowserRouter([
     path: "/clientes/detalhes/:id",
     element: (
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <UserDataProvider>
-          <DetalhesCliente />
-        </UserDataProvider>
+        <DetalhesCliente />
       </ProtectedRoute>
     )
   },
@@ -134,9 +119,7 @@ const router = createBrowserRouter([
     path: "/inadimplentes",
     element: (
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <UserDataProvider>
-          <Inadimplentes />
-        </UserDataProvider>
+        <Inadimplentes />
       </ProtectedRoute>
     )
   },
@@ -144,9 +127,7 @@ const router = createBrowserRouter([
     path: "/meus-pedidos",
     element: (
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <UserDataProvider>
-          <PedidosVendedor />
-        </UserDataProvider>
+        <PedidosVendedor />
       </ProtectedRoute>
     )
   }

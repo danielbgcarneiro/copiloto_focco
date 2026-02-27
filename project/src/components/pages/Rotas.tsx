@@ -9,7 +9,6 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useUserData } from '../../contexts/VendedorDataContext'
 import { getRotasCompleto, normalizeText, type RotaMapeada } from '../../lib/queries/rotas'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import { supabase } from '../../lib/supabase'
@@ -17,7 +16,6 @@ import { supabase } from '../../lib/supabase'
 const Rotas: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { } = useUserData()
   const [searchTerm, setSearchTerm] = useState('')
   const [rotas, setRotas] = useState<RotaMapeada[]>([])
   const [loading, setLoading] = useState(true)

@@ -46,7 +46,6 @@ interface VendedorRankingSemanal {
   semana2: number
   semana3: number
   semana4: number
-  semana5?: number
   totalSemanal: number
 }
 
@@ -80,23 +79,20 @@ const DashboardGestao: React.FC = () => {
       if(dashError) console.error('Erro ao buscar vw_gestao_historico_mensal:', dashError);
       else console.log(`✅ vw_gestao_historico_mensal: ${dashData?.length || 0} registros`);
 
-      // 2. Buscar vendas semanais
-      const { data: vendasData, error: vendasError } = await supabase
+      // 2. Buscar vendas semanais (estrutura conforme ETL 08_vendas_semanais.py)
+      const { data: vendasSemData, error: vendasSemError } = await supabase
         .from('vendas_semanais')
-        .select('*').eq('ano', ano).eq('mes', mes);
-      console.log(`📊 vendas_semanais retornou:`, { count: vendasData?.length || 0, erro: vendasError, primeiroRegistro: vendasData?.[0] });
-      console.log(`🔍 ESTRUTURA DO PRIMEIRO REGISTRO:`, Object.keys(vendasData?.[0] || {}));
-      console.log(`💾 VALORES DISPONÍVEIS:`, {
-        valor_total: vendasData?.[0]?.valor_total,
-        valor_vendas: vendasData?.[0]?.valor_vendas,
-        valor: vendasData?.[0]?.valor,
-        vendas: vendasData?.[0]?.vendas,
-        semana: vendasData?.[0]?.semana,
-        codigo_vendedor: vendasData?.[0]?.codigo_vendedor,
-        allKeys: vendasData?.[0]
-      });
-      setVendasSemanais(vendasError ? [] : (vendasData || []));
-      if(vendasError) console.error('Erro ao buscar vendas_semanais:', vendasError);
+        .select('*')
+        .eq('ano', ano).eq('mes', mes);
+
+      if (!vendasSemError && vendasSemData && vendasSemData.length > 0) {
+        console.log(`✅ vendas_semanais: ${vendasSemData.length} registros`, vendasSemData[0]);
+        setVendasSemanais(vendasSemData);
+      } else {
+        if (vendasSemError) console.error('Erro vendas_semanais:', vendasSemError.message);
+        else console.warn(`⚠️ vendas_semanais vazia para ${mes}/${ano}`);
+        setVendasSemanais([]);
+      }
 
       // 3. Buscar metas
       const { data: metas, error: metasError } = await supabase
@@ -160,64 +156,41 @@ const DashboardGestao: React.FC = () => {
   }
 
   const rankingSemanal = useMemo<VendedorRankingSemanal[]>(() => {
-    console.log('🔍 [rankingSemanal] Reconstruindo ranking...', {
-      vendedoresCount: allVendedores?.length || 0,
-      vendasSemanaisCount: vendasSemanais?.length || 0,
-      primeiroVendedor: allVendedores?.[0],
-      primeiraVenda: vendasSemanais?.[0]
-    });
-
-    if (!allVendedores || allVendedores.length === 0) {
-      console.warn('⚠️ [rankingSemanal] Sem vendedores disponíveis');
+    if (!vendasSemanais || vendasSemanais.length === 0) {
       return [];
     }
 
-    const result = allVendedores.map((vendedor) => {
-      const vendasVendedor = vendasSemanais.filter((v: any) => v.codigo_vendedor === vendedor.cod_vendedor);
+    // Extrair número da semana: "1ª Semana" -> 1, "2ª Semana" -> 2, etc. (conforme ETL)
+    const extrairNumSemana = (semana: string | number): number => {
+      if (typeof semana === 'number') return semana;
+      const match = String(semana).match(/(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    };
 
-      // Extrair número da semana (\"1ª Semana\" -> 1, \"2ª Semana\" -> 2, etc.)
-      const extrairNumeroDaSemana = (semana: string | number): number => {
-        if (typeof semana === 'number') return semana;
-        const match = String(semana).match(/^(\d+)/);
-        return match ? parseInt(match[1], 10) : 0;
+    // Agrupar por codigo_vendedor, somar valor_total por semana (ETL grava por dia)
+    const porVendedor = new Map<string, { nome: string; semanas: Record<number, number> }>();
+
+    vendasSemanais.forEach((v: any) => {
+      const cod = String(v.codigo_vendedor);
+      if (!porVendedor.has(cod)) {
+        // Usar apelido do perfil se disponível, senão nome_vendedor do ETL
+        const perfil = allVendedores.find(vd => Number(vd.cod_vendedor) === Number(v.codigo_vendedor));
+        const nome = perfil?.apelido || perfil?.nome_completo || v.nome_vendedor || cod;
+        porVendedor.set(cod, { nome, semanas: {} });
       }
+      const entry = porVendedor.get(cod)!;
+      const sem = extrairNumSemana(v.semana);
+      const valor = Number(v.valor_total) || 0;
+      entry.semanas[sem] = (entry.semanas[sem] || 0) + valor;
+    });
 
-      console.log(`📊 [rankingSemanal] ${vendedor.apelido}:`, {
-        cod_vendedor: vendedor.cod_vendedor,
-        vendasEncontradas: vendasVendedor.length,
-        primeiraVenda: vendasVendedor[0],
-        semanasExtraidas: vendasVendedor.map(v => ({ original: v.semana, numero: extrairNumeroDaSemana(v.semana) }))
-      });
-
-      // Tentar encontrar o campo correto de valor
-      const getCampoValor = (venda: any) => {
-        return venda.valor_total ?? venda.valor_vendas ?? venda.valor ?? venda.vendas ?? 0;
-      }
-
-      // Usar o número real da semana do banco de dados
-      const getVendasPorSemana = (numeroSemana: number) => {
-        const vendas = vendasVendedor
-          .filter(v => extrairNumeroDaSemana(v.semana) === numeroSemana)
-          .reduce((sum, v) => sum + getCampoValor(v), 0);
-        return vendas;
-      }
-
-      const semana1 = getVendasPorSemana(1);
-      const semana2 = getVendasPorSemana(2);
-      const semana3 = getVendasPorSemana(3);
-      const semana4 = getVendasPorSemana(4);
-      const semana5 = getVendasPorSemana(5);
-      const totalSemanal = semana1 + semana2 + semana3 + semana4 + semana5;
-
-      if (totalSemanal > 0) {
-        console.log(`  ✅ ${vendedor.apelido}: s1=${semana1}, s2=${semana2}, s3=${semana3}, s4=${semana4}, s5=${semana5}, total=${totalSemanal}`);
-      }
-
-      return { nome: vendedor.apelido || vendedor.nome_completo, semana1, semana2, semana3, semana4, semana5, totalSemanal };
+    return Array.from(porVendedor.values()).map(({ nome, semanas }) => {
+      const semana1 = semanas[1] || 0;
+      const semana2 = semanas[2] || 0;
+      const semana3 = semanas[3] || 0;
+      const semana4 = semanas[4] || 0;
+      return { nome, semana1, semana2, semana3, semana4, totalSemanal: semana1 + semana2 + semana3 + semana4 };
     }).sort((a, b) => b.totalSemanal - a.totalSemanal);
-
-    console.log('✅ [rankingSemanal] Final:', result);
-    return result;
   }, [vendasSemanais, allVendedores]);
 
   const metricas = useMemo<MetricasExecutivas>(() => {
@@ -225,20 +198,23 @@ const DashboardGestao: React.FC = () => {
       return { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, clientesFaturados: 0, clientesAFaturar: 0, atingimentoPercent: 0, metaTotal: 0 };
     }
     const totais = dashboardData.reduce((acc, vendedor) => {
+      acc.vendasTotais += vendedor.total_vendas || 0;
       acc.vendasFaturadas += vendedor.total_faturado || 0;
       acc.vendasAFaturar += vendedor.total_a_faturar || 0;
       acc.clientesAtendidos += vendedor.clientes_atendidos || 0;
       acc.metaTotal += vendedor.meta_mensal || 0;
       return acc;
     }, { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, metaTotal: 0 });
-    
-    // Usar os totais de vendas do Ranking Semanal para consistência com a tabela
+
+    // Usar vendas do Ranking Semanal se disponível, senão usar total_vendas da view
     const vendasTotalDasSemanais = rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0);
-    
+    if (vendasTotalDasSemanais > 0) {
+      totais.vendasTotais = vendasTotalDasSemanais;
+    }
+
     // Estas contagens específicas de clientes vêm do estado detailedClientCounts separado
     totais.clientesFaturados = detailedClientCounts.faturados;
     totais.clientesAFaturar = detailedClientCounts.aberto;
-    totais.vendasTotais = vendasTotalDasSemanais;
 
     const atingimentoGeral = totais.metaTotal > 0 ? (totais.vendasTotais / totais.metaTotal) * 100 : 0;
     return { ...totais, atingimentoPercent: atingimentoGeral };
@@ -248,31 +224,24 @@ const DashboardGestao: React.FC = () => {
     const metaMensalTotal = metasData.reduce((sum, meta) => sum + (meta.meta_valor || 0), 0);
     const metaSemanal = metaMensalTotal / 4;
 
-    // Usar totais de rankingSemanal para consistência com a tabela
-    const semana1Total = rankingSemanal.reduce((sum, v) => sum + v.semana1, 0);
-    const semana2Total = rankingSemanal.reduce((sum, v) => sum + v.semana2, 0);
-    const semana3Total = rankingSemanal.reduce((sum, v) => sum + v.semana3, 0);
-    const semana4Total = rankingSemanal.reduce((sum, v) => sum + v.semana4, 0);
+    // 4 semanas conforme regra ETL (dias 1-7, 8-14, 15-21, 22+)
+    const vendasPorSemana = [
+      rankingSemanal.reduce((sum, v) => sum + v.semana1, 0),
+      rankingSemanal.reduce((sum, v) => sum + v.semana2, 0),
+      rankingSemanal.reduce((sum, v) => sum + v.semana3, 0),
+      rankingSemanal.reduce((sum, v) => sum + v.semana4, 0),
+    ];
 
-    const vendasPorSemana = [semana1Total, semana2Total, semana3Total, semana4Total];
-    
     let vendasAcumuladas = 0;
-    const resultadoGrafico = [];
-
-    for (let i = 0; i < 4; i++) {
-      const semanaRelativa = i + 1;
-      const vendas = vendasPorSemana[i] || 0;
+    return vendasPorSemana.map((vendas, i) => {
       vendasAcumuladas += vendas;
-
-      resultadoGrafico.push({
-        semana: `${semanaRelativa}ª Sem`,
-        vendas: vendas,
-        meta: metaSemanal * semanaRelativa,
-        vendasAcumuladas: vendasAcumuladas
-      });
-    }
-
-    return resultadoGrafico;
+      return {
+        semana: `${i + 1}ª Sem`,
+        vendas,
+        meta: metaSemanal * (i + 1),
+        vendasAcumuladas
+      };
+    });
   }, [metasData, rankingSemanal]);
 
   const valorMaximoGrafico = useMemo(() => {
@@ -500,107 +469,89 @@ const DashboardGestao: React.FC = () => {
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Semanal</h3>
               <div className="overflow-x-auto">
-                {(() => {
-                  const temSemana5 = rankingSemanal.some(v => v.semana5 && v.semana5 > 0);
-                  
-                  return (
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b-2 border-gray-200">
-                          <th className="text-left p-2 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
-                            <span className="hidden sm:inline">Representante</span>
-                            <span className="sm:hidden">Repr.</span>
-                          </th>
-                          <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
-                            <span className="hidden sm:inline">1ª Sem</span>
-                            <span className="sm:hidden">S1</span>
-                          </th>
-                          <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
-                            <span className="hidden sm:inline">2ª Sem</span>
-                            <span className="sm:hidden">S2</span>
-                          </th>
-                          <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
-                            <span className="hidden sm:inline">3ª Sem</span>
-                            <span className="sm:hidden">S3</span>
-                          </th>
-                          <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
-                            <span className="hidden sm:inline">4ª Sem</span>
-                            <span className="sm:hidden">S4</span>
-                          </th>
-                          {temSemana5 && <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
-                            <span className="hidden sm:inline">5ª Sem</span>
-                            <span className="sm:hidden">S5</span>
-                          </th>}
-                          <th className="text-right p-2 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rankingSemanal.map((vendedor) => (
-                          <tr key={vendedor.nome} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="p-2 whitespace-nowrap text-xs sm:text-sm sm:px-4">
-                              <span className="font-medium text-gray-900">{vendedor.nome}</span>
-                            </td>
-                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(vendedor.semana1)}</span>
-                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana1)}</span>
-                            </td>
-                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(vendedor.semana2)}</span>
-                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana2)}</span>
-                            </td>
-                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(vendedor.semana3)}</span>
-                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana3)}</span>
-                            </td>
-                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(vendedor.semana4)}</span>
-                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana4)}</span>
-                            </td>
-                            {temSemana5 && <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(vendedor.semana5 || 0)}</span>
-                              <span className="hidden sm:inline">{vendedor.semana5 ? `R$ ${formatarMoeda(vendedor.semana5)}` : '-'}</span>
-                            </td>}
-                            <td className="p-2 text-right font-semibold text-gray-900 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(vendedor.totalSemanal)}</span>
-                              <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.totalSemanal)}</span>
-                            </td>
-                          </tr>
-                        ))}
-                        {rankingSemanal.length > 0 && (
-                          <tr className="border-t-2 border-gray-300 bg-gray-50 hover:bg-gray-50">
-                            <td className="p-2 whitespace-nowrap text-xs sm:text-sm sm:px-4">
-                              <span className="font-bold text-gray-900">Total</span>
-                            </td>
-                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana1, 0))}</span>
-                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana1, 0))}</span>
-                            </td>
-                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana2, 0))}</span>
-                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana2, 0))}</span>
-                            </td>
-                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana3, 0))}</span>
-                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana3, 0))}</span>
-                            </td>
-                            <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana4, 0))}</span>
-                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana4, 0))}</span>
-                            </td>
-                            {temSemana5 && <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + (v.semana5 || 0), 0))}</span>
-                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + (v.semana5 || 0), 0))}</span>
-                            </td>}
-                            <td className="p-2 text-right text-gray-900 text-xs sm:text-sm sm:px-4">
-                              <span className="sm:hidden font-bold">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0))}</span>
-                              <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0))}</span>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  );
-                })()}
+                  <table className="w-full">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="text-left p-2 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                        <span className="hidden sm:inline">Representante</span>
+                        <span className="sm:hidden">Repr.</span>
+                      </th>
+                      <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                        <span className="hidden sm:inline">1ª Sem</span>
+                        <span className="sm:hidden">S1</span>
+                      </th>
+                      <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                        <span className="hidden sm:inline">2ª Sem</span>
+                        <span className="sm:hidden">S2</span>
+                      </th>
+                      <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                        <span className="hidden sm:inline">3ª Sem</span>
+                        <span className="sm:hidden">S3</span>
+                      </th>
+                      <th className="text-right p-1 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">
+                        <span className="hidden sm:inline">4ª Sem</span>
+                        <span className="sm:hidden">S4</span>
+                      </th>
+                      <th className="text-right p-2 text-xs font-semibold text-gray-600 sm:px-4 sm:text-sm">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankingSemanal.map((vendedor) => (
+                      <tr key={vendedor.nome} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-2 whitespace-nowrap text-xs sm:text-sm sm:px-4">
+                          <span className="font-medium text-gray-900">{vendedor.nome}</span>
+                        </td>
+                        <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden">{abreviarNumero(vendedor.semana1)}</span>
+                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana1)}</span>
+                        </td>
+                        <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden">{abreviarNumero(vendedor.semana2)}</span>
+                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana2)}</span>
+                        </td>
+                        <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden">{abreviarNumero(vendedor.semana3)}</span>
+                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana3)}</span>
+                        </td>
+                        <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden">{abreviarNumero(vendedor.semana4)}</span>
+                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana4)}</span>
+                        </td>
+                        <td className="p-2 text-right font-semibold text-gray-900 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden">{abreviarNumero(vendedor.totalSemanal)}</span>
+                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.totalSemanal)}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {rankingSemanal.length > 0 && (
+                      <tr className="border-t-2 border-gray-300 bg-gray-50 hover:bg-gray-50">
+                        <td className="p-2 whitespace-nowrap text-xs sm:text-sm sm:px-4">
+                          <span className="font-bold text-gray-900">Total</span>
+                        </td>
+                        <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana1, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana1, 0))}</span>
+                        </td>
+                        <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana2, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana2, 0))}</span>
+                        </td>
+                        <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana3, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana3, 0))}</span>
+                        </td>
+                        <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana4, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana4, 0))}</span>
+                        </td>
+                        <td className="p-2 text-right text-gray-900 text-xs sm:text-sm sm:px-4">
+                          <span className="sm:hidden font-bold">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0))}</span>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </>

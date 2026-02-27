@@ -9,7 +9,6 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Search, Filter, User, LogOut, Check, Clock, MapPin, CheckCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useUserData } from '../../contexts/VendedorDataContext'
 import { getClientesPorVendedor, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
 import { getClienteInadimplenteDetalhes, ClienteInadimplente } from '../../lib/queries/inadimplentes'
 import { getTitulosClienteResumo, TitulosClienteResumo } from '../../lib/queries/titulos'
@@ -27,7 +26,6 @@ const Clientes: React.FC = () => {
   const navigate = useNavigate()
   const { rotaId, cidadeNome } = useParams<{ rotaId: string; cidadeNome: string }>()
   const { user, logout } = useAuth()
-  const { } = useUserData()
   const [clientes, setClientes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showSortMenu, setShowSortMenu] = useState(false)

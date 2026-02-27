@@ -9,7 +9,6 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, AlertTriangle, Phone, MessageCircle, Filter } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useUserData } from '../../contexts/VendedorDataContext'
 import { getClientesInadimplentes, getStatusInadimplencia, formatarTelefone } from '../../lib/queries/inadimplentes'
 import { formatarMoeda } from '../../lib/queries/dashboard'
 import { getVendedorRanking } from '../../lib/queries/vendedores'
@@ -18,7 +17,6 @@ import { isAdmin } from '../../lib/utils/userHelpers'
 const Inadimplentes: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { } = useUserData()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [sortBy, setSortBy] = useState('nome')
@@ -110,7 +108,7 @@ const Inadimplentes: React.FC = () => {
         case 'valor-maior':
           return parseFloat(b.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.')) - parseFloat(a.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.'))
         case 'valor-menor':
-          return parseFloat(a.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.')) - parseFloat(a.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.'))
+          return parseFloat(a.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.')) - parseFloat(b.valorTotal.replace('R$ ', '').replace('.', '').replace(',', '.'))
         case 'az':
           return a.nome.localeCompare(b.nome)
         case 'za':

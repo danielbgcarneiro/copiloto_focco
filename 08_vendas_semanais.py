@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ETL Otimizado - Vendas Semanais (Visão por Data de Entrada)
+ETL Otimizado - Vendas Semanais (Visão por Data do PEDIDO EXTERNO)
 
-Script para consolidar vendas faturadas e em aberto, agrupando os valores
-pela primeira data de interação do cliente/vendedor no mês (data de entrada).
+CORREÇÃO v3.0: Usa a data do PEDIDO EXTERNO (ws_pedidovenda.wspdv_datahoraregistro)
+quando o pedido tem origem externa. Isso garante que a venda seja contabilizada
+na semana em que o vendedor realmente fez o pedido no app, não na semana do faturamento.
+
+Exemplo: Pedido feito dia 12/01 (2ª Sem) e faturado dia 15/01 (3ª Sem)
+         → Conta na 2ª Semana ✓ (data do pedido externo)
 
 Processa o MÊS ANTERIOR e o MÊS CORRENTE.
 """
@@ -50,100 +54,162 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ================================================================================
-# QUERY SQL (Inclui o filtro de tipo de pedido para alinhamento de totais)
+# QUERY SQL CORRIGIDA - v3.0
+# Prioriza data do pedido EXTERNO (ws_pedidovenda) quando existe
 # ================================================================================
 
 QUERY_VENDAS_SEMANAIS = """
         WITH
-        transacoes_base AS (
-            -- 1. Base para encontrar a data de referência (Primeira data de interação no mês)
-            -- NFs FATURADAS: Somente as que vieram de Pedidos Tipo 1 e 2.
-            SELECT nf.vdnfs_dataemissao AS data_evento, nf.pgven_codigo, nf.pgcln_codigo
-            FROM vd_notafiscalsaida nf
-            INNER JOIN vd_pedidovenda pv ON nf.vdpdv_codigo = pv.vdpdv_codigo AND nf.pgemp_codigo = pv.pgemp_codigo
-            WHERE nf.pgemp_codigo IN %(empresa)s AND nf.vdnfs_dataemissao >= %(data_inicio)s AND nf.vdnfs_situacao = 'A' 
-            AND nf.pgven_codigo IS NOT NULL AND nf.pgcln_codigo IS NOT NULL
-            AND pv.vdtpo_codigo IN (1, 2)
-            
-            UNION ALL
-            
-            -- PEDIDOS em ABERTO/NOVO/RESERVADO/EMITIDO (Apenas Tipo 1 e 2)
-            SELECT vdpdv_datahoraemissao::date AS data_evento, pgven_codigo, pgcln_codigo
-            FROM vd_pedidovenda
-            WHERE pgemp_codigo IN %(empresa)s AND vdpdv_datahoraemissao::date >= %(data_inicio)s 
-            AND vdpdv_situacao IN ('N', 'A', 'R', 'E') 
-            AND pgven_codigo IS NOT NULL AND pgcln_codigo IS NOT NULL
-            AND vdtpo_codigo IN (1, 2)
-        ),
-        primeira_data_mes AS (
-            -- Agrupa a data de referência (Primeira data de transação válida do Vendedor/Cliente no mês)
-            SELECT pgven_codigo, pgcln_codigo, DATE_TRUNC('month', data_evento) AS mes_evento, MIN(data_evento) AS data_agrupada
-            FROM transacoes_base
-            GROUP BY pgven_codigo, pgcln_codigo, DATE_TRUNC('month', data_evento)
-        ),
         vendas_faturadas AS (
-            SELECT pd.data_agrupada, nf.pgven_codigo AS codigo_vendedor,
+            -- NFs FATURADAS: Usa a data do PEDIDO EXTERNO quando existe (wspdv_datahoraregistro)
+            -- Caso contrário, usa a data de emissão do pedido interno (vdpdv_datahoraemissao)
+            -- Filtra apenas pedidos Tipo 1 e 2 para alinhamento com ETL 07
+            SELECT 
+                COALESCE(
+                    ws.wspdv_datahoraregistro::date,  -- Prioridade 1: Data do pedido externo (app)
+                    pv.vdpdv_datahoraemissao::date    -- Prioridade 2: Data do pedido interno
+                ) AS data_referencia,
+                nf.pgven_codigo AS codigo_vendedor,
                 -- Usa VDNFS_VALORTOTALLIQUIDONOTA do cabeçalho
-                SUM(CASE WHEN nf.vdnfs_funcaooperacao IN ('V', 'O') AND nf.pgopr_codigo IN (51021, 51022, 51024, 61021, 61022, 61024) THEN nf.vdnfs_valortotalliquidonota ELSE 0 END) AS total_faturado_bruto,
-                SUM(CASE WHEN nf.pgopr_codigo = 62021 THEN nf.vdnfs_valortotalliquidonota ELSE 0 END) AS total_devolvido,
+                SUM(CASE 
+                    WHEN nf.vdnfs_funcaooperacao IN ('V', 'O') 
+                     AND nf.pgopr_codigo IN (51021, 51022, 51024, 61021, 61022, 61024) 
+                    THEN nf.vdnfs_valortotalliquidonota 
+                    ELSE 0 
+                END) AS total_faturado_bruto,
+                SUM(CASE 
+                    WHEN nf.pgopr_codigo = 62021 
+                    THEN nf.vdnfs_valortotalliquidonota 
+                    ELSE 0 
+                END) AS total_devolvido,
                 COUNT(DISTINCT nf.pgcln_codigo) AS qtd_clientes_faturados
             FROM vd_notafiscalsaida nf
-            -- Garante que a NF venha de um pedido Tipo 1 ou 2 (Alinhamento de valor com o 07)
-            INNER JOIN vd_pedidovenda pv ON nf.vdpdv_codigo = pv.vdpdv_codigo AND nf.pgemp_codigo = pv.pgemp_codigo
-            JOIN primeira_data_mes pd ON nf.pgven_codigo = pd.pgven_codigo AND nf.pgcln_codigo = pd.pgcln_codigo AND DATE_TRUNC('month', nf.vdnfs_dataemissao) = pd.mes_evento
-            WHERE nf.pgemp_codigo IN %(empresa)s AND nf.vdnfs_dataemissao >= %(data_inicio)s AND nf.vdnfs_situacao = 'A' 
-            AND nf.pgven_codigo IS NOT NULL
-            AND pv.vdtpo_codigo IN (1, 2) -- Filtro de tipo de pedido para alinhamento de totais
-            GROUP BY pd.data_agrupada, nf.pgven_codigo
+            INNER JOIN vd_pedidovenda pv 
+                ON nf.vdpdv_codigo = pv.vdpdv_codigo 
+               AND nf.pgemp_codigo = pv.pgemp_codigo
+            -- JOIN com pedido externo (pode não existir para pedidos manuais)
+            LEFT JOIN ws_pedidovenda ws
+                ON pv.wspdv_id = ws.wspdv_id
+               AND pv.pgemp_codigo = ws.pgemp_codigo
+            WHERE nf.pgemp_codigo IN %(empresa)s 
+              AND nf.vdnfs_dataemissao::date >= %(data_inicio)s 
+              AND nf.vdnfs_situacao = 'A' 
+              AND nf.pgven_codigo IS NOT NULL
+              AND pv.vdtpo_codigo IN (1, 2) -- Alinhamento com ETL 07
+            GROUP BY 
+                COALESCE(ws.wspdv_datahoraregistro::date, pv.vdpdv_datahoraemissao::date),
+                nf.pgven_codigo
         ),
         pedidos_aberto AS (
-            SELECT pd.data_agrupada, pv.pgven_codigo AS codigo_vendedor, SUM(pvi.vdpvp_quantidade * pvi.vdpvp_valorunitario) AS total_em_aberto, COUNT(DISTINCT pv.pgcln_codigo) AS qtd_clientes_aberto
+            -- PEDIDOS em ABERTO: Usa a data do PEDIDO EXTERNO quando existe
+            -- Caso contrário, usa a data de emissão do pedido interno
+            SELECT 
+                COALESCE(
+                    ws.wspdv_datahoraregistro::date,  -- Prioridade 1: Data do pedido externo (app)
+                    pv.vdpdv_datahoraemissao::date    -- Prioridade 2: Data do pedido interno
+                ) AS data_referencia,
+                pv.pgven_codigo AS codigo_vendedor,
+                SUM(pvi.vdpvp_quantidade * pvi.vdpvp_valorunitario) AS total_em_aberto,
+                COUNT(DISTINCT pv.pgcln_codigo) AS qtd_clientes_aberto
             FROM vd_pedidovenda pv
-            JOIN vd_pedidovendaproduto pvi ON pv.vdpdv_codigo = pvi.vdpdv_codigo AND pvi.pgemp_codigo = pv.pgemp_codigo
-            JOIN primeira_data_mes pd ON pv.pgven_codigo = pd.pgven_codigo AND pv.pgcln_codigo = pd.pgcln_codigo AND DATE_TRUNC('month', pv.vdpdv_datahoraemissao::date) = pd.mes_evento
-            WHERE pv.pgemp_codigo IN %(empresa)s AND pv.vdpdv_datahoraemissao::date >= %(data_inicio)s 
+            INNER JOIN vd_pedidovendaproduto pvi 
+                ON pv.vdpdv_codigo = pvi.vdpdv_codigo 
+               AND pvi.pgemp_codigo = pv.pgemp_codigo
+            -- JOIN com pedido externo (pode não existir para pedidos manuais)
+            LEFT JOIN ws_pedidovenda ws
+                ON pv.wspdv_id = ws.wspdv_id
+               AND pv.pgemp_codigo = ws.pgemp_codigo
+            WHERE pv.pgemp_codigo IN %(empresa)s 
+              AND pv.vdpdv_datahoraemissao::date >= %(data_inicio)s 
               AND pv.vdpdv_situacao IN ('N', 'A', 'R', 'E') 
-              AND pv.pgven_codigo IS NOT NULL AND pv.vdtpo_codigo IN (1, 2) AND pv.pgopr_codigo IN (51021, 51022, 51024, 61021, 61022, 61024)
-              -- Exclui pedidos que já foram faturados
-              AND NOT EXISTS (SELECT 1 FROM vd_notafiscalsaida nf WHERE nf.vdpdv_codigo = pv.vdpdv_codigo AND nf.pgemp_codigo = pv.pgemp_codigo AND nf.vdnfs_situacao = 'A')
-            GROUP BY pd.data_agrupada, pv.pgven_codigo
+              AND pv.pgven_codigo IS NOT NULL 
+              AND pv.vdtpo_codigo IN (1, 2)
+              AND pv.pgopr_codigo IN (51021, 51022, 51024, 61021, 61022, 61024)
+              -- Exclui pedidos já faturados
+              AND NOT EXISTS (
+                  SELECT 1 FROM vd_notafiscalsaida nf 
+                  WHERE nf.vdpdv_codigo = pv.vdpdv_codigo 
+                    AND nf.pgemp_codigo = pv.pgemp_codigo 
+                    AND nf.vdnfs_situacao = 'A'
+              )
+            GROUP BY 
+                COALESCE(ws.wspdv_datahoraregistro::date, pv.vdpdv_datahoraemissao::date),
+                pv.pgven_codigo
         ),
-        clientes_agrupados AS (
-            -- Conta a quantidade total de clientes (faturados ou com pedido em aberto)
-            SELECT pd.data_agrupada, t.pgven_codigo, ARRAY_AGG(DISTINCT t.pgcln_codigo) as clientes
-            FROM transacoes_base t
-            JOIN primeira_data_mes pd ON t.pgven_codigo = pd.pgven_codigo AND t.pgcln_codigo = pd.pgcln_codigo AND DATE_TRUNC('month', t.data_evento) = pd.mes_evento
-            GROUP BY pd.data_agrupada, t.pgven_codigo
+        todas_datas AS (
+            -- Combina todas as datas de transação (NF + Pedido)
+            SELECT data_referencia, codigo_vendedor FROM vendas_faturadas
+            UNION
+            SELECT data_referencia, codigo_vendedor FROM pedidos_aberto
         ),
-        vendedores_periodo AS (
-            -- Lista de todos os vendedores e datas de referência válidas no período
-            SELECT DISTINCT data_agrupada, pgven_codigo as vendedor FROM primeira_data_mes WHERE data_agrupada >= %(data_inicio)s
+        clientes_por_data AS (
+            -- Conta clientes DISTINTOS por data/vendedor
+            -- Usa a mesma lógica de data: prioriza pedido externo
+            SELECT 
+                COALESCE(
+                    ws.wspdv_datahoraregistro::date,
+                    pv.vdpdv_datahoraemissao::date
+                ) AS data_referencia,
+                pv.pgven_codigo AS codigo_vendedor,
+                COUNT(DISTINCT pv.pgcln_codigo) AS qtd_clientes_total
+            FROM vd_pedidovenda pv
+            LEFT JOIN ws_pedidovenda ws
+                ON pv.wspdv_id = ws.wspdv_id
+               AND pv.pgemp_codigo = ws.pgemp_codigo
+            WHERE pv.pgemp_codigo IN %(empresa)s
+              AND pv.vdpdv_datahoraemissao::date >= %(data_inicio)s
+              AND pv.pgven_codigo IS NOT NULL
+              AND pv.vdtpo_codigo IN (1, 2)
+              AND (
+                  -- Pedidos em aberto
+                  pv.vdpdv_situacao IN ('N', 'A', 'R', 'E')
+                  -- OU pedidos faturados (para contar o cliente)
+                  OR EXISTS (
+                      SELECT 1 FROM vd_notafiscalsaida nf
+                      WHERE nf.vdpdv_codigo = pv.vdpdv_codigo
+                        AND nf.pgemp_codigo = pv.pgemp_codigo
+                        AND nf.vdnfs_situacao = 'A'
+                  )
+              )
+            GROUP BY 
+                COALESCE(ws.wspdv_datahoraregistro::date, pv.vdpdv_datahoraemissao::date),
+                pv.pgven_codigo
         )
         SELECT
-            vp.data_agrupada AS data_referencia,
-            EXTRACT(YEAR FROM vp.data_agrupada)::integer AS ano,
-            EXTRACT(MONTH FROM vp.data_agrupada)::integer AS mes,
+            td.data_referencia,
+            EXTRACT(YEAR FROM td.data_referencia)::integer AS ano,
+            EXTRACT(MONTH FROM td.data_referencia)::integer AS mes,
             -- Cálculo Semanal baseado em faixas de dias do mês
             CASE
-                WHEN EXTRACT(DAY FROM vp.data_agrupada) BETWEEN 1 AND 7 THEN '1ª Semana'
-                WHEN EXTRACT(DAY FROM vp.data_agrupada) BETWEEN 8 AND 14 THEN '2ª Semana'
-                WHEN EXTRACT(DAY FROM vp.data_agrupada) BETWEEN 15 AND 21 THEN '3ª Semana'
+                WHEN EXTRACT(DAY FROM td.data_referencia) BETWEEN 1 AND 7 THEN '1ª Semana'
+                WHEN EXTRACT(DAY FROM td.data_referencia) BETWEEN 8 AND 14 THEN '2ª Semana'
+                WHEN EXTRACT(DAY FROM td.data_referencia) BETWEEN 15 AND 21 THEN '3ª Semana'
                 ELSE '4ª Semana'
             END AS semana,
-            vp.vendedor AS codigo_vendedor,
-            COALESCE(func.pgfun_nomefantasia, func.pgfun_nome, 'VENDEDOR ' || vp.vendedor) AS nome_vendedor,
+            td.codigo_vendedor,
+            COALESCE(func.pgfun_nomefantasia, func.pgfun_nome, 'VENDEDOR ' || td.codigo_vendedor) AS nome_vendedor,
             COALESCE(vf.total_faturado_bruto - vf.total_devolvido, 0) AS valor_faturado,
             COALESCE(pa.total_em_aberto, 0) AS valor_em_aberto,
             COALESCE(vf.total_faturado_bruto - vf.total_devolvido, 0) + COALESCE(pa.total_em_aberto, 0) AS valor_total,
             COALESCE(vf.qtd_clientes_faturados, 0) AS qtd_clientes_faturados,
             COALESCE(pa.qtd_clientes_aberto, 0) AS qtd_clientes_aberto,
-            COALESCE(array_length(ca.clientes, 1), 0) AS qtd_clientes_total
-        FROM vendedores_periodo vp
-        LEFT JOIN vendas_faturadas vf ON vp.vendedor = vf.codigo_vendedor AND vp.data_agrupada = vf.data_agrupada
-        LEFT JOIN pedidos_aberto pa ON vp.vendedor = pa.codigo_vendedor AND vp.data_agrupada = pa.data_agrupada
-        LEFT JOIN clientes_agrupados ca ON vp.vendedor = ca.pgven_codigo AND vp.data_agrupada = ca.data_agrupada
-        LEFT JOIN pg_funcionario func ON vp.vendedor = func.pgfun_codigo AND func.pgemp_codigo IN %(empresa)s
-        WHERE COALESCE(vf.total_faturado_bruto - vf.total_devolvido, 0) + COALESCE(pa.total_em_aberto, 0) > 0;
+            COALESCE(cpd.qtd_clientes_total, 0) AS qtd_clientes_total
+        FROM todas_datas td
+        LEFT JOIN vendas_faturadas vf 
+            ON td.data_referencia = vf.data_referencia 
+           AND td.codigo_vendedor = vf.codigo_vendedor
+        LEFT JOIN pedidos_aberto pa 
+            ON td.data_referencia = pa.data_referencia 
+           AND td.codigo_vendedor = pa.codigo_vendedor
+        LEFT JOIN clientes_por_data cpd
+            ON td.data_referencia = cpd.data_referencia
+           AND td.codigo_vendedor = cpd.codigo_vendedor
+        LEFT JOIN pg_funcionario func 
+            ON td.codigo_vendedor = func.pgfun_codigo 
+           AND func.pgemp_codigo IN %(empresa)s
+        WHERE COALESCE(vf.total_faturado_bruto - vf.total_devolvido, 0) 
+            + COALESCE(pa.total_em_aberto, 0) > 0
+        ORDER BY td.data_referencia, td.codigo_vendedor;
         """
 
 
@@ -175,18 +241,16 @@ class VendasSemanaisETL:
         """Deleta dados no Supabase a partir da data de início para garantir idempotência."""
         logger.info(f"PASSO 1/3: Deletando dados de 'vendas_semanais' a partir de {data_inicio} (Mês Anterior e Atual)...")
         try:
-            # FIX: Captura a resposta como tupla e extrai a lista de dados (índice 0) para contagem.
             response_tuple = self.supabase.table('vendas_semanais').delete().gte('data_referencia', data_inicio).execute()
             
             deleted_count = 0
             if isinstance(response_tuple, tuple) and len(response_tuple) > 0 and response_tuple[0] is not None:
-                # O primeiro elemento da tupla (índice 0) é a lista de objetos deletados.
                 deleted_count = len(response_tuple[0])
             
             logger.info(f"✓ Sucesso! {deleted_count} registros antigos foram deletados.")
             return True
         except Exception as e:
-            logger.error(f"❌ Falha ao deletar dados no Supabase: {e}")
+            logger.error(f"✗ Falha ao deletar dados no Supabase: {e}")
             return False
 
     def extrair_dados_do_erp(self, data_inicio: str) -> List[Dict]:
@@ -203,10 +267,8 @@ class VendasSemanaisETL:
             for linha in resultados:
                 linha_dict = dict(linha)
                 for key, value in linha_dict.items():
-                    # Converte Decimal para float para ser JSON-serializável
                     if isinstance(value, Decimal):
                         linha_dict[key] = float(value)
-                    # Converte Data/Timestamp para string ISO
                     elif hasattr(value, 'isoformat'):
                         linha_dict[key] = value.isoformat()
                 dados_processados.append(linha_dict)
@@ -214,7 +276,7 @@ class VendasSemanaisETL:
             logger.info(f"✓ Extração concluída. {len(dados_processados)} registros encontrados.")
             return dados_processados
         except Exception as e:
-            logger.error(f"❌ Falha ao extrair dados do ERP: {e}")
+            logger.error(f"✗ Falha ao extrair dados do ERP: {e}")
             return []
 
     def carregar_dados_no_supabase(self, dados: List[Dict]):
@@ -226,7 +288,6 @@ class VendasSemanaisETL:
         try:
             response = self.supabase.table('vendas_semanais').insert(dados).execute()
             
-            # FIX: Lógica de segurança para INSERT. Tenta a tupla (padrão antigo) e depois o objeto com .data.
             inserted_count = 0
             if isinstance(response, tuple) and len(response) > 0 and response[0] is not None:
                  inserted_count = len(response[0])
@@ -236,17 +297,17 @@ class VendasSemanaisETL:
             logger.info(f"✓ Sucesso! {inserted_count} registros foram inseridos.")
             return True
         except Exception as e:
-            logger.error(f"❌ Falha ao carregar dados no Supabase: {e}")
+            logger.error(f"✗ Falha ao carregar dados no Supabase: {e}")
             return False
 
     def executar(self):
         """Orquestra a execução da atualização do MÊS ANTERIOR e MÊS CORRENTE."""
         hoje = date.today()
-        # Calcula a data de início: Primeiro dia do mês anterior
         primeiro_dia_mes_atual = hoje.replace(day=1)
         data_inicio = (primeiro_dia_mes_atual - relativedelta(months=1)).replace(day=1).isoformat()
         
         logger.info("🚀 --- INICIANDO ATUALIZAÇÃO VENDAS SEMANAIS (Mês Anterior e Atual) --- 🚀")
+        logger.info(f"    Usando DATA DO PEDIDO EXTERNO quando existe (ws_pedidovenda)")
         
         if self.deletar_dados_supabase(data_inicio):
             dados_para_inserir = self.extrair_dados_do_erp(data_inicio)
@@ -256,7 +317,6 @@ class VendasSemanaisETL:
 
 if __name__ == "__main__":
     try:
-        # Garante que a dependência 'python-dateutil' está disponível
         try:
             from dateutil.relativedelta import relativedelta
         except ImportError:

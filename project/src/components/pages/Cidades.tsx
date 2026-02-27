@@ -9,7 +9,6 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Search, User, LogOut, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useUserData } from '../../contexts/VendedorDataContext'
 import { getCidadesCompleto, normalizeText, type CidadeMapeada } from '../../lib/queries/cidades'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 
@@ -17,7 +16,6 @@ const Cidades: React.FC = () => {
   const navigate = useNavigate()
   const { rotaId } = useParams<{ rotaId: string }>()
   const { user, logout } = useAuth()
-  const { } = useUserData()
   const [searchTerm, setSearchTerm] = useState('')
   const [cidades, setCidades] = useState<CidadeMapeada[]>([])
   const [loading, setLoading] = useState(true)
