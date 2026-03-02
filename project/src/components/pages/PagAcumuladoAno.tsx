@@ -132,31 +132,70 @@ const PagAcumuladoAno: React.FC = () => {
 
         setCidadesPositivadasPerfil(cidadesPerfilData || [])
 
-        // Transformar vendas_mes extraindo ano e mes de mes_referencia
-        const vendasComMetas: VendaMensal[] = (vendas as VendaMesRaw[] || []).map(venda => {
-          const [anoStr, mesStr] = venda.mes_referencia.split('-')
-          const ano = parseInt(anoStr)
-          const mes = parseInt(mesStr)
+        // 1. Coletar todos os vendedores únicos com meta ou venda para o selectedAno
+        const allVendedoresIds = new Set<number>();
+        const allVendedoresNames = new Map<number, string>(); // Para mapear cod_vendedor para nome_vendedor
 
-          const meta = metas?.find(m =>
-            m.cod_vendedor === venda.codigo_vendedor &&
-            m.ano === ano &&
-            m.mes === mes
-          )
+        (metas || []).filter(m => m.ano === selectedAno).forEach(m => {
+            allVendedoresIds.add(m.cod_vendedor);
+        });
 
-          const metaValor = meta?.meta_valor || 0
-          const atingimento = metaValor > 0 ? (venda.total_vendas / metaValor) * 100 : 0
+        (vendas as VendaMesRaw[] || []).forEach(v => {
+            const [anoStr] = v.mes_referencia.split('-');
+            const anoVenda = parseInt(anoStr);
+            if (anoVenda === selectedAno) { // Filtrar vendas apenas para o selectedAno
+                allVendedoresIds.add(v.codigo_vendedor);
+                allVendedoresNames.set(v.codigo_vendedor, v.nome_vendedor);
+            }
+        });
 
-          return {
-            ano,
-            mes,
-            cod_vendedor: venda.codigo_vendedor,
-            nome_vendedor: venda.nome_vendedor,
-            total_vendas: Number(venda.total_vendas) || 0,
-            meta: metaValor,
-            atingimento: Number(atingimento.toFixed(1))
-          }
-        })
+        // 2. Criar mapas para acesso rápido a metas e vendas
+        const metasMapByVendedorMes = new Map<string, typeof metas[0]>();
+        (metas || []).forEach(m => {
+            const key = `${m.cod_vendedor}-${m.ano}-${m.mes}`;
+            metasMapByVendedorMes.set(key, m);
+        });
+
+        const vendasMapByVendedorMes = new Map<string, VendaMesRaw>();
+        (vendas as VendaMesRaw[] || []).forEach(v => {
+            const [anoStr, mesStr] = v.mes_referencia.split('-');
+            const ano = parseInt(anoStr);
+            const mes = parseInt(mesStr);
+            const key = `${v.codigo_vendedor}-${ano}-${mes}`;
+            vendasMapByVendedorMes.set(key, v);
+        });
+
+        const newVendasMensais: VendaMensal[] = [];
+
+        // Iterar por cada mês do ano (1 a 12)
+        for (let mes = 1; mes <= 12; mes++) {
+            // Iterar por cada vendedor que tem meta ou venda no ano selecionado
+            allVendedoresIds.forEach(cod_vendedor => {
+                const key = `${cod_vendedor}-${selectedAno}-${mes}`;
+
+                const metaItem = metasMapByVendedorMes.get(key);
+                const vendaItem = vendasMapByVendedorMes.get(key);
+
+                const metaValor = metaItem?.meta_valor || 0;
+                const total_vendas = Number(vendaItem?.total_vendas) || 0;
+                const nome_vendedor = allVendedoresNames.get(cod_vendedor) || `Vendedor ${cod_vendedor}`; // Fallback para nome
+
+                // Adicione este registro se houver meta OU venda para este vendedor/mês
+                if (metaValor > 0 || total_vendas > 0) {
+                    const atingimento = metaValor > 0 ? (total_vendas / metaValor) * 100 : 0;
+                    newVendasMensais.push({
+                        ano: selectedAno,
+                        mes,
+                        cod_vendedor,
+                        nome_vendedor,
+                        total_vendas,
+                        meta: metaValor,
+                        atingimento: Number(atingimento.toFixed(1))
+                    });
+                }
+            });
+        }
+        setVendasMensais(newVendasMensais);
 
         // Extrair dados de clientes da mesma tabela vendas_mes
         const clientesExtraidos: ClienteUnico[] = (vendas as VendaMesRaw[] || []).map(venda => {
