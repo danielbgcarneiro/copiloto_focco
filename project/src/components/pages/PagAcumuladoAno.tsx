@@ -81,6 +81,14 @@ interface CidadePositivadaPerfil {
   cidades_positivadas: number
 }
 
+// Nova interface para itens de metas_vendedores
+interface MetaVendedor {
+  cod_vendedor: number;
+  ano: number;
+  mes: number;
+  meta_valor: number;
+}
+
 const PagAcumuladoAno: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -128,74 +136,64 @@ const PagAcumuladoAno: React.FC = () => {
           console.error('❌ Erro ao buscar cidades por perfil:', cidadesPerfilError)
         }
 
-        console.log('✅ Cidades por perfil da VIEW:', cidadesPerfilData)
-
         setCidadesPositivadasPerfil(cidadesPerfilData || [])
 
-        // 1. Coletar todos os vendedores únicos com meta ou venda para o selectedAno
-        const allVendedoresIds = new Set<number>();
-        const allVendedoresNames = new Map<number, string>(); // Para mapear cod_vendedor para nome_vendedor
-
-        (metas || []).filter(m => m.ano === selectedAno).forEach(m => {
-            allVendedoresIds.add(m.cod_vendedor);
-        });
-
-        (vendas as VendaMesRaw[] || []).forEach(v => {
-            const [anoStr] = v.mes_referencia.split('-');
-            const anoVenda = parseInt(anoStr);
-            if (anoVenda === selectedAno) { // Filtrar vendas apenas para o selectedAno
-                allVendedoresIds.add(v.codigo_vendedor);
-                allVendedoresNames.set(v.codigo_vendedor, v.nome_vendedor);
-            }
-        });
-
-        // 2. Criar mapas para acesso rápido a metas e vendas
-        const metasMapByVendedorMes = new Map<string, typeof metas[0]>();
+        // 1. Criar mapas para acesso rápido a metas e vendas
+        const metasMap = new Map<string, MetaVendedor>(); // Key: 'cod_vendedor-ano-mes'
         (metas || []).forEach(m => {
             const key = `${m.cod_vendedor}-${m.ano}-${m.mes}`;
-            metasMapByVendedorMes.set(key, m);
+            metasMap.set(key, m as MetaVendedor);
         });
 
-        const vendasMapByVendedorMes = new Map<string, VendaMesRaw>();
+        const vendasMap = new Map<string, VendaMesRaw>(); // Key: 'cod_vendedor-ano-mes'
+        const allVendedoresNamesMap = new Map<number, string>(); // Key: cod_vendedor, Value: nome_vendedor
         (vendas as VendaMesRaw[] || []).forEach(v => {
             const [anoStr, mesStr] = v.mes_referencia.split('-');
             const ano = parseInt(anoStr);
             const mes = parseInt(mesStr);
             const key = `${v.codigo_vendedor}-${ano}-${mes}`;
-            vendasMapByVendedorMes.set(key, v);
+            vendasMap.set(key, v);
+            allVendedoresNamesMap.set(v.codigo_vendedor, v.nome_vendedor); // Popula o mapa de nomes
         });
 
-        const newVendasMensais: VendaMensal[] = [];
+        // 2. Coletar todos os vendedores únicos do ano selecionado que têm metas ou vendas
+        const uniqueVendedoresForSelectedYear = new Set<number>();
+        (metas || []).filter(m => m.ano === selectedAno).forEach(m => uniqueVendedoresForSelectedYear.add(m.cod_vendedor));
+        (vendas as VendaMesRaw[] || []).filter(v => parseInt(v.mes_referencia.split('-')[0]) === selectedAno)
+                                        .forEach(v => uniqueVendedoresForSelectedYear.add(v.codigo_vendedor));
 
-        // Iterar por cada mês do ano (1 a 12)
+
+        const combinedVendasMensais: VendaMensal[] = [];
+
+        // 3. Iterar por cada mês do ano e por cada vendedor único para construir a lista final
         for (let mes = 1; mes <= 12; mes++) {
-            // Iterar por cada vendedor que tem meta ou venda no ano selecionado
-            allVendedoresIds.forEach(cod_vendedor => {
-                const key = `${cod_vendedor}-${selectedAno}-${mes}`;
+            uniqueVendedoresForSelectedYear.forEach(cod_vendedor => {
+                const currentKey = `${cod_vendedor}-${selectedAno}-${mes}`;
 
-                const metaItem = metasMapByVendedorMes.get(key);
-                const vendaItem = vendasMapByVendedorMes.get(key);
+                const metaData = metasMap.get(currentKey);
+                const vendaData = vendasMap.get(currentKey);
 
-                const metaValor = metaItem?.meta_valor || 0;
-                const total_vendas = Number(vendaItem?.total_vendas) || 0;
-                const nome_vendedor = allVendedoresNames.get(cod_vendedor) || `Vendedor ${cod_vendedor}`; // Fallback para nome
+                const metaValor = metaData?.meta_valor || 0;
+                const total_vendas = Number(vendaData?.total_vendas) || 0;
+                const nome_vendedor = allVendedoresNamesMap.get(cod_vendedor) || `Vendedor ${cod_vendedor}`; // Fallback
 
-                // Adicione este registro se houver meta OU venda para este vendedor/mês
+                // Incluir no resultado se houver meta OU venda para este vendedor/mês
                 if (metaValor > 0 || total_vendas > 0) {
                     const atingimento = metaValor > 0 ? (total_vendas / metaValor) * 100 : 0;
-                    newVendasMensais.push({
+                    combinedVendasMensais.push({
                         ano: selectedAno,
-                        mes,
-                        cod_vendedor,
-                        nome_vendedor,
-                        total_vendas,
+                        mes: mes,
+                        cod_vendedor: cod_vendedor,
+                        nome_vendedor: nome_vendedor,
+                        total_vendas: total_vendas,
                         meta: metaValor,
                         atingimento: Number(atingimento.toFixed(1))
                     });
                 }
             });
         }
-        setVendasMensais(newVendasMensais);
+
+        setVendasMensais(combinedVendasMensais); // Atualiza o estado de vendasMensais
 
         // Extrair dados de clientes da mesma tabela vendas_mes
         const clientesExtraidos: ClienteUnico[] = (vendas as VendaMesRaw[] || []).map(venda => {
@@ -209,17 +207,24 @@ const PagAcumuladoAno: React.FC = () => {
           }
         })
 
-        setVendasMensais(vendasComMetas)
         setClientesUnicos(clientesExtraidos)
         setCidadesVendas(cidades || [])
 
-        // Extrair anos disponíveis
-        const anosVendas = [...new Set(vendasComMetas.map(v => v.ano))]
-        setAnosDisponiveis(anosVendas.sort((a, b) => b - a))
+        // Extrair anos disponíveis (MODIFICAÇÃO AQUI)
+        const allYearsFromMetas = (metas || []).map(m => m.ano);
+        const allYearsFromVendas = (vendas as VendaMesRaw[] || []).map(v => parseInt(v.mes_referencia.split('-')[0]));
+        const uniqueYears = [...new Set([...allYearsFromMetas, ...allYearsFromVendas])];
+        const sortedUniqueYears = uniqueYears.sort((a, b) => b - a); // Ordenar do mais novo para o mais antigo
+        setAnosDisponiveis(sortedUniqueYears);
 
-        // Extrair vendedores únicos
-        const vendedoresUnicos = [...new Set(vendasComMetas.map(v => v.nome_vendedor))]
-        setTodosVendedores(vendedoresUnicos.sort())
+        // Definir selectedAno para o ano mais recente se não estiver definido ou inválido
+        if (!selectedAno || !sortedUniqueYears.includes(selectedAno)) {
+            setSelectedAno(sortedUniqueYears[0] || new Date().getFullYear());
+        }
+
+        // Extrair vendedores únicos (do combinedVendasMensais para garantir que todos são incluídos)
+        const vendedoresUnicos = [...new Set(combinedVendasMensais.map(v => v.nome_vendedor))];
+        setTodosVendedores(vendedoresUnicos.sort());
 
       } catch (error) {
         console.error('Erro ao carregar dados:', error)
