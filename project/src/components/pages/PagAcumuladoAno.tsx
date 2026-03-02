@@ -473,7 +473,7 @@ const PagAcumuladoAno: React.FC = () => {
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-1.5 px-4 font-semibold text-gray-700 text-sm">Mês</th>
-                  <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">Meta</th>
+                  <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">Objetivo</th>
                   <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">Vendas</th>
                   <th className="text-right py-1.5 px-4 font-semibold text-gray-700 text-sm">Atingimento</th>
                 </tr>
