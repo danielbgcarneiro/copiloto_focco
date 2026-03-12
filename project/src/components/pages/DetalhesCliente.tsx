@@ -300,18 +300,22 @@ const DetalhesCliente: React.FC = () => {
     );
   }
 
+  // Anos dinâmicos (sincronizados com o ETL)
+  const anoAtual = new Date().getFullYear()
+  const anoAnterior = anoAtual - 1
+
   // Mapear os dados do cliente para a UI
   const dadosCliente = {
     nome: cliente.nome_fantasia,
     status: cliente.status_financeiro,
     codigo: cliente.codigo_cliente,
     dsv: cliente.dias_sem_comprar,
-    vendas2025: cliente.valor_ano_atual,
-    vendas2024: cliente.valor_ano_anterior,
+    vendasAnoAtual: cliente.valor_ano_atual,
+    vendasAnoAnterior: cliente.valor_ano_anterior,
     oportunidade: cliente.previsao_pedido,
     meta: cliente.meta_ano_atual,
-    qtdVendas2025: cliente.qtd_compras_ano_atual ?? 0,
-    qtdVendas2024: cliente.qtd_compras_ano_anterior ?? 0,
+    qtdVendasAnoAtual: cliente.qtd_compras_ano_atual ?? 0,
+    qtdVendasAnoAnterior: cliente.qtd_compras_ano_anterior ?? 0,
     percentualMeta: cliente.percentual_atingimento,
     acaoRecomendada: cliente.acao_recomendada,
     celular: cliente.celular || '',
@@ -417,19 +421,19 @@ const DetalhesCliente: React.FC = () => {
               </div>
               
               <div className="leading-tight">
-                <span className="text-gray-600">2025: </span>
-                <span className="font-semibold">{formatarMoeda(dadosCliente.vendas2025)}</span>
+                <span className="text-gray-600">{anoAtual}: </span>
+                <span className="font-semibold">{formatarMoeda(dadosCliente.vendasAnoAtual)}</span>
               </div>
               <div className="text-right leading-tight">
-                <span className="text-gray-600">Qnt: {dadosCliente.qtdVendas2025}</span>
+                <span className="text-gray-600">Qnt: {dadosCliente.qtdVendasAnoAtual}</span>
               </div>
-              
+
               <div className="leading-tight">
-                <span className="text-gray-600">2024: </span>
-                <span className="font-semibold">{formatarMoeda(dadosCliente.vendas2024)}</span>
+                <span className="text-gray-600">{anoAnterior}: </span>
+                <span className="font-semibold">{formatarMoeda(dadosCliente.vendasAnoAnterior)}</span>
               </div>
               <div className="text-right leading-tight">
-                <span className="text-gray-600">Qnt: {dadosCliente.qtdVendas2024}</span>
+                <span className="text-gray-600">Qnt: {dadosCliente.qtdVendasAnoAnterior}</span>
               </div>
             </div>
           </div>
