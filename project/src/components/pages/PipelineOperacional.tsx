@@ -118,7 +118,7 @@ const elapsedH = (dataEmissao: string | null): number | null => {
   return diff > 0 ? diff : null;
 };
 
-const formatData = (dt: string | null): string => {
+const _formatData = (dt: string | null): string => {
   if (!dt) return '—';
   return new Date(dt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
@@ -458,7 +458,7 @@ const PipelineOperacional: React.FC = () => {
       console.error('Erro ao buscar pipeline_operacional:', error);
       setDados([]);
     } else {
-      setDados((data as PipelineRow[]) || []);
+      setDados((data as unknown as PipelineRow[]) || []);
     }
     setLoading(false);
   };
