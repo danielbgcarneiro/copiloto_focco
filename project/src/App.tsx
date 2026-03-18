@@ -20,6 +20,7 @@ import PagAnalytics from './components/pages/PagAnalytics'
 import DashboardRotas from './components/pages/DashboardRotas'
 import TopClientes from './components/pages/TopClientes'
 import MetasPorCliente from './components/pages/MetasPorCliente' // New import
+import PipelineOperacional from './components/pages/PipelineOperacional'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import HomeRedirect from './components/auth/HomeRedirect'
 import PedidosVendedor from './components/pages/PedidosVendedor'
@@ -72,6 +73,10 @@ const router = createBrowserRouter([
       {
         path: "metas-por-cliente",
         element: <MetasPorCliente />,
+      },
+      {
+        path: "pipeline",
+        element: <PipelineOperacional />,
       },
     ]
   },

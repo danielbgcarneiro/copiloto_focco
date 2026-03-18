@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { BarChart3, Users, LogOut, User, Shield, DollarSign, Target, Calendar, RefreshCw, Menu, X, Home, MapPin, TrendingUp } from 'lucide-react'
+import { BarChart3, Users, LogOut, User, Shield, DollarSign, Target, Calendar, RefreshCw, Menu, X, Home, MapPin, TrendingUp, GitBranch } from 'lucide-react'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -315,6 +315,7 @@ const DashboardGestao: React.FC = () => {
                   <NavLink to="/gestao/analytics" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><TrendingUp className="h-5 w-5 mr-2" />Analytics</NavLink>
                   <NavLink to="/gestao/dashboard-rotas" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><MapPin className="h-5 w-5 mr-2" />Dashboard Rotas</NavLink>
                   <NavLink to="/gestao/top-clientes" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><Users className="h-5 w-5 mr-2" />Top Clientes</NavLink>
+                  <NavLink to="/gestao/pipeline" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><GitBranch className="h-5 w-5 mr-2" />Pipeline</NavLink>
                 </div>
               </div>
             </div>
@@ -329,6 +330,7 @@ const DashboardGestao: React.FC = () => {
               <NavLink to="/gestao/analytics" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><TrendingUp className="h-5 w-5 mr-2" />Analytics</NavLink>
               <NavLink to="/gestao/dashboard-rotas" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><MapPin className="h-5 w-5 mr-2" />Dashboard Rotas</NavLink>
               <NavLink to="/gestao/top-clientes" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><Users className="h-5 w-5 mr-2" />Top Clientes</NavLink>
+              <NavLink to="/gestao/pipeline" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><GitBranch className="h-5 w-5 mr-2" />Pipeline</NavLink>
             </div>
           </div>
         )}
