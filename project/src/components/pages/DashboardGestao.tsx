@@ -171,6 +171,7 @@ const DashboardGestao: React.FC = () => {
     const porVendedor = new Map<string, { nome: string; semanas: Record<number, number> }>();
 
     vendasSemanais.forEach((v: any) => {
+      if (Number(v.codigo_vendedor) === 1) return; // Filtrar FOCCO BRASIL
       const cod = String(v.codigo_vendedor);
       if (!porVendedor.has(cod)) {
         // Usar apelido do perfil se disponível, senão nome_vendedor do ETL
@@ -182,6 +183,15 @@ const DashboardGestao: React.FC = () => {
       const sem = extrairNumSemana(v.semana);
       const valor = Number(v.valor_total) || 0;
       entry.semanas[sem] = (entry.semanas[sem] || 0) + valor;
+    });
+
+    // Incluir vendedores ativos sem vendas no periodo
+    allVendedores.forEach(vd => {
+      const cod = String(vd.cod_vendedor);
+      if (!porVendedor.has(cod)) {
+        const nome = vd.apelido || vd.nome_completo || cod;
+        porVendedor.set(cod, { nome, semanas: {} });
+      }
     });
 
     return Array.from(porVendedor.values()).map(({ nome, semanas }) => {
@@ -206,8 +216,8 @@ const DashboardGestao: React.FC = () => {
       return acc;
     }, { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, metaTotal: 0 });
 
-    // Usar vendas do Ranking Semanal se disponível, senão usar total_vendas da view
-    const vendasTotalDasSemanais = rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0);
+    // Card total inclui FOCCO BRASIL; ranking/grafico ja excluem (filtro no forEach)
+    const vendasTotalDasSemanais = vendasSemanais.reduce((sum: number, v: any) => sum + (Number(v.valor_total) || 0), 0);
     if (vendasTotalDasSemanais > 0) {
       totais.vendasTotais = vendasTotalDasSemanais;
     }
@@ -218,7 +228,7 @@ const DashboardGestao: React.FC = () => {
 
     const atingimentoGeral = totais.metaTotal > 0 ? (totais.vendasTotais / totais.metaTotal) * 100 : 0;
     return { ...totais, atingimentoPercent: atingimentoGeral };
-  }, [dashboardData, detailedClientCounts, rankingSemanal]); // Adicionar detailedClientCounts às dependências
+  }, [dashboardData, detailedClientCounts, rankingSemanal, vendasSemanais]);
 
   const dadosSemanas = useMemo<DadosSemana[]>(() => {
     const metaMensalTotal = metasData.reduce((sum, meta) => sum + (meta.meta_valor || 0), 0);
