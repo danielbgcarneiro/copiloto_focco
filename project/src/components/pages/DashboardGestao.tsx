@@ -261,14 +261,24 @@ const DashboardGestao: React.FC = () => {
   }, [dadosSemanas]);
 
   const rankingVendedores = useMemo<VendedorRanking[]>(() => {
-    return (dashboardData || []).map((vendedor: any) => ({
+    const lista = (dashboardData || []).map((vendedor: any) => ({
       nome: vendedor.vendedor_apelido,
       meta: vendedor.meta_mensal || 0,
       vendas: vendedor.total_vendas || 0,
       atingimento: vendedor.percentual_atingimento || 0,
       numeroClientes: vendedor.clientes_atendidos || 0
-    })).sort((a, b) => b.vendas - a.vendas);
-  }, [dashboardData]);
+    }));
+
+    // Adicionar FOCCO BRASIL (cod=1) a partir de vendas_semanais
+    const vendasFocco = (vendasSemanais || [])
+      .filter((v: any) => Number(v.codigo_vendedor) === 1)
+      .reduce((sum: number, v: any) => sum + (Number(v.valor_total) || 0), 0);
+    if (vendasFocco > 0) {
+      lista.push({ nome: 'Focco Brasil', meta: 0, vendas: vendasFocco, atingimento: 0, numeroClientes: 0 });
+    }
+
+    return lista.sort((a, b) => b.vendas - a.vendas);
+  }, [dashboardData, vendasSemanais]);
 
   useEffect(() => {
     if (!user) navigate('/login');
