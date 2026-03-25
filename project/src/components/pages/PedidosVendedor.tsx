@@ -10,13 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { BarChart3, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface PedidoAgrupado {
-  data_criacao: string;
-  codigo_cliente: number;
-  fantasia: string;
-  valor_total: number;
-}
+import type { PedidoAgrupado } from '../../types/cliente.types';
 
 
 const PedidosVendedor: React.FC = () => {

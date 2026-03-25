@@ -12,7 +12,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getClienteDetalhes } from '../../lib/queries/cliente'
 import { getHistoricoVisitas } from '../../lib/queries/clientes'
 import { getClienteInadimplenteDetalhes, ClienteInadimplente } from '../../lib/queries/inadimplentes'
-import { getTitulosClienteDetalhes, TituloAberto } from '../../lib/queries/titulos'
+import { getTitulosClienteDetalhes, TituloAbertoDetalhes } from '../../lib/queries/titulos'
 
 // Funções de formatação
 const formatarMoeda = (valor: number) => {
@@ -168,7 +168,7 @@ const DetalhesCliente: React.FC = () => {
   const [historicoVisitas, setHistoricoVisitas] = useState<any[]>([])
   const [loadingVisitas, setLoadingVisitas] = useState(false)
   const [inadimplenciaData, setInadimplenciaData] = useState<ClienteInadimplente | null>(null)
-  const [titulosData, setTitulosData] = useState<TituloAberto[]>([])
+  const [titulosData, setTitulosData] = useState<TituloAbertoDetalhes[]>([])
   const [loadingTitulos, setLoadingTitulos] = useState(false)
 
   // Determinar qual ID usar (hierárquico ou direto)

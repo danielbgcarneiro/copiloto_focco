@@ -8,7 +8,7 @@
 import { supabase } from '../supabase';
 
 // Interface para tipo de retorno (simplificada para refletir dados disponíveis)
-interface ClienteDetalhes {
+export interface ClienteDetalhes {
   // Dados básicos
   codigo_cliente: number;
   nome_fantasia: string;

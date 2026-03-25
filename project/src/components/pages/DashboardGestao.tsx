@@ -32,7 +32,7 @@ interface DadosSemana {
   vendasAcumuladas: number
 }
 
-interface VendedorRanking {
+interface VendedorRankingGestao {
   nome: string
   meta: number
   vendas: number
@@ -260,7 +260,7 @@ const DashboardGestao: React.FC = () => {
     return Math.ceil(maxValor * 1.1);
   }, [dadosSemanas]);
 
-  const rankingVendedores = useMemo<VendedorRanking[]>(() => {
+  const rankingVendedores = useMemo<VendedorRankingGestao[]>(() => {
     const lista = (dashboardData || []).map((vendedor: any) => ({
       nome: vendedor.vendedor_apelido,
       meta: vendedor.meta_mensal || 0,

@@ -17,7 +17,7 @@ export interface TitulosClienteResumo {
 /**
  * Interface para título individual
  */
-export interface TituloAberto {
+export interface TituloAbertoDetalhes {
   numero_titulo: number
   data_vencimento: string
   valor_titulo: number
@@ -76,7 +76,7 @@ export async function getTitulosClienteResumo(codigoCliente: number): Promise<Ti
  * @param codigoCliente - Código do cliente
  * @returns Array de títulos ou array vazio se não houver títulos
  */
-export async function getTitulosClienteDetalhes(codigoCliente: number): Promise<TituloAberto[]> {
+export async function getTitulosClienteDetalhes(codigoCliente: number): Promise<TituloAbertoDetalhes[]> {
   try {
     const { data, error } = await supabase
       .from('titulos_aberto_clientes')

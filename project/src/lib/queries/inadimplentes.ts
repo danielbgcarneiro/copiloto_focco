@@ -7,7 +7,7 @@
 
 import { supabase } from '../supabase';
 
-export interface TituloAberto {
+export interface TituloAbertoInadimplente {
   numero: string;
   vencimento: string;
   valor: number;
@@ -25,7 +25,7 @@ export interface ClienteInadimplente {
   maior_dias_atraso: number;
   ultimo_pagamento: string | null;
   telefone: string | null;
-  titulos: TituloAberto[];
+  titulos: TituloAbertoInadimplente[];
 }
 
 
@@ -57,7 +57,7 @@ export async function getClientesInadimplentes(): Promise<ClienteInadimplente[]>
     
     // Agrupar dados por cliente
     const clientesMap = new Map<number, any>();
-    const titulosPorCliente: { [key: number]: TituloAberto[] } = {};
+    const titulosPorCliente: { [key: number]: TituloAbertoInadimplente[] } = {};
     
     dadosInadimplentes.forEach(registro => {
       const codigoCliente = registro.codigo_cliente;
@@ -191,7 +191,7 @@ export async function getClienteInadimplenteDetalhes(codigoCliente: number): Pro
     
     // Processar dados do cliente
     const primeiroRegistro = dadosInadimplentes[0];
-    const titulos: TituloAberto[] = dadosInadimplentes.map(registro => ({
+    const titulos: TituloAbertoInadimplente[] = dadosInadimplentes.map(registro => ({
       numero: registro.titulo_uuid,
       vencimento: new Date(registro.data_vencimento).toLocaleDateString('pt-BR'),
       valor: registro.valor_saldo || registro.valor_original,
