@@ -7,11 +7,14 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Target, User, LogOut, Map as MapIcon, Building, AlertTriangle, ClipboardList, Search } from 'lucide-react'
+import { TrendingUp, Target, User, Map as MapIcon, Building, AlertTriangle, ClipboardList, Search } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { getDashboardCompleto, formatarMoeda, type DashboardData, getPercentualMetaAnual } from '../../lib/queries/dashboard'
+import { getDashboardCompleto, type DashboardData, getPercentualMetaAnual } from '../../lib/queries/dashboard'
 import { getVendedorRanking, type VendedorRanking, getOticasSemVendas180d } from '../../lib/queries/vendedores'
 import TabelaPerfil from './TabelaPerfil'
+import { Card } from '../atoms'
+import { PageHeader } from '../molecules'
+import { formatCurrency } from '../../utils'
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
@@ -89,30 +92,17 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Header */}
-      <header className="bg-primary text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 relative">
-            <div className="flex items-center">
-            </div>
-            <div className="flex items-center absolute left-1/2 transform -translate-x-1/2">
-              <h1 className="text-lg font-bold">Copiloto</h1>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1.5">
-                <User className="h-4 w-4" />
-                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
-              </div>
-              <button 
-                onClick={handleLogout}
-                className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
+      <PageHeader
+        title="Copiloto"
+        variant="centered"
+        onLogout={handleLogout}
+        rightAction={
+          <div className="flex items-center space-x-1.5">
+            <User className="h-4 w-4" />
+            <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
@@ -128,13 +118,13 @@ const Dashboard: React.FC = () => {
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+              <Card key={i} variant="default" padding="none" className="p-4">
                 <div className="animate-pulse">
                   <div className="h-3 bg-gray-200 rounded mb-2"></div>
                   <div className="h-6 bg-gray-200 rounded mb-1"></div>
                   <div className="h-2 bg-gray-200 rounded"></div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         ) : error ? (
@@ -144,7 +134,7 @@ const Dashboard: React.FC = () => {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {/* Vendas do Mês */}
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
+            <Card variant="default" padding="none" className="p-4 relative">
               <div className="absolute top-3 right-3">
                 <div className="bg-blue-50 p-2 rounded-full">
                   <TrendingUp className="h-5 w-5 text-blue-600" />
@@ -153,16 +143,16 @@ const Dashboard: React.FC = () => {
               <div className="pr-12">
                 <p className="text-xs font-medium text-gray-600">Vendas do Mês</p>
                 <p className="text-xl font-bold text-gray-900 mt-1">
-                  {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.vendas_mes || 0) : 'N/A'}
+                  {dashboardData?.metricas ? formatCurrency(dashboardData.metricas.vendas_mes || 0) : 'N/A'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Obj: {dashboardData?.metricas ? formatarMoeda(dashboardData.metricas.meta_mes || 0) : 'N/A'} | {dashboardData?.metricas ? `${(dashboardData.metricas.percentual_meta || 0).toFixed(1)}%` : 'N/A'}
+                  Obj: {dashboardData?.metricas ? formatCurrency(dashboardData.metricas.meta_mes || 0) : 'N/A'} | {dashboardData?.metricas ? `${(dashboardData.metricas.percentual_meta || 0).toFixed(1)}%` : 'N/A'}
                 </p>
               </div>
-            </div>
+            </Card>
 
             {/* Óticas Positivadas */}
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
+            <Card variant="default" padding="none" className="p-4 relative">
               <div className="absolute top-3 right-3">
                 <div className="bg-green-50 p-2 rounded-full">
                   <Building className="h-5 w-5 text-green-600" />
@@ -176,10 +166,10 @@ const Dashboard: React.FC = () => {
                     : 'N/A'}
                 </p>
               </div>
-            </div>
+            </Card>
 
             {/* Objetivo Anual */}
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
+            <Card variant="default" padding="none" className="p-4 relative">
               <div className="absolute top-3 right-3">
                 <div className="bg-yellow-50 p-2 rounded-full">
                   <Target className="h-5 w-5 text-yellow-600" />
@@ -191,13 +181,13 @@ const Dashboard: React.FC = () => {
                   {objAnualData?.percentual_anual ? `${objAnualData.percentual_anual.toFixed(1)}%` : 'N/A'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Obj: {objAnualData?.total_metas_ano ? formatarMoeda(objAnualData.total_metas_ano) : 'N/A'}
+                  Obj: {objAnualData?.total_metas_ano ? formatCurrency(objAnualData.total_metas_ano) : 'N/A'}
                 </p>
               </div>
-            </div>
+            </Card>
 
             {/* Óticas Sem Vendas +180d */}
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 relative">
+            <Card variant="default" padding="none" className="p-4 relative">
               <div className="absolute top-3 right-3">
                 <div className="bg-red-50 p-2 rounded-full">
                   <AlertTriangle className="h-5 w-5 text-red-600" />
@@ -212,7 +202,7 @@ const Dashboard: React.FC = () => {
                   VD: {objAnualData?.clientes_atendidos_ano || 0} | De {vendedorRanking?.total_clientes || 0}
                 </p>
               </div>
-            </div>
+            </Card>
           </div>
         )}
 

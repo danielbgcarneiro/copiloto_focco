@@ -9,6 +9,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { LoadingSpinner, Card } from '../atoms'
+import { formatCurrency } from '../../utils'
 
 interface Vendedor {
   id: string
@@ -221,11 +223,7 @@ const TopClientes: React.FC = () => {
   }, [user, navigate])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingSpinner size="md" fullPage />
   }
 
   return (
@@ -240,17 +238,17 @@ const TopClientes: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+        <Card variant="default" padding="none" className="p-4 sm:p-6 mb-6 sm:mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Potencial x Realizado ({anoComparacao})</h3>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="text-center p-6 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-              <div className="text-3xl font-bold text-blue-900 mb-2">R$ {potencialRealizado.totalMetas.toLocaleString()}</div>
+              <div className="text-3xl font-bold text-blue-900 mb-2">{formatCurrency(potencialRealizado.totalMetas, true)}</div>
               <div className="text-sm font-medium text-blue-700">Total de Metas (Potencial)</div>
             </div>
-            
+
             <div className="text-center p-6 bg-green-50 rounded-lg border-l-4 border-green-500">
-              <div className="text-3xl font-bold text-green-900 mb-2">R$ {potencialRealizado.totalVendas.toLocaleString()}</div>
+              <div className="text-3xl font-bold text-green-900 mb-2">{formatCurrency(potencialRealizado.totalVendas, true)}</div>
               <div className="text-sm font-medium text-green-700">Total de Vendas (Realizado)</div>
             </div>
             
@@ -264,9 +262,9 @@ const TopClientes: React.FC = () => {
               <div className="text-sm font-medium text-purple-700">Atingimento Geral</div>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6">
+        <Card variant="default" padding="none" className="p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Top 30 Clientes</h3>
 
           <div className="mb-6">
@@ -422,9 +420,9 @@ const TopClientes: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-gray-700">{cliente.rota}</td>
                       <td className="py-3 px-4 text-gray-700">{cliente.cidade}</td>
-                      <td className="py-3 px-4 text-right text-gray-700">R$ {vendasBase.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right text-blue-700 font-medium">R$ {metaComparacao.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-gray-900">R$ {vendasComparacao.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right text-gray-700">{formatCurrency(vendasBase, true)}</td>
+                      <td className="py-3 px-4 text-right text-blue-700 font-medium">{formatCurrency(metaComparacao, true)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-gray-900">{formatCurrency(vendasComparacao, true)}</td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end">
                           <span className={`font-bold ${
@@ -448,7 +446,7 @@ const TopClientes: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       </main>
     </div>
   )

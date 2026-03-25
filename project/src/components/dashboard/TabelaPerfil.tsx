@@ -7,7 +7,7 @@
 
 import React, { useState, useMemo } from 'react'
 import { TabelaPerfil as TabelaPerfilType } from '../../lib/queries/dashboard'
-import { formatarMoeda } from '../../lib/queries/dashboard'
+import { formatCurrency } from '../../utils'
 
 interface TabelaPerfilProps {
   dados: TabelaPerfilType;
@@ -100,10 +100,10 @@ export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados, filtroCidade 
                   </th>
                   <th className="px-2 py-0.5 text-left font-normal"></th>
                   <th className="px-2 py-0.5 text-right font-normal">
-                    <p className="text-[0.65rem] sm:text-xs font-bold">TT {formatarMoeda(dados.somaObjetivo)}</p>
+                    <p className="text-[0.65rem] sm:text-xs font-bold">TT {formatCurrency(dados.somaObjetivo)}</p>
                   </th>
                   <th className="px-2 py-0.5 text-right font-normal">
-                    <p className="text-[0.65rem] sm:text-xs font-bold">VD {formatarMoeda(dados.somaVendas)}</p>
+                    <p className="text-[0.65rem] sm:text-xs font-bold">VD {formatCurrency(dados.somaVendas)}</p>
                   </th>
                   <th className="px-2 py-0.5 text-right font-normal">
                     <p className="text-[0.65rem] sm:text-xs font-bold">{dados.percentualGeral.toFixed(1)}%</p>
@@ -143,8 +143,8 @@ export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados, filtroCidade 
                     <td className="px-2 py-1 text-left text-xs sm:text-sm text-gray-600 max-w-32 truncate whitespace-nowrap overflow-hidden">
                       {cliente.cidade_uf}
                     </td>
-                    <td className="px-2 py-1 text-right text-xs sm:text-sm text-gray-900">{formatarMoeda(cliente.objetivo)}</td>
-                    <td className="px-2 py-1 text-right text-xs sm:text-sm text-gray-900">{formatarMoeda(cliente.vendas)}</td>
+                    <td className="px-2 py-1 text-right text-xs sm:text-sm text-gray-900">{formatCurrency(cliente.objetivo)}</td>
+                    <td className="px-2 py-1 text-right text-xs sm:text-sm text-gray-900">{formatCurrency(cliente.vendas)}</td>
                     <td className="px-2 py-1 text-right text-xs sm:text-sm font-semibold text-gray-900">
                       {cliente.percentual.toFixed(1)}%
                     </td>

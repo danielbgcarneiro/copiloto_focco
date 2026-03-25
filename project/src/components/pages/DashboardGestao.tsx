@@ -12,6 +12,8 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores'
+import { Card, LoadingSpinner } from '../atoms'
+import { formatCurrency } from '../../utils'
 
 // Tipos para os dados
 interface MetricasExecutivas {
@@ -145,9 +147,6 @@ const DashboardGestao: React.FC = () => {
     fetchDashboardData(anoAtual, mesAtual);
   }, [anoAtual, mesAtual]);
 
-  const formatarMoeda = (valor: number) => {
-    return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
 
   const abreviarNumero = (valor: number) => {
     if (valor >= 1000000) return `${(valor / 1000000).toFixed(1)}M`;
@@ -294,7 +293,7 @@ const DashboardGestao: React.FC = () => {
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+    return <LoadingSpinner size="md" fullPage />;
   }
 
 
@@ -364,7 +363,7 @@ const DashboardGestao: React.FC = () => {
               <p className="text-sm sm:text-base text-gray-600">Painel executivo com visão geral de toda a operação</p>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+            <Card variant="default" padding="none" className="p-4 sm:p-6 mb-6 sm:mb-8">
               <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-900">Período</h3>
                 <div className="flex items-center space-x-2 sm:space-x-4">
@@ -373,17 +372,17 @@ const DashboardGestao: React.FC = () => {
                   <button onClick={atualizarDados} disabled={carregandoDados} className="flex items-center justify-center p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><RefreshCw className={`h-4 w-4 ${carregandoDados ? 'animate-spin' : ''}`} /></button>
                 </div>
               </div>
-            </div>
+            </Card>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Vendas Totais</p><p className="text-base sm:text-xl font-bold text-gray-900 truncate">R$ {formatarMoeda(metricas.vendasTotais)}</p><p className="text-xs text-gray-500 mt-1">Meta: R$ {formatarMoeda(metricas.metaTotal || 0)}</p></div><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" /></div></div>
-                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Faturadas</p><p className="text-base sm:text-xl font-bold text-blue-900 truncate">R$ {formatarMoeda(metricas.vendasFaturadas)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesFaturados}</p></div><BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" /></div></div>
-                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">A Faturar</p><p className="text-base sm:text-xl font-bold text-orange-900 truncate">R$ {formatarMoeda(metricas.vendasAFaturar)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesAFaturar}</p></div><Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" /></div></div>
-                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Clientes</p><p className="text-base sm:text-xl font-bold text-purple-900 truncate">{metricas.clientesAtendidos}</p></div><Users className="h-5 w-5 sm:h-6 sm:w-6 text-purple-500" /></div></div>
-                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-200"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Atingimento</p><p className={`text-base sm:text-xl font-bold truncate ${metricas.atingimentoPercent >= 100 ? 'text-green-900' : 'text-red-900'}`}>{metricas.atingimentoPercent.toFixed(1)}%</p></div><Target className={`h-5 w-5 sm:h-6 sm:w-6 ${metricas.atingimentoPercent >= 100 ? 'text-green-500' : 'text-red-500'}`} /></div></div>
+                <Card variant="default" padding="none" className="p-4 sm:p-6"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Vendas Totais</p><p className="text-base sm:text-xl font-bold text-gray-900 truncate">R$ {formatCurrency(metricas.vendasTotais)}</p><p className="text-xs text-gray-500 mt-1">Meta: R$ {formatCurrency(metricas.metaTotal || 0)}</p></div><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" /></div></Card>
+                <Card variant="default" padding="none" className="p-4 sm:p-6"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Faturadas</p><p className="text-base sm:text-xl font-bold text-blue-900 truncate">R$ {formatCurrency(metricas.vendasFaturadas)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesFaturados}</p></div><BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" /></div></Card>
+                <Card variant="default" padding="none" className="p-4 sm:p-6"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">A Faturar</p><p className="text-base sm:text-xl font-bold text-orange-900 truncate">R$ {formatCurrency(metricas.vendasAFaturar)}</p><p className="text-xs text-gray-500 mt-1">Clientes: {metricas.clientesAFaturar}</p></div><Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" /></div></Card>
+                <Card variant="default" padding="none" className="p-4 sm:p-6"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Clientes</p><p className="text-base sm:text-xl font-bold text-purple-900 truncate">{metricas.clientesAtendidos}</p></div><Users className="h-5 w-5 sm:h-6 sm:w-6 text-purple-500" /></div></Card>
+                <Card variant="default" padding="none" className="p-4 sm:p-6"><div className="flex items-start justify-between"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm text-gray-600 mb-1">Atingimento</p><p className={`text-base sm:text-xl font-bold truncate ${metricas.atingimentoPercent >= 100 ? 'text-green-900' : 'text-red-900'}`}>{metricas.atingimentoPercent.toFixed(1)}%</p></div><Target className={`h-5 w-5 sm:h-6 sm:w-6 ${metricas.atingimentoPercent >= 100 ? 'text-green-500' : 'text-red-500'}`} /></div></Card>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
+            <Card variant="default" padding="none" className="p-4 sm:p-6 mt-6 sm:mt-8">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Mensal</h3>
               <div className="space-y-4">
                 {[...rankingVendedores].sort((a, b) => b.atingimento - a.atingimento).map((vendedor) => {
@@ -418,9 +417,9 @@ const DashboardGestao: React.FC = () => {
                   );
                 })}
               </div>
-            </div>
+            </Card>
 
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
+            <Card variant="default" padding="none" className="p-4 sm:p-6 mt-6 sm:mt-8">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Tabela Vendas Mensal</h3>
               <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <table className="w-full min-w-full">
@@ -437,8 +436,8 @@ const DashboardGestao: React.FC = () => {
                     {rankingVendedores.map((vendedor) => (
                       <tr key={vendedor.nome} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 sm:py-3 px-3 sm:px-4"><span className="font-medium text-gray-900 text-xs sm:text-base">{vendedor.nome.split(' ')[0]}</span></td>
-                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 text-xs sm:text-sm hidden sm:table-cell">R$ {formatarMoeda(vendedor.meta)}</td>
-                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right font-semibold text-gray-900 text-xs sm:text-sm">R$ {formatarMoeda(vendedor.vendas)}</td>
+                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 text-xs sm:text-sm hidden sm:table-cell">R$ {formatCurrency(vendedor.meta)}</td>
+                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right font-semibold text-gray-900 text-xs sm:text-sm">R$ {formatCurrency(vendedor.vendas)}</td>
                         <td className="py-2 sm:py-3 px-3 sm:px-4 text-right"><span className={`font-bold text-xs sm:text-sm ${vendedor.atingimento >= 100 ? 'text-green-600' : 'text-red-600'}`}>{vendedor.atingimento.toFixed(1)}%</span></td>
                         <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 text-xs sm:text-sm hidden sm:table-cell">{vendedor.numeroClientes}</td>
                       </tr>
@@ -446,8 +445,8 @@ const DashboardGestao: React.FC = () => {
                     {rankingVendedores.length > 0 && (
                       <tr className="border-t-2 border-gray-300 bg-gray-50 hover:bg-gray-50">
                         <td className="py-3 sm:py-4 px-3 sm:px-4"><span className="font-bold text-gray-900 text-xs sm:text-base">Total</span></td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-right font-bold text-gray-900 text-xs sm:text-sm hidden sm:table-cell">R$ {formatarMoeda(rankingVendedores.reduce((sum, v) => sum + v.meta, 0))}</td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-right font-bold text-gray-900 text-xs sm:text-sm">R$ {formatarMoeda(rankingVendedores.reduce((sum, v) => sum + v.vendas, 0))}</td>
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-right font-bold text-gray-900 text-xs sm:text-sm hidden sm:table-cell">R$ {formatCurrency(rankingVendedores.reduce((sum, v) => sum + v.meta, 0))}</td>
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-right font-bold text-gray-900 text-xs sm:text-sm">R$ {formatCurrency(rankingVendedores.reduce((sum, v) => sum + v.vendas, 0))}</td>
                         <td className="py-3 sm:py-4 px-3 sm:px-4 text-right"><span className="font-bold text-xs sm:text-sm text-blue-600">{(rankingVendedores.reduce((sum, v) => sum + v.vendas, 0) / rankingVendedores.reduce((sum, v) => sum + v.meta, 0) * 100).toFixed(1)}%</span></td>
                         <td className="py-3 sm:py-4 px-3 sm:px-4 text-right font-bold text-gray-900 text-xs sm:text-sm hidden sm:table-cell">{rankingVendedores.reduce((sum, v) => sum + v.numeroClientes, 0)}</td>
                       </tr>
@@ -455,9 +454,9 @@ const DashboardGestao: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </Card>
 
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-8 mt-6 sm:mt-8">
+            <Card variant="default" padding="none" className="p-6 mb-8 mt-6 sm:mt-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Performance Semanal</h3>
               <div className="h-80">
                 {dadosSemanas.length > 0 ? (
@@ -474,7 +473,7 @@ const DashboardGestao: React.FC = () => {
                           boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                           border: '1px solid #e5e7eb'
                         }}
-                        formatter={(value: number, name: string) => [`R$ ${formatarMoeda(value)}`, name]}
+                        formatter={(value: number, name: string) => [`R$ ${formatCurrency(value)}`, name]}
                       />
                       <Legend />
                       <Line type="monotone" dataKey="vendasAcumuladas" name="Vendas Acumuladas" stroke="#10b981" strokeWidth={3} dot={{ r: 5 }} />
@@ -486,9 +485,9 @@ const DashboardGestao: React.FC = () => {
                   <div className="flex items-center justify-center h-full text-gray-500">Sem dados de vendas semanais para o período selecionado.</div>
                 )}
               </div>
-            </div>
+            </Card>
 
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
+            <Card variant="default" padding="none" className="p-4 sm:p-6 mt-6 sm:mt-8">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Ranking Semanal</h3>
               <div className="overflow-x-auto">
                   <table className="w-full">
@@ -525,23 +524,23 @@ const DashboardGestao: React.FC = () => {
                         </td>
                         <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden">{abreviarNumero(vendedor.semana1)}</span>
-                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana1)}</span>
+                          <span className="hidden sm:inline">R$ {formatCurrency(vendedor.semana1)}</span>
                         </td>
                         <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden">{abreviarNumero(vendedor.semana2)}</span>
-                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana2)}</span>
+                          <span className="hidden sm:inline">R$ {formatCurrency(vendedor.semana2)}</span>
                         </td>
                         <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden">{abreviarNumero(vendedor.semana3)}</span>
-                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana3)}</span>
+                          <span className="hidden sm:inline">R$ {formatCurrency(vendedor.semana3)}</span>
                         </td>
                         <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden">{abreviarNumero(vendedor.semana4)}</span>
-                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.semana4)}</span>
+                          <span className="hidden sm:inline">R$ {formatCurrency(vendedor.semana4)}</span>
                         </td>
                         <td className="p-2 text-right font-semibold text-gray-900 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden">{abreviarNumero(vendedor.totalSemanal)}</span>
-                          <span className="hidden sm:inline">R$ {formatarMoeda(vendedor.totalSemanal)}</span>
+                          <span className="hidden sm:inline">R$ {formatCurrency(vendedor.totalSemanal)}</span>
                         </td>
                       </tr>
                     ))}
@@ -552,30 +551,30 @@ const DashboardGestao: React.FC = () => {
                         </td>
                         <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana1, 0))}</span>
-                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana1, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatCurrency(rankingSemanal.reduce((sum, v) => sum + v.semana1, 0))}</span>
                         </td>
                         <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana2, 0))}</span>
-                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana2, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatCurrency(rankingSemanal.reduce((sum, v) => sum + v.semana2, 0))}</span>
                         </td>
                         <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana3, 0))}</span>
-                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana3, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatCurrency(rankingSemanal.reduce((sum, v) => sum + v.semana3, 0))}</span>
                         </td>
                         <td className="p-1 text-right text-gray-700 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.semana4, 0))}</span>
-                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.semana4, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatCurrency(rankingSemanal.reduce((sum, v) => sum + v.semana4, 0))}</span>
                         </td>
                         <td className="p-2 text-right text-gray-900 text-xs sm:text-sm sm:px-4">
                           <span className="sm:hidden font-bold">{abreviarNumero(rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0))}</span>
-                          <span className="hidden sm:inline font-bold">R$ {formatarMoeda(rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0))}</span>
+                          <span className="hidden sm:inline font-bold">R$ {formatCurrency(rankingSemanal.reduce((sum, v) => sum + v.totalSemanal, 0))}</span>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </div>
+            </Card>
           </>
         ) : (
           <Outlet />

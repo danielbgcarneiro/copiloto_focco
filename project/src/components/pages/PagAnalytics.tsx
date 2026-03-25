@@ -11,6 +11,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 // Recharts removido - usando matriz customizada ao invés de scatter plot
 import { Filter, TrendingUp, TrendingDown, AlertTriangle, Users, RefreshCw } from 'lucide-react'
+import { Card } from '../atoms'
 
 interface ClienteRFM {
   codigo_cliente: number
@@ -499,7 +500,7 @@ const PagAnalytics: React.FC = () => {
         </div>
 
         {/* Filtros */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6">
+        <Card variant="default" padding="none" className="p-4 sm:p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <Filter className="h-5 w-5 text-gray-600" />
             <h3 className="text-base sm:text-lg font-semibold text-gray-900">Filtros</h3>
@@ -583,47 +584,47 @@ const PagAnalytics: React.FC = () => {
               </select>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Cards de Estatísticas */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+          <Card variant="default" padding="none" className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Users className="h-5 w-5 text-blue-500" />
               <p className="text-xs text-gray-600">Total Clientes</p>
             </div>
             <p className="text-2xl font-bold text-gray-900">{estatisticas.total}</p>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+          <Card variant="default" padding="none" className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-5 w-5 text-green-500" />
               <p className="text-xs text-gray-600">Crescimento</p>
             </div>
             <p className="text-2xl font-bold text-green-600">{estatisticas.porTendencia['CRESCIMENTO'] || 0}</p>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+          <Card variant="default" padding="none" className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <TrendingDown className="h-5 w-5 text-red-500" />
               <p className="text-xs text-gray-600">Em Queda</p>
             </div>
             <p className="text-2xl font-bold text-red-600">{estatisticas.porTendencia['QUEDA'] || 0}</p>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+          <Card variant="default" padding="none" className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="h-5 w-5 text-orange-500" />
               <p className="text-xs text-gray-600">Em Alerta</p>
             </div>
             <p className="text-2xl font-bold text-orange-600">{estatisticas.emAlerta}</p>
             <p className="text-xs text-gray-500">{estatisticas.percentualAlerta.toFixed(1)}%</p>
-          </div>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Matriz RFM 2D */}
-          <div className="lg:col-span-3 bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6">
+          <Card variant="default" padding="none" className="lg:col-span-3 p-4 sm:p-6">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
               Matriz RFM - Segmentação de Clientes
             </h3>
@@ -715,7 +716,7 @@ const PagAnalytics: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Legenda e Estatísticas */}
           <div className="space-y-4">

@@ -7,12 +7,14 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Search, User, LogOut, AlertTriangle, Phone, MessageCircle, Filter } from 'lucide-react'
+import { Search, User, AlertTriangle, Phone, MessageCircle, Filter } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getClientesInadimplentes, getStatusInadimplencia, formatarTelefone } from '../../lib/queries/inadimplentes'
-import { formatarMoeda } from '../../lib/queries/dashboard'
 import { getVendedorRanking } from '../../lib/queries/vendedores'
 import { isAdmin } from '../../lib/utils/userHelpers'
+import { Card } from '../atoms'
+import { PageHeader } from '../molecules'
+import { formatCurrency } from '../../utils'
 
 const Inadimplentes: React.FC = () => {
   const navigate = useNavigate()
@@ -44,11 +46,11 @@ const Inadimplentes: React.FC = () => {
     try {
       setLoading(true)
       console.log('🔍 Carregando inadimplentes para usuário:', user?.id)
-      
+
       // Buscar clientes inadimplentes com RLS aplicado
       const clientesInadimplentes = await getClientesInadimplentes()
       console.log('✅ Inadimplentes carregados:', clientesInadimplentes)
-      
+
       // Buscar valor total de inadimplência da vw_ranking_vendedores
       try {
         const vendedorRanking = await getVendedorRanking()
@@ -59,18 +61,18 @@ const Inadimplentes: React.FC = () => {
       } catch (error) {
         console.warn('⚠️ Erro ao carregar valor total de inadimplência:', error)
       }
-      
+
       // Transformar dados para o formato esperado pela interface
       const inadimplentesFormatados = clientesInadimplentes.map(cliente => {
         const { status, statusColor } = getStatusInadimplencia(cliente.maior_dias_atraso)
-        
+
         return {
           id: cliente.codigo_cliente,
           nome: cliente.nome_fantasia,
           codigo: cliente.codigo_cliente.toString(),
           cidade: cliente.cidade,
           rota: cliente.rota,
-          valorTotal: formatarMoeda(cliente.valor_total_titulos),
+          valorTotal: formatCurrency(cliente.valor_total_titulos),
           ultimoPagamento: cliente.ultimo_pagamento || 'N/A',
           telefone: formatarTelefone(cliente.telefone),
           titulosAbertos: cliente.titulos,
@@ -79,9 +81,9 @@ const Inadimplentes: React.FC = () => {
           statusColor
         }
       })
-      
+
       setInadimplentesData(inadimplentesFormatados)
-      
+
     } catch (error) {
       console.error('💥 Erro ao carregar inadimplentes:', error)
       setInadimplentesData([])
@@ -124,36 +126,18 @@ const Inadimplentes: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-primary text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 relative">
-            <div className="flex items-center">
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="p-1.5 hover:bg-white/10 rounded-full transition-colors mr-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex items-center absolute left-1/2 transform -translate-x-1/2">
-              <h1 className="text-lg font-bold">Copiloto</h1>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1.5">
-                <User className="h-4 w-4" />
-                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
-              </div>
-              <button 
-                onClick={() => { logout(); navigate('/') }}
-                className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
+      <PageHeader
+        title="Copiloto"
+        showBack
+        onBack={() => navigate('/dashboard')}
+        onLogout={() => { logout(); navigate('/') }}
+        rightAction={
+          <div className="flex items-center space-x-1.5">
+            <User className="h-4 w-4" />
+            <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
@@ -165,20 +149,20 @@ const Inadimplentes: React.FC = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4">
+          <Card variant="default" padding="sm">
             <p className="text-[10px] sm:text-xs text-gray-600 mb-1">Total Inadimplentes</p>
             <p className="text-sm sm:text-lg font-bold text-red-600">{totalInadimplentes}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4">
+          </Card>
+          <Card variant="default" padding="sm">
             <p className="text-[10px] sm:text-xs text-gray-600 mb-1">Valor Total</p>
             <p className="text-sm sm:text-lg font-bold text-red-600">
-              {formatarMoeda(valorTotalInadimplencia)}
+              {formatCurrency(valorTotalInadimplencia)}
             </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4">
+          </Card>
+          <Card variant="default" padding="sm">
             <p className="text-[10px] sm:text-xs text-gray-600 mb-1">Críticos (&gt;30d)</p>
             <p className="text-sm sm:text-lg font-bold text-red-600">{criticosCount}</p>
-          </div>
+          </Card>
         </div>
 
         {/* Search and Filter Bar */}
@@ -194,7 +178,7 @@ const Inadimplentes: React.FC = () => {
             />
           </div>
           <div className="relative flex-shrink-0">
-            <button 
+            <button
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               onClick={() => setShowFilterMenu(!showFilterMenu)}
             >
@@ -246,9 +230,11 @@ const Inadimplentes: React.FC = () => {
             </div>
           ) : filteredInadimplentes.length > 0 ? (
             filteredInadimplentes.map((inadimplente) => (
-            <div
+            <Card
               key={inadimplente.id}
-              className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all"
+              variant="default"
+              padding="none"
+              className="p-4 hover:shadow-lg hover:border-gray-300 transition-all"
             >
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-1">
@@ -258,7 +244,7 @@ const Inadimplentes: React.FC = () => {
                     {inadimplente.status}
                   </span>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-2 text-xs leading-tight mb-1">
                   <div>
                     <span className="text-gray-600">Código:</span>
@@ -269,7 +255,7 @@ const Inadimplentes: React.FC = () => {
                     <span className="ml-1 font-semibold text-gray-800">{inadimplente.cidade}</span>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-2 text-xs leading-tight mb-3">
                   <div>
                     <span className="text-red-600">Valor Total:</span>
@@ -280,7 +266,7 @@ const Inadimplentes: React.FC = () => {
                     <span className="ml-1 font-semibold text-gray-800">{inadimplente.rota}</span>
                   </div>
                 </div>
-                
+
                 {/* Lista de títulos em aberto */}
                 <div className="border-t border-gray-100 pt-2 mb-3">
                   <p className="text-xs font-medium text-gray-700 mb-2">Títulos Atrasados:</p>
@@ -291,24 +277,24 @@ const Inadimplentes: React.FC = () => {
                         <div key={index} className="grid grid-cols-3 gap-2 text-xs items-center">
                           <span className="text-gray-600">{titulo.vencimento}</span>
                           <span className="text-center text-red-600 font-medium">{diasAtraso}d</span>
-                          <span className="font-semibold text-red-600 text-right">{formatarMoeda(titulo.valor)}</span>
+                          <span className="font-semibold text-red-600 text-right">{formatCurrency(titulo.valor)}</span>
                         </div>
                       )
                     })}
                   </div>
                 </div>
-                
+
                 {/* Botões de Ação */}
                 <div className="border-t border-gray-100 pt-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <button 
+                    <button
                       onClick={() => window.open(`tel:${inadimplente.telefone}`, '_self')}
                       className="w-full bg-primary text-white py-2 sm:py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                     >
                       <Phone className="h-4 w-4" />
                       <span className="text-xs sm:text-sm">Ligar</span>
                     </button>
-                    <button 
+                    <button
                       onClick={() => window.open(`https://wa.me/${inadimplente.telefone.replace(/\D/g, '')}`, '_blank')}
                       className="w-full bg-green-600 text-white py-2 sm:py-2.5 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                     >
@@ -318,13 +304,13 @@ const Inadimplentes: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </Card>
           ))
           ) : (
             <div className="text-center py-12 text-gray-500">
               <p className="text-lg mb-2">Nenhum inadimplente encontrado</p>
               <p className="text-sm">
-                {searchTerm ? 'Tente ajustar o filtro de busca.' : 
+                {searchTerm ? 'Tente ajustar o filtro de busca.' :
                   isAdmin(user) ? 'Não há clientes inadimplentes no sistema.' : 'Todos os seus clientes estão em dia!'}
               </p>
             </div>

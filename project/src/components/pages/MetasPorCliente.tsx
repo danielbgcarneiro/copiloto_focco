@@ -11,10 +11,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Search } from 'lucide-react';
 import { getTabelasPerfilParaGestao, TabelaPerfil, ClientePerfil } from '../../lib/queries/dashboard';
 import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores';
+import { LoadingSpinner, Card } from '../atoms';
+import { formatCurrency } from '../../utils';
 
-const formatarMoedaSemDecimais = (valor: number) => {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-};
 
 const TabelaClientesPerfil: React.FC<{
   perfilData: TabelaPerfil;
@@ -29,7 +28,7 @@ const TabelaClientesPerfil: React.FC<{
 
   const clientesFiltrados = useMemo(() => {
     if (!perfilData || !perfilData.clientes || perfilData.clientes.length === 0) return [];
-    
+
     let filtered = perfilData.clientes;
 
     if (filtroVendedorId !== '') {
@@ -115,10 +114,10 @@ const TabelaClientesPerfil: React.FC<{
                 <th className="px-2 py-0.5 text-left font-normal"></th>
                 <th className="px-2 py-0.5 text-left font-normal"></th>
                 <th className="px-2 py-0.5 text-right font-normal">
-                  <p className="text-[0.65rem] sm:text-xs font-bold">TT {formatarMoedaSemDecimais(totaisFiltrados.somaObjetivo)}</p>
+                  <p className="text-[0.65rem] sm:text-xs font-bold">TT {formatCurrency(totaisFiltrados.somaObjetivo, true)}</p>
                 </th>
                 <th className="px-2 py-0.5 text-right font-normal">
-                  <p className="text-[0.65rem] sm:text-xs font-bold">VD {formatarMoedaSemDecimais(totaisFiltrados.somaVendas)}</p>
+                  <p className="text-[0.65rem] sm:text-xs font-bold">VD {formatCurrency(totaisFiltrados.somaVendas, true)}</p>
                 </th>
                 <th className="px-2 py-0.5 text-right font-normal">
                   <p className="text-[0.65rem] sm:text-xs font-bold">{totaisFiltrados.percentualGeral.toFixed(1)}%</p>
@@ -141,8 +140,8 @@ const TabelaClientesPerfil: React.FC<{
                   <td className="px-2 py-1 text-left text-xs sm:text-sm text-gray-900 max-w-40 truncate whitespace-nowrap overflow-hidden">{cliente.nome_fantasia}</td>
                   <td className="px-2 py-1 text-left text-xs sm:text-sm text-gray-600 max-w-32 truncate whitespace-nowrap overflow-hidden">{cliente.apelido_vendedor}</td>
                   <td className="px-2 py-1 text-left text-xs sm:text-sm text-gray-600 max-w-32 truncate whitespace-nowrap overflow-hidden">{cliente.cidade_uf}</td>
-                  <td className="px-2 py-1 text-right text-xs sm:text-sm text-gray-900">{formatarMoedaSemDecimais(cliente.objetivo)}</td>
-                  <td className="px-2 py-1 text-right text-xs sm:text-sm text-gray-900">{formatarMoedaSemDecimais(cliente.vendas)}</td>
+                  <td className="px-2 py-1 text-right text-xs sm:text-sm text-gray-900">{formatCurrency(cliente.objetivo, true)}</td>
+                  <td className="px-2 py-1 text-right text-xs sm:text-sm text-gray-900">{formatCurrency(cliente.vendas, true)}</td>
                   <td className="px-2 py-1 text-right text-xs sm:text-sm font-semibold text-gray-900">{cliente.percentual.toFixed(1)}%</td>
                 </tr>
               ))}
@@ -203,15 +202,15 @@ const MetasPorCliente: React.FC = () => {
   const perfilBronze = tabelasPerfil.find(p => p.perfil === 'bronze');
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+    return <LoadingSpinner size="md" fullPage />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="w-full sm:max-w-7xl sm:mx-auto px-2 sm:px-6 lg:px-8 py-4 lg:py-8">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Visão Geral de Metas por Cliente</h2>
-        
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mt-6 sm:mt-8">
+
+        <Card variant="default" padding="md" className="mt-6 sm:mt-8">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Filtros</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 {/* Vendedor Filter */}
@@ -246,7 +245,7 @@ const MetasPorCliente: React.FC = () => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
             </div>
-        </div>
+        </Card>
 
         <div className="space-y-6 mt-12">
             <div className="grid grid-cols-1 gap-6">

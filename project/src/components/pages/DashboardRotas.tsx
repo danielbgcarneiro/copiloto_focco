@@ -10,6 +10,8 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { Card, LoadingSpinner } from '../atoms'
+import { formatCurrency } from '../../utils'
 
 interface RotaData {
   rota: string
@@ -349,14 +351,6 @@ const DashboardRotas: React.FC = () => {
     })
   }
 
-  const formatarMoeda = (valor: number): string => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(valor)
-  }
 
   useEffect(() => {
     if (!user) {
@@ -371,11 +365,7 @@ const DashboardRotas: React.FC = () => {
   }, [user, navigate])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingSpinner size="md" fullPage />
   }
 
   return (
@@ -393,7 +383,7 @@ const DashboardRotas: React.FC = () => {
         </div>
 
         {/* Top Rotas */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+        <Card variant="default" padding="none" className="p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Ranking de Rotas</h3>
             
@@ -495,8 +485,8 @@ const DashboardRotas: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-gray-700">{rota.vendedor_apelido}</td>
-                      <td className="py-3 px-4 text-right text-gray-700">{formatarMoeda(rota.meta_2025)}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-gray-900">{formatarMoeda(rota.vendido_2025)}</td>
+                      <td className="py-3 px-4 text-right text-gray-700">{formatCurrency(rota.meta_2025, true)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-gray-900">{formatCurrency(rota.vendido_2025, true)}</td>
                       <td className="py-3 px-4 text-right">
                         <span className={`font-bold ${
                           rota.percentual_meta >= 100 ? 'text-green-600' :
@@ -563,8 +553,8 @@ const DashboardRotas: React.FC = () => {
                                     {getCidadesOrdenadas(cidadesComMeta.get(rota.rota) || []).map((cidade) => (
                                       <tr key={cidade.codigo_ibge_cidade} className="border-b border-gray-200 hover:bg-white">
                                         <td className="px-3 py-2 text-gray-900 font-medium">{cidade.cidade}</td>
-                                        <td className="text-right px-3 py-2 text-gray-700">{formatarMoeda(cidade.meta_cidade)}</td>
-                                        <td className="text-right px-3 py-2 font-semibold text-gray-900">{formatarMoeda(cidade.vendas_cidade)}</td>
+                                        <td className="text-right px-3 py-2 text-gray-700">{formatCurrency(cidade.meta_cidade, true)}</td>
+                                        <td className="text-right px-3 py-2 font-semibold text-gray-900">{formatCurrency(cidade.vendas_cidade, true)}</td>
                                         <td className="text-right px-3 py-2">
                                           <span className={`font-bold ${
                                             cidade.percentual_atingimento >= 100 ? 'text-green-600' :
@@ -592,7 +582,7 @@ const DashboardRotas: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
         {/* Seção Top Cidades removida - view não existe mais no backend */}
       </main>

@@ -7,24 +7,15 @@
 
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, User, LogOut, Phone, MessageCircle, AlertTriangle } from 'lucide-react'
+import { User, Phone, MessageCircle, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getClienteDetalhes } from '../../lib/queries/cliente'
 import { getHistoricoVisitas } from '../../lib/queries/clientes'
 import { getClienteInadimplenteDetalhes, ClienteInadimplente } from '../../lib/queries/inadimplentes'
 import { getTitulosClienteDetalhes, TituloAbertoDetalhes } from '../../lib/queries/titulos'
-
-// Funções de formatação
-const formatarMoeda = (valor: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(valor || 0);
-};
-
-const formatarPercentual = (valor: number) => {
-  return `${(valor || 0).toFixed(1)}%`;
-};
+import { Card } from '../atoms'
+import { PageHeader } from '../molecules'
+import { formatCurrency } from '../../utils'
 
 const formatarTelefone = (telefone: string) => {
   if (!telefone) return '';
@@ -325,36 +316,19 @@ const DetalhesCliente: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-primary text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 relative">
-            <div className="flex items-center">
-              <button 
-                onClick={voltarParaClientes}
-                className="p-1.5 hover:bg-white/10 rounded-full transition-colors mr-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex items-center absolute left-1/2 transform -translate-x-1/2">
-              <h1 className="text-lg font-bold">Copiloto</h1>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1.5">
-                <User className="h-4 w-4" />
-                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
-              </div>
-              <button 
-                onClick={() => { logout(); navigate('/') }}
-                className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
+      <PageHeader
+        title="Copiloto"
+        variant="centered"
+        showBack
+        onBack={voltarParaClientes}
+        onLogout={() => { logout(); navigate('/') }}
+        rightAction={
+          <div className="flex items-center space-x-1.5">
+            <User className="h-4 w-4" />
+            <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
@@ -371,7 +345,7 @@ const DetalhesCliente: React.FC = () => {
           </div>
         )}
         
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+        <Card variant="default" padding="none" className="p-4">
           {/* Cliente Info */}
           <div className="mb-4 pb-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-1.5">
@@ -413,15 +387,15 @@ const DetalhesCliente: React.FC = () => {
             <div className="grid grid-cols-2 gap-2 text-xs leading-tight">
               <div className="leading-tight">
                 <span className="text-blue-600">Meta: </span>
-                <span className="font-semibold text-blue-700">{formatarMoeda(dadosCliente.meta)}</span>
+                <span className="font-semibold text-blue-700">{formatCurrency(dadosCliente.meta)}</span>
               </div>
               <div className="text-right leading-tight">
-                <span className="text-gray-600">Ating: {formatarPercentual(dadosCliente.percentualMeta)}</span>
+                <span className="text-gray-600">Ating: {(dadosCliente.percentualMeta || 0).toFixed(1)}%</span>
               </div>
-              
+
               <div className="leading-tight">
                 <span className="text-gray-600">{anoAtual}: </span>
-                <span className="font-semibold">{formatarMoeda(dadosCliente.vendasAnoAtual)}</span>
+                <span className="font-semibold">{formatCurrency(dadosCliente.vendasAnoAtual)}</span>
               </div>
               <div className="text-right leading-tight">
                 <span className="text-gray-600">Qnt: {dadosCliente.qtdVendasAnoAtual}</span>
@@ -429,7 +403,7 @@ const DetalhesCliente: React.FC = () => {
 
               <div className="leading-tight">
                 <span className="text-gray-600">{anoAnterior}: </span>
-                <span className="font-semibold">{formatarMoeda(dadosCliente.vendasAnoAnterior)}</span>
+                <span className="font-semibold">{formatCurrency(dadosCliente.vendasAnoAnterior)}</span>
               </div>
               <div className="text-right leading-tight">
                 <span className="text-gray-600">Qnt: {dadosCliente.qtdVendasAnoAnterior}</span>
@@ -599,7 +573,7 @@ const DetalhesCliente: React.FC = () => {
                           <span className={`text-center font-bold ${estaVencido ? 'text-red-600' : 'text-gray-600'}`}>
                             {titulo.dias_atraso > 0 ? `${titulo.dias_atraso}d` : `${Math.abs(titulo.dias_atraso)}d`}
                           </span>
-                          <span className={`text-right font-semibold ${estaVencido ? 'text-red-700' : 'text-gray-700'}`}>{formatarMoeda(titulo.valor_titulo)}</span>
+                          <span className={`text-right font-semibold ${estaVencido ? 'text-red-700' : 'text-gray-700'}`}>{formatCurrency(titulo.valor_titulo)}</span>
                         </div>
                       )
                     })}
@@ -610,7 +584,7 @@ const DetalhesCliente: React.FC = () => {
               <p className="text-xs text-green-600 font-medium py-2">✓ Sem títulos em aberto</p>
             )}
           </div>
-        </div>
+        </Card>
       </main>
     </div>
   )

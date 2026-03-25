@@ -9,6 +9,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { Card, LoadingSpinner } from '../atoms'
 
 interface DadosMensal {
   mes: string
@@ -405,11 +406,7 @@ const PagAcumuladoAno: React.FC = () => {
   }, [user, navigate])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingSpinner size="md" fullPage />
   }
 
   const { totalMeta, totalVendas, atingimentoGeral } = calcularTotaisAno()
@@ -430,7 +427,7 @@ const PagAcumuladoAno: React.FC = () => {
         </div>
 
         {/* Card de Filtros */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+        <Card variant="default" padding="none" className="p-4 sm:p-6 mb-6 sm:mb-8">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Filtros</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Ano Filter */}
@@ -462,10 +459,10 @@ const PagAcumuladoAno: React.FC = () => {
               <svg className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Realizado */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+        <Card variant="default" padding="none" className="p-4 sm:p-6 mb-6 sm:mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Realizado</h3>
 
           <div className="overflow-x-auto">
@@ -512,10 +509,10 @@ const PagAcumuladoAno: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
         {/* Clientes únicos por mês */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+        <Card variant="default" padding="none" className="p-4 sm:p-6 mb-6 sm:mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Clientes por mês</h3>
 
           <div className="overflow-x-auto">
@@ -548,10 +545,10 @@ const PagAcumuladoAno: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
         {/* Análise de Cidades */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6">
+        <Card variant="default" padding="none" className="p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Análise de Cidades</h3>
 
           {/* Cards compactos - Visão Geral */}
@@ -610,7 +607,7 @@ const PagAcumuladoAno: React.FC = () => {
               </table>
             </div>
           </div>
-        </div>
+        </Card>
       </main>
     </div>
   )

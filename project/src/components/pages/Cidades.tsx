@@ -7,10 +7,13 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Search, User, LogOut, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Search, User, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getCidadesCompleto, normalizeText, type CidadeMapeada } from '../../lib/queries/cidades'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
+import { Card } from '../atoms'
+import { PageHeader } from '../molecules'
+import { formatCurrency } from '../../utils'
 
 const Cidades: React.FC = () => {
   const navigate = useNavigate()
@@ -66,16 +69,6 @@ const Cidades: React.FC = () => {
     return normalizeText(cidade.nome).includes(normalizedSearchTerm)
   })
 
-  // Função para formatar valores em reais
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value)
-  }
-
   // Componente do Card de Cidade
   const CidadeCard: React.FC<{ cidade: CidadeMapeada }> = ({ cidade }) => {
     // Garantir que o atingimento está entre 0 e 100
@@ -86,8 +79,9 @@ const Cidades: React.FC = () => {
     const greenOffset = circumference * (1 - atingimento / 100)
 
     return (
-      <div
-        className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden"
+      <Card
+        variant="interactive"
+        padding="none"
         onClick={() => navigate(`/rotas/${encodeURIComponent(rotaNome || '')}/cidades/${encodeURIComponent(cidade.nome)}/clientes`)}
       >
         {/* Header */}
@@ -137,10 +131,10 @@ const Cidades: React.FC = () => {
               {/* Saldo */}
               <div className="mb-2.5">
                 <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
-                  {formatCurrency(cidade.saldoMetas)}
+                  {formatCurrency(cidade.saldoMetas, true)}
                 </div>
                 <div className="text-gray-600 text-[10px] sm:text-xs">Saldo</div>
-                <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(cidade.somaMetas)}</div>
+                <div className="text-gray-500 text-[10px] sm:text-xs truncate">Meta: {formatCurrency(cidade.somaMetas, true)}</div>
               </div>
 
               {/* Divider */}
@@ -174,45 +168,28 @@ const Cidades: React.FC = () => {
         <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-orange-500 flex-shrink-0" />
           <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
-            Oportunidade de Venda: {formatCurrency(cidade.somaOportunidades)}
+            Oportunidade de Venda: {formatCurrency(cidade.somaOportunidades, true)}
           </span>
         </div>
-      </div>
+      </Card>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-primary text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 relative">
-            <div className="flex items-center">
-              <button 
-                onClick={() => navigate('/rotas')}
-                className="p-1.5 hover:bg-white/10 rounded-full transition-colors mr-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex items-center absolute left-1/2 transform -translate-x-1/2">
-              <h1 className="text-lg font-bold">Copiloto</h1>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1.5">
-                <User className="h-4 w-4" />
-                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
-              </div>
-              <button 
-                onClick={() => { logout(); navigate('/') }}
-                className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
+      <PageHeader
+        title="Copiloto"
+        variant="centered"
+        showBack
+        onBack={() => navigate('/rotas')}
+        onLogout={() => { logout(); navigate('/') }}
+        rightAction={
+          <div className="flex items-center space-x-1.5">
+            <User className="h-4 w-4" />
+            <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
