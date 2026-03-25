@@ -7,6 +7,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { GitBranch, Clock, CheckCircle, XCircle, Package, AlertTriangle, Users, X, ChevronUp, ChevronDown, ChevronRight, ChevronsUpDown, ChevronDown as ChevDown } from 'lucide-react';
+import { Card } from '../atoms';
+import { formatCurrency } from '../../utils';
 
 interface PipelineRow {
   id: number;
@@ -128,9 +130,6 @@ const formatDataHora = (dt: string | null): string => {
     d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   );
 };
-
-const formatMoeda = (v: number): string =>
-  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 // ─── Multi-select dropdown ────────────────────────────────────────────────────
 
@@ -283,7 +282,7 @@ const DrawerDetalhePedido: React.FC<DrawerProps> = ({ row, vendedor, slaEfetivo,
             {SLA_LABEL[slaEfetivo] || slaEfetivo}
           </span>
           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{row.tipo_pedido_label}</span>
-          <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{formatMoeda(row.valor_pedido)}</span>
+          <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{formatCurrency(row.valor_pedido)}</span>
           {vendedor !== '—' && (
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{vendedor}</span>
           )}
@@ -596,7 +595,7 @@ const PipelineOperacional: React.FC = () => {
   return (
     <div>
       {/* Filtros */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-5 mb-6">
+      <Card variant="default" padding="none" className="p-4 sm:p-5 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-primary" />
@@ -668,7 +667,7 @@ const PipelineOperacional: React.FC = () => {
             </button>
           </div>
         )}
-      </div>
+      </Card>
 
       {loading ? (
         <div className="flex justify-center items-center h-48">
@@ -678,7 +677,7 @@ const PipelineOperacional: React.FC = () => {
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            <Card variant="default" padding="none" className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Total</p>
@@ -687,8 +686,8 @@ const PipelineOperacional: React.FC = () => {
                 </div>
                 <Package className="h-5 w-5 text-blue-400" />
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            </Card>
+            <Card variant="default" padding="none" className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Clientes únicos</p>
@@ -701,8 +700,8 @@ const PipelineOperacional: React.FC = () => {
                 </div>
                 <Users className="h-5 w-5 text-gray-400" />
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            </Card>
+            <Card variant="default" padding="none" className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Em Andamento</p>
@@ -713,8 +712,8 @@ const PipelineOperacional: React.FC = () => {
                 </div>
                 <Clock className="h-5 w-5 text-blue-400" />
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            </Card>
+            <Card variant="default" padding="none" className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Faturados</p>
@@ -725,8 +724,8 @@ const PipelineOperacional: React.FC = () => {
                 </div>
                 <CheckCircle className="h-5 w-5 text-green-400" />
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            </Card>
+            <Card variant="default" padding="none" className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Cancelados</p>
@@ -737,8 +736,8 @@ const PipelineOperacional: React.FC = () => {
                 </div>
                 <XCircle className="h-5 w-5 text-red-400" />
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            </Card>
+            <Card variant="default" padding="none" className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Atrasados (SLA)</p>
@@ -751,12 +750,12 @@ const PipelineOperacional: React.FC = () => {
                 </div>
                 <AlertTriangle className={`h-5 w-5 ${kpis.atrasados > 0 ? 'text-red-400' : 'text-gray-300'}`} />
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Desempenho por Etapa */}
           {ETAPA_META.some(e => kpis[e.key] !== null) && (
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-5 mb-6">
+            <Card variant="default" padding="none" className="p-4 sm:p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Desempenho por Etapa</h3>
                 <span className="text-xs text-gray-400">SLA alvo: 48h total</span>
@@ -802,11 +801,11 @@ const PipelineOperacional: React.FC = () => {
                   );
                 })}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Tabela agrupada por cliente */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden mb-4">
+          <Card variant="default" padding="none" className="overflow-hidden mb-4">
             {/* Cabeçalho da tabela + controle expandir/colapsar */}
             <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
               <span className="text-xs text-gray-500">
@@ -874,7 +873,7 @@ const PipelineOperacional: React.FC = () => {
                                     {grupo.pedidos.length} {grupo.pedidos.length === 1 ? 'pedido' : 'pedidos'}
                                   </span>
                                   <span className="text-[10px] text-gray-600 hidden lg:inline font-medium">
-                                    {formatMoeda(totalGrupo)}
+                                    {formatCurrency(totalGrupo)}
                                   </span>
                                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${SLA_BADGE[piorSla] || 'bg-gray-100 text-gray-600'}`}>
                                     {SLA_LABEL[piorSla] || piorSla}
@@ -935,7 +934,7 @@ const PipelineOperacional: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
         </>
       )}
 
