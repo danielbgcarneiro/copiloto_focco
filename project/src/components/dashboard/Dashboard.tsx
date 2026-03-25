@@ -11,9 +11,7 @@ import { TrendingUp, Target, User, LogOut, Map as MapIcon, Building, AlertTriang
 import { useAuth } from '../../contexts/AuthContext'
 import { getDashboardCompleto, formatarMoeda, type DashboardData, getPercentualMetaAnual } from '../../lib/queries/dashboard'
 import { getVendedorRanking, type VendedorRanking, getOticasSemVendas180d } from '../../lib/queries/vendedores'
-import { TestViews } from '../../utils/test-views'
 import TabelaPerfil from './TabelaPerfil'
-import '../../styles/dashboard.css'
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
@@ -26,7 +24,6 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isCarregando, setIsCarregando] = useState(false)
-  const [showTestViews, setShowTestViews] = useState(false)
   const [filtroCidade, setFiltroCidade] = useState('');
   const [objAnualData, setObjAnualData] = useState<{ total_vendas_ano?: number; total_metas_ano?: number; percentual_anual?: number; clientes_atendidos_ano: number; } | null>(null);
   
@@ -41,14 +38,8 @@ const Dashboard: React.FC = () => {
         setIsCarregando(true);
         setLoading(true)
         setError(null)
-        console.log('🔍 Carregando dados do dashboard para usuário:', {
-          userId: user?.id,
-          email: user?.email,
-          cargo: user?.cargo
-        });
-        
 
-        
+
         // Carregar dados completos do dashboard
         const [dashboardCompleto, metaAnualData, semVendas180dData] = await Promise.all([
           getDashboardCompleto(),
@@ -61,25 +52,9 @@ const Dashboard: React.FC = () => {
         
         try {
           rankingVendedor = await getVendedorRanking();
-        } catch (vendedorError) {
-          console.warn('⚠️ Não foi possível carregar dados do vendedor:', vendedorError);
+        } catch {
+          // ranking não-crítico, continua sem ele
         }
-        
-        console.log('✅ Dados completos carregados:', {
-          dashboard: {
-            metricas: dashboardCompleto.metricas,
-            rotasCount: dashboardCompleto.rankingRotas.length
-          },
-          vendedorRanking: rankingVendedor,
-          oticasSemVendas180d: semVendas180dData?.count
-        });
-
-        // Verificar se há dados suficientes
-        if (dashboardCompleto.rankingRotas.length === 0) {
-          console.warn('⚠️ Nenhum dado encontrado - possível problema com RLS');
-        }
-
-
 
         setDashboardData(dashboardCompleto);
         setObjAnualData({
@@ -92,14 +67,7 @@ const Dashboard: React.FC = () => {
 
         
       } catch (error) {
-        console.error('💥 Erro ao carregar dados do dashboard:', {
-          error,
-          message: error instanceof Error ? error.message : 'Erro desconhecido',
-          stack: error instanceof Error ? error.stack : undefined,
-          user: { id: user?.id, email: user?.email, cargo: user?.cargo }
-        });
-        
-  setError(error instanceof Error ? error.message : 'Erro desconhecido')
+        setError(error instanceof Error ? error.message : 'Erro desconhecido')
   setDashboardData(null)
         setVendedorRanking(null)
       } finally {
@@ -121,8 +89,6 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Modal de teste de views */}
-      {showTestViews && <TestViews />}
       {/* Header */}
       <header className="bg-primary text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -174,12 +140,6 @@ const Dashboard: React.FC = () => {
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
             <p className="text-red-600 text-sm">Erro ao carregar métricas: {error}</p>
-            <button 
-              onClick={() => setShowTestViews(true)}
-              className="mt-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-            >
-              Testar Views do Supabase
-            </button>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

@@ -339,7 +339,7 @@ export function getCorPrioridade(acaoRecomendada: string): string {
     acao.includes('última tentativa') ||
     acao.includes('resolver situação')
   ) {
-    return 'bg-red-50 border-red-200';
+    return 'card-perigo border-red-200';
   }
   
   // Amarelo - Ações de atenção
@@ -351,7 +351,7 @@ export function getCorPrioridade(acaoRecomendada: string): string {
     acao.includes('ação de reativação') ||
     acao.includes('avaliar manutenção')
   ) {
-    return 'bg-yellow-50 border-yellow-200';
+    return 'card-alerta border-yellow-200';
   }
   
   // Verde - Ações de manutenção
@@ -361,7 +361,7 @@ export function getCorPrioridade(acaoRecomendada: string): string {
     acao.includes('foco em') ||
     acao.includes('primeira venda')
   ) {
-    return 'bg-green-50 border-green-200';
+    return 'card-ok border-green-200';
   }
   
   return 'bg-gray-50';

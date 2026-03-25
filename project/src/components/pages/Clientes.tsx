@@ -78,11 +78,9 @@ const Clientes: React.FC = () => {
   async function carregarClientes() {
     try {
       setLoading(true)
-      console.log('🔍 Carregando clientes para cidade:', cidadeDecodificada)
 
       // Buscar clientes direto com filtro por cidade (se especificada)
       const dados = await getClientesPorVendedor(undefined, cidadeDecodificada || undefined)
-      console.log('✅ Clientes carregados:', dados)
 
       // Setar clientes e remover loading imediatamente para UX rápida
       setClientes(dados)

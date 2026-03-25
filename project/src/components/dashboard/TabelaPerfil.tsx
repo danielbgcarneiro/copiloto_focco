@@ -38,7 +38,7 @@ export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados, filtroCidade 
   }, [dados.clientes, filtroCidade]);
 
   const sortedClientes = useMemo(() => {
-    let sortableItems = [...filteredClientes];
+    const sortableItems = [...filteredClientes];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         if (!sortConfig?.key) return 0;

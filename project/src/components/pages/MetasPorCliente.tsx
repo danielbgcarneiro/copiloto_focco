@@ -45,7 +45,7 @@ const TabelaClientesPerfil: React.FC<{
   }, [perfilData, filtroCidade, filtroVendedorId]);
 
   const sortedClientes = useMemo(() => {
-    let sortableItems = [...clientesFiltrados];
+    const sortableItems = [...clientesFiltrados];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         if (a[sortConfig.key]! < b[sortConfig.key]!) {

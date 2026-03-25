@@ -49,7 +49,6 @@ const PedidosVendedor: React.FC = () => {
     });
 
     if (error) {
-      console.error('Erro ao buscar pedidos via RPC:', error);
       setPedidos([]);
     } else {
       // A RPC já retorna os dados filtrados, então podemos processá-los diretamente

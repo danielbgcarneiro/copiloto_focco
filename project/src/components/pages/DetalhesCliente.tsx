@@ -192,8 +192,8 @@ const DetalhesCliente: React.FC = () => {
       setLoadingVisitas(true);
       const visitas = await getHistoricoVisitas(clienteIdNumerico);
       setHistoricoVisitas(visitas);
-    } catch (error) {
-      console.error('Erro ao carregar histórico de visitas:', error);
+    } catch {
+      // silencia erro não-crítico de visitas
     } finally {
       setLoadingVisitas(false);
     }
@@ -203,8 +203,8 @@ const DetalhesCliente: React.FC = () => {
     try {
       const inadimplencia = await getClienteInadimplenteDetalhes(clienteIdNumerico);
       setInadimplenciaData(inadimplencia);
-    } catch (error) {
-      console.error('Erro ao carregar dados de inadimplência:', error);
+    } catch {
+      // silencia erro não-crítico de inadimplência
     }
   }
 
@@ -213,8 +213,8 @@ const DetalhesCliente: React.FC = () => {
       setLoadingTitulos(true);
       const titulos = await getTitulosClienteDetalhes(clienteIdNumerico);
       setTitulosData(titulos);
-    } catch (error) {
-      console.error('Erro ao carregar títulos:', error);
+    } catch {
+      // silencia erro não-crítico de títulos
     } finally {
       setLoadingTitulos(false);
     }
@@ -244,7 +244,6 @@ const DetalhesCliente: React.FC = () => {
         await carregarInadimplencia(clienteIdNumerico);
         await carregarTitulos(clienteIdNumerico);
       } catch (err) {
-        console.error('❌ Erro ao carregar cliente:', err);
         const mensagemErro = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
         setError(mensagemErro);
       } finally {
