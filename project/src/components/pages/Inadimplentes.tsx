@@ -6,19 +6,18 @@
 
 
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Search, User, AlertTriangle, Phone, MessageCircle, Filter } from 'lucide-react'
+import { Search, AlertTriangle, Phone, MessageCircle, Filter } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getClientesInadimplentes, getStatusInadimplencia, formatarTelefone } from '../../lib/queries/inadimplentes'
 import { getVendedorRanking } from '../../lib/queries/vendedores'
 import { isAdmin } from '../../lib/utils/userHelpers'
 import { Card } from '../atoms'
-import { PageHeader } from '../molecules'
 import { formatCurrency } from '../../utils'
+import { useSetPage } from '../../contexts'
 
 const Inadimplentes: React.FC = () => {
-  const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  useSetPage('Inadimplentes')
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [sortBy, setSortBy] = useState('nome')
@@ -126,18 +125,6 @@ const Inadimplentes: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="Copiloto"
-        showBack
-        onBack={() => navigate('/dashboard')}
-        onLogout={() => { logout(); navigate('/') }}
-        rightAction={
-          <div className="flex items-center space-x-1.5">
-            <User className="h-4 w-4" />
-            <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
-          </div>
-        }
-      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">

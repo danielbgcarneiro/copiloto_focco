@@ -7,12 +7,13 @@
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Search, Filter, User, LogOut, Check, Clock, MapPin, CheckCircle } from 'lucide-react'
+import { Search, Filter, Check, Clock, MapPin, CheckCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getClientesPorVendedor, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
 import { getClienteInadimplenteDetalhes, ClienteInadimplente } from '../../lib/queries/inadimplentes'
 import { getTitulosClienteResumo, TitulosClienteResumo } from '../../lib/queries/titulos'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
+import { useSetPage } from '../../contexts'
 
 // Cache de formatadores (criado uma única vez)
 const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
@@ -25,7 +26,8 @@ const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
 const Clientes: React.FC = () => {
   const navigate = useNavigate()
   const { rotaId, cidadeNome } = useParams<{ rotaId: string; cidadeNome: string }>()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  useSetPage('Clientes', () => navigate(-1))
   const [clientes, setClientes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showSortMenu, setShowSortMenu] = useState(false)
@@ -786,37 +788,6 @@ const Clientes: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-primary text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 relative">
-            <div className="flex items-center">
-              <button 
-                onClick={() => navigate(`/rotas/${encodeURIComponent(rotaNome || '')}/cidades`)}
-                className="p-1.5 hover:bg-white/10 rounded-full transition-colors mr-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex items-center absolute left-1/2 transform -translate-x-1/2">
-              <h1 className="text-lg font-bold">Copiloto</h1>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1.5">
-                <User className="h-4 w-4" />
-                <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
-              </div>
-              <button 
-                onClick={() => { logout(); navigate('/') }}
-                className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
         {/* Breadcrumb */}

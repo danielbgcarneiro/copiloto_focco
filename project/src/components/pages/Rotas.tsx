@@ -7,18 +7,19 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, User, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Search, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRotasCompleto, normalizeText, type RotaMapeada } from '../../lib/queries/rotas'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import { supabase } from '../../lib/supabase'
 import { Card } from '../atoms'
-import { PageHeader } from '../molecules'
 import { formatCurrency } from '../../utils'
+import { useSetPage } from '../../contexts'
 
 const Rotas: React.FC = () => {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  useSetPage('Rotas')
   const [searchTerm, setSearchTerm] = useState('')
   const [rotas, setRotas] = useState<RotaMapeada[]>([])
   const [loading, setLoading] = useState(true)
@@ -182,19 +183,6 @@ const Rotas: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="Copiloto"
-        variant="centered"
-        showBack
-        onBack={() => navigate('/dashboard')}
-        onLogout={() => { logout(); navigate('/') }}
-        rightAction={
-          <div className="flex items-center space-x-1.5">
-            <User className="h-4 w-4" />
-            <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
-          </div>
-        }
-      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">

@@ -7,18 +7,19 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Search, User, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Search, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getCidadesCompleto, normalizeText, type CidadeMapeada } from '../../lib/queries/cidades'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import { Card } from '../atoms'
-import { PageHeader } from '../molecules'
 import { formatCurrency } from '../../utils'
+import { useSetPage } from '../../contexts'
 
 const Cidades: React.FC = () => {
   const navigate = useNavigate()
   const { rotaId } = useParams<{ rotaId: string }>()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  useSetPage('Cidades', () => navigate(-1))
   const [searchTerm, setSearchTerm] = useState('')
   const [cidades, setCidades] = useState<CidadeMapeada[]>([])
   const [loading, setLoading] = useState(true)
@@ -177,19 +178,6 @@ const Cidades: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="Copiloto"
-        variant="centered"
-        showBack
-        onBack={() => navigate('/rotas')}
-        onLogout={() => { logout(); navigate('/') }}
-        rightAction={
-          <div className="flex items-center space-x-1.5">
-            <User className="h-4 w-4" />
-            <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
-          </div>
-        }
-      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">

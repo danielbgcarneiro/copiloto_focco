@@ -5,8 +5,9 @@
  */
 
 
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { AppShell } from './components/AppShell'
 import Login from './components/auth/Login'
 import Dashboard from './components/dashboard/Dashboard'
 import Clientes from './components/pages/Clientes'
@@ -19,13 +20,14 @@ import PagAcumuladoAno from './components/pages/PagAcumuladoAno'
 import PagAnalytics from './components/pages/PagAnalytics'
 import DashboardRotas from './components/pages/DashboardRotas'
 import TopClientes from './components/pages/TopClientes'
-import MetasPorCliente from './components/pages/MetasPorCliente' // New import
+import MetasPorCliente from './components/pages/MetasPorCliente'
 import PipelineOperacional from './components/pages/PipelineOperacional'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import HomeRedirect from './components/auth/HomeRedirect'
 import PedidosVendedor from './components/pages/PedidosVendedor'
 
 const router = createBrowserRouter([
+  // Rotas públicas — sem AppShell
   {
     path: "/",
     element: <Login />
@@ -38,104 +40,85 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     )
   },
+
+  // Rotas autenticadas — dentro do AppShell
   {
-    path: "/dashboard",
     element: (
       <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <Dashboard />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/gestao",
-    element: (
-      <ProtectedRoute allowedRoles={['diretor']}>
-        <DashboardGestao />
+        <AppShell>
+          <Outlet />
+        </AppShell>
       </ProtectedRoute>
     ),
     children: [
       {
-        path: "acumulado-ano",
-        element: <PagAcumuladoAno />,
+        path: "/dashboard",
+        element: <Dashboard />
       },
       {
-        path: "analytics",
-        element: <PagAnalytics />,
+        path: "/rotas",
+        element: <Rotas />
       },
       {
-        path: "dashboard-rotas",
-        element: <DashboardRotas />,
+        path: "/rotas/:rotaId/cidades",
+        element: <Cidades />
       },
       {
-        path: "top-clientes",
-        element: <TopClientes />,
+        path: "/rotas/:rotaId/cidades/:cidadeNome/clientes",
+        element: <Clientes />
       },
       {
-        path: "metas-por-cliente",
-        element: <MetasPorCliente />,
+        path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes",
+        element: <DetalhesCliente />
       },
       {
-        path: "pipeline",
-        element: <PipelineOperacional />,
+        path: "/clientes/detalhes/:id",
+        element: <DetalhesCliente />
+      },
+      {
+        path: "/inadimplentes",
+        element: <Inadimplentes />
+      },
+      {
+        path: "/meus-pedidos",
+        element: <PedidosVendedor />
+      },
+      {
+        path: "/gestao",
+        element: (
+          <ProtectedRoute allowedRoles={['diretor']}>
+            <DashboardGestao />
+          </ProtectedRoute>
+        ),
+        children: [
+          {
+            path: "acumulado-ano",
+            element: <PagAcumuladoAno />,
+          },
+          {
+            path: "analytics",
+            element: <PagAnalytics />,
+          },
+          {
+            path: "dashboard-rotas",
+            element: <DashboardRotas />,
+          },
+          {
+            path: "top-clientes",
+            element: <TopClientes />,
+          },
+          {
+            path: "metas-por-cliente",
+            element: <MetasPorCliente />,
+          },
+          {
+            path: "pipeline",
+            element: <PipelineOperacional />,
+          },
+        ]
       },
     ]
   },
-  {
-    path: "/rotas",
-    element: (
-      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <Rotas />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/rotas/:rotaId/cidades",
-    element: (
-      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <Cidades />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/rotas/:rotaId/cidades/:cidadeNome/clientes",
-    element: (
-      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <Clientes />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes",
-    element: (
-      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <DetalhesCliente />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/clientes/detalhes/:id",
-    element: (
-      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <DetalhesCliente />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/inadimplentes",
-    element: (
-      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <Inadimplentes />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: "/meus-pedidos",
-    element: (
-      <ProtectedRoute allowedRoles={['vendedor', 'gestor', 'diretor']}>
-        <PedidosVendedor />
-      </ProtectedRoute>
-    )
-  }
 ])
 
 function App() {

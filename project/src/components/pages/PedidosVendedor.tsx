@@ -7,17 +7,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { BarChart3, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import type { PedidoAgrupado } from '../../types/cliente.types';
 import { LoadingSpinner, Card } from '../atoms';
-import { PageHeader, MonthYearFilter } from '../molecules';
+import { MonthYearFilter } from '../molecules';
 import { formatCurrency, formatDate } from '../../utils';
+import { useSetPage } from '../../contexts';
 
 
 const PedidosVendedor: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  useSetPage('Meus Pedidos');
   const [pedidos, setPedidos] = useState<PedidoAgrupado[]>([]);
   const [loading, setLoading] = useState(true);
   const [mes, setMes] = useState(new Date().getMonth() + 1);
@@ -76,24 +75,6 @@ const PedidosVendedor: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="Meus Pedidos"
-        variant="default"
-        rightAction={
-          <>
-            <div className="flex items-center space-x-1.5">
-              <User className="h-4 w-4" />
-              <span className="text-xs sm:text-sm hidden sm:inline">{user?.apelido || 'Vendedor'}</span>
-            </div>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-2 sm:p-1.5 hover:bg-white/10 rounded-full"
-            >
-              <BarChart3 className="h-4 w-4" />
-            </button>
-          </>
-        }
-      />
 
       <main className="w-full sm:max-w-7xl sm:mx-auto px-2 sm:px-6 lg:px-8 py-4 lg:py-8">
         <Card variant="default" padding="md" className="mb-6 sm:mb-8">

@@ -7,18 +7,19 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Target, User, Map as MapIcon, Building, AlertTriangle, ClipboardList, Search } from 'lucide-react'
+import { TrendingUp, Target, Map as MapIcon, Building, AlertTriangle, ClipboardList, Search } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getDashboardCompleto, type DashboardData, getPercentualMetaAnual } from '../../lib/queries/dashboard'
 import { getVendedorRanking, type VendedorRanking, getOticasSemVendas180d } from '../../lib/queries/vendedores'
 import TabelaPerfil from './TabelaPerfil'
 import { Card } from '../atoms'
-import { PageHeader } from '../molecules'
 import { formatCurrency } from '../../utils'
+import { useSetPage } from '../../contexts'
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  useSetPage('Copiloto')
   
   // Estados para dados reais
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
@@ -82,27 +83,8 @@ const Dashboard: React.FC = () => {
     carregarDados();
   }, [user?.id])
   
-  const handleLogout = () => {
-    logout()
-    navigate('/')
-  }
-
-  
-
   return (
     <div className="min-h-screen bg-gray-50">
-
-      <PageHeader
-        title="Copiloto"
-        variant="centered"
-        onLogout={handleLogout}
-        rightAction={
-          <div className="flex items-center space-x-1.5">
-            <User className="h-4 w-4" />
-            <span className="text-sm">{user?.apelido || user?.nome || user?.email || 'Usuário'}</span>
-          </div>
-        }
-      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
