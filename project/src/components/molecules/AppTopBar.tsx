@@ -1,8 +1,13 @@
-import { ArrowLeft, LogOut, User } from 'lucide-react'
+import { ArrowLeft, LogOut, Menu, User } from 'lucide-react'
 import { usePageTitle } from '../../contexts'
 import { useAuth } from '../../contexts/AuthContext'
 
-export function AppTopBar() {
+interface AppTopBarProps {
+  showMenuButton?: boolean
+  onMenuToggle?: () => void
+}
+
+export function AppTopBar({ showMenuButton, onMenuToggle }: AppTopBarProps) {
   const { title, onBack } = usePageTitle()
   const { user, logout } = useAuth()
 
@@ -10,9 +15,9 @@ export function AppTopBar() {
 
   return (
     <header className="flex items-center justify-between h-14 px-4 bg-primary text-white shadow-sm">
-      {/* Esquerda: back button ou espaço */}
+      {/* Esquerda: back button, hamburger ou espaço */}
       <div className="w-10 flex-shrink-0">
-        {onBack && (
+        {onBack ? (
           <button
             onClick={onBack}
             className="p-1 rounded hover:bg-white/20 transition-colors"
@@ -20,7 +25,15 @@ export function AppTopBar() {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-        )}
+        ) : showMenuButton ? (
+          <button
+            onClick={onMenuToggle}
+            className="p-1 rounded hover:bg-white/20 transition-colors"
+            aria-label="Menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        ) : null}
       </div>
 
       {/* Centro: título */}

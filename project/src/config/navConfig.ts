@@ -45,6 +45,6 @@ export const NAV_ITEMS: NavItem[] = [
 export function useNavItems(): NavItem[] {
   const { user } = useAuth()
   const cargo = user?.cargo as Role | undefined
-  if (!cargo) return []
+  if (cargo !== 'vendedor') return []
   return NAV_ITEMS.filter(item => item.roles.includes(cargo))
 }

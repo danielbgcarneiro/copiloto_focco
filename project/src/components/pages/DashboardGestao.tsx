@@ -7,13 +7,14 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { BarChart3, Users, LogOut, User, Shield, DollarSign, Target, Calendar, RefreshCw, Menu, X, Home, MapPin, TrendingUp, GitBranch } from 'lucide-react'
+import { BarChart3, Users, DollarSign, Target, Calendar, RefreshCw, Menu, X, Home, MapPin, TrendingUp, GitBranch } from 'lucide-react'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores'
 import { Card, LoadingSpinner } from '../atoms'
 import { formatCurrency } from '../../utils'
+import { useSetPage } from '../../contexts'
 
 // Tipos para os dados
 interface MetricasExecutivas {
@@ -55,7 +56,8 @@ interface VendedorRankingSemanal {
 const DashboardGestao: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  useSetPage('Gestão')
   const [loading, setLoading] = useState(true)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mesAtual, setMesAtual] = useState(new Date().getMonth() + 1)
@@ -300,19 +302,6 @@ const DashboardGestao: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-primary text-white shadow-lg">
-        <div className="w-full sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-14">
-            <div className="flex items-center"><Shield className="h-5 w-5 mr-2" /><span className="text-sm font-medium hidden sm:inline">Gestão</span></div>
-            <h1 className="text-base sm:text-lg font-bold">Dashboard Gestão</h1>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1.5"><User className="h-4 w-4" /><span className="text-xs sm:text-sm hidden sm:inline">{user?.apelido || 'Diretor'}</span></div>
-              <button onClick={() => { logout(); navigate('/') }} className="p-2 sm:p-1.5 hover:bg-white/10 rounded-full"><LogOut className="h-4 w-4" /></button>
-            </div>
-          </div>
-        </div>
-      </header>
-      
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="w-full sm:max-w-7xl sm:mx-auto px-2 sm:px-6 lg:px-8">
           <div className="relative flex items-center justify-between h-14">
