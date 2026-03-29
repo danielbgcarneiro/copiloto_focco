@@ -7,3 +7,18 @@ export type { MonthYearFilterProps } from './MonthYearFilter';
 export { LoadingCard } from './LoadingCard';
 export type { LoadingCardProps } from './LoadingCard';
 export { AppTopBar } from './AppTopBar';
+export { RegistrarVisitaSheet } from './RegistrarVisitaSheet';
+export { VisitaRegistradaCard } from './VisitaRegistradaCard';
+export { AgendarVisitaSheet } from './AgendarVisitaSheet';
+export { ProximaVisitaCard } from './ProximaVisitaCard';
+export { TelefoneCard } from './TelefoneCard';
+export { AdicionarTelefoneSheet } from './AdicionarTelefoneSheet';
+export { SemanaGrid } from './SemanaGrid';
+export { ForecastSemanaCard } from './ForecastSemanaCard';
+export { AgendamentoCard } from './AgendamentoCard';
+export { BuscarClienteSheet } from './BuscarClienteSheet';
+export { ClienteBuscaCard } from './ClienteBuscaCard';
+export { SugestoesAgendaSheet } from './SugestoesAgendaSheet'
+export { MesGrid } from './MesGrid'
+export { ResumoEquipeCard } from './ResumoEquipeCard'
+export { VendedorAgendaCard } from './VendedorAgendaCard';

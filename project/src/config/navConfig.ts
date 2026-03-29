@@ -1,4 +1,4 @@
-import { Map, AlertTriangle, ShoppingBag, BarChart3, LucideIcon } from 'lucide-react'
+import { Map, AlertTriangle, ShoppingBag, BarChart3, Calendar, LucideIcon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export type Role = 'vendedor' | 'gestor' | 'diretor'
@@ -32,6 +32,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ShoppingBag,
     path: '/meus-pedidos',
     roles: ['vendedor', 'gestor', 'diretor'],
+  },
+  {
+    id: 'agenda',
+    label: 'Agenda',
+    icon: Calendar,
+    path: '/agenda',
+    roles: ['vendedor'],
   },
   {
     id: 'gestao',

@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { BarChart3, Users, DollarSign, Target, Calendar, RefreshCw, Menu, X, Home, MapPin, TrendingUp, GitBranch } from 'lucide-react'
+import { BarChart3, Users, DollarSign, Target, Calendar, RefreshCw, Menu, X, Home, MapPin, TrendingUp, GitBranch, CalendarDays } from 'lucide-react'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -324,6 +324,7 @@ const DashboardGestao: React.FC = () => {
                   <NavLink to="/gestao/dashboard-rotas" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><MapPin className="h-5 w-5 mr-2" />Dashboard Rotas</NavLink>
                   <NavLink to="/gestao/top-clientes" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><Users className="h-5 w-5 mr-2" />Top Clientes</NavLink>
                   <NavLink to="/gestao/pipeline" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><GitBranch className="h-5 w-5 mr-2" />Pipeline</NavLink>
+                  <NavLink to="/gestao/agenda" className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }`}><CalendarDays className="h-5 w-5 mr-2" />Agenda</NavLink>
                 </div>
               </div>
             </div>
@@ -339,6 +340,7 @@ const DashboardGestao: React.FC = () => {
               <NavLink to="/gestao/dashboard-rotas" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><MapPin className="h-5 w-5 mr-2" />Dashboard Rotas</NavLink>
               <NavLink to="/gestao/top-clientes" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><Users className="h-5 w-5 mr-2" />Top Clientes</NavLink>
               <NavLink to="/gestao/pipeline" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><GitBranch className="h-5 w-5 mr-2" />Pipeline</NavLink>
+              <NavLink to="/gestao/agenda" onClick={() => setIsMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${ isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900' }`}><CalendarDays className="h-5 w-5 mr-2" />Agenda</NavLink>
             </div>
           </div>
         )}

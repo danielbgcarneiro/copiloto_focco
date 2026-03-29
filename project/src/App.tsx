@@ -25,6 +25,9 @@ import PipelineOperacional from './components/pages/PipelineOperacional'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import HomeRedirect from './components/auth/HomeRedirect'
 import PedidosVendedor from './components/pages/PedidosVendedor'
+import Agenda from './components/pages/Agenda'
+import AgendaDia from './components/pages/AgendaDia'
+import GestaoAgenda from './components/pages/GestaoAgenda'
 
 const router = createBrowserRouter([
   // Rotas públicas — sem AppShell
@@ -84,6 +87,22 @@ const router = createBrowserRouter([
         element: <PedidosVendedor />
       },
       {
+        path: "/agenda",
+        element: (
+          <ProtectedRoute allowedRoles={['vendedor']}>
+            <Agenda />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: "/agenda/:data",
+        element: (
+          <ProtectedRoute allowedRoles={['vendedor']}>
+            <AgendaDia />
+          </ProtectedRoute>
+        )
+      },
+      {
         path: "/gestao",
         element: (
           <ProtectedRoute allowedRoles={['diretor']}>
@@ -114,6 +133,10 @@ const router = createBrowserRouter([
           {
             path: "pipeline",
             element: <PipelineOperacional />,
+          },
+          {
+            path: "agenda",
+            element: <GestaoAgenda />,
           },
         ]
       },

@@ -5,7 +5,7 @@
  */
 
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Phone, MessageCircle, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -16,6 +16,10 @@ import { getTitulosClienteDetalhes, TituloAbertoDetalhes } from '../../lib/queri
 import { Card } from '../atoms'
 import { formatCurrency } from '../../utils'
 import { useSetPage } from '../../contexts'
+import { useVisitas } from '../../hooks/useVisitas'
+import { useTelefones } from '../../hooks/useTelefones'
+import { useConfiguracoes } from '../../hooks/useConfiguracoes'
+import { RegistrarVisitaSheet, VisitaRegistradaCard, AgendarVisitaSheet, ProximaVisitaCard, TelefoneCard, AdicionarTelefoneSheet } from '../molecules'
 
 const formatarTelefone = (telefone: string) => {
   if (!telefone) return '';
@@ -146,8 +150,9 @@ function processarMetricasCategoria(cliente: any) {
 
 const DetalhesCliente: React.FC = () => {
   const navigate = useNavigate()
-  useAuth()
+  const { user } = useAuth()
   useSetPage('Detalhes do Cliente', () => navigate(-1))
+  const config = useConfiguracoes()
   const { id, rotaId, cidadeNome, clienteId } = useParams<{ 
     id?: string; 
     rotaId?: string; 
@@ -162,10 +167,44 @@ const DetalhesCliente: React.FC = () => {
   const [inadimplenciaData, setInadimplenciaData] = useState<ClienteInadimplente | null>(null)
   const [titulosData, setTitulosData] = useState<TituloAbertoDetalhes[]>([])
   const [loadingTitulos, setLoadingTitulos] = useState(false)
+  const [showSheet, setShowSheet] = useState(false)
+  const [showAgendarSheet, setShowAgendarSheet] = useState(false)
+  const [editandoAgendamento, setEditandoAgendamento] = useState(false)
+  const [showBannerAgenda, setShowBannerAgenda] = useState(false)
+  const [showAdicionarTelefoneSheet, setShowAdicionarTelefoneSheet] = useState(false)
+  const [feedbackContato, setFeedbackContato] = useState<string | null>(null)
+
+  const mostrarFeedbackContato = useCallback((msg: string) => {
+    setFeedbackContato(msg)
+    setTimeout(() => setFeedbackContato(null), 3000)
+  }, [])
 
   // Determinar qual ID usar (hierárquico ou direto)
   const codigoCliente = clienteId || id
-  
+  const codigoClienteNumerico = codigoCliente ? parseInt(codigoCliente) : 0
+
+  const {
+    visitaHoje,
+    proximoAgendamento,
+    motivos,
+    loading: loadingVisita,
+    loadingMotivos,
+    registrarVisita,
+    criarAgendamento,
+    editarAgendamento,
+    cancelarAgendamento,
+    carregarMotivos,
+    refresh: refreshVisitas,
+  } = useVisitas(codigoClienteNumerico)
+
+  const {
+    telefones,
+    loading: loadingTelefones,
+    userId: currentUserId,
+    adicionarTelefone,
+    desativarTelefone,
+  } = useTelefones(codigoClienteNumerico)
+
   // Decodificar parâmetros da navegação hierárquica
   const rotaNome = rotaId ? decodeURIComponent(rotaId) : null
   const cidadeDecodificada = cidadeNome ? decodeURIComponent(cidadeNome) : null
@@ -363,10 +402,17 @@ const DetalhesCliente: React.FC = () => {
             </div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-gray-600 leading-tight">Cód: {dadosCliente.codigo}</p>
-              <div className="flex items-center space-x-1">
-                <span className="text-xs text-gray-600">DSV:</span>
-                <span className="text-xs font-semibold text-red-600">{dadosCliente.dsv}d</span>
-              </div>
+              {dadosCliente.dsv != null && (
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  dadosCliente.dsv > 90
+                    ? 'bg-red-100 text-red-700 border border-red-300'
+                    : dadosCliente.dsv > 60
+                    ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                    : 'text-gray-500'
+                }`}>
+                  {dadosCliente.dsv > 60 ? `⚠ ${dadosCliente.dsv}d s/ comprar` : `${dadosCliente.dsv}d s/ comprar`}
+                </span>
+              )}
             </div>
           </div>
 
@@ -435,21 +481,70 @@ const DetalhesCliente: React.FC = () => {
             </div>
           </div>
 
-          {/* Botões de Ação */}
+          {/* Seção Contatos — telefones gerenciados (Story 3.4) */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-semibold text-gray-900">Contatos</h3>
+              <button
+                onClick={() => setShowAdicionarTelefoneSheet(true)}
+                className="flex items-center gap-1 text-xs text-primary font-semibold bg-primary/10 hover:bg-primary/20 active:bg-primary/30 px-3 py-1.5 rounded-lg transition-colors"
+                aria-label="Adicionar telefone"
+              >
+                + Adicionar
+              </button>
+            </div>
+
+            {loadingTelefones ? (
+              <div className="flex items-center py-2 gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+                <span className="text-xs text-gray-500">Carregando...</span>
+              </div>
+            ) : telefones.length > 0 ? (
+              <div className="space-y-2">
+                {telefones.map(tel => (
+                  <TelefoneCard
+                    key={tel.id}
+                    telefone={tel}
+                    isProprietario={tel.adicionado_por === currentUserId}
+                    onDesativar={desativarTelefone}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-xs text-gray-500 mb-2">Nenhum telefone cadastrado — adicione o primeiro</p>
+                <button
+                  onClick={() => setShowAdicionarTelefoneSheet(true)}
+                  className="text-xs text-primary font-semibold hover:underline"
+                >
+                  + Adicionar telefone
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Botões de Ação (número legado do ERP) */}
           <div className="pt-4 border-t border-gray-200">
             <div className="space-y-2">
+              {/* Feedback contato inline */}
+              {feedbackContato && (
+                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
+                  {feedbackContato}
+                </div>
+              )}
+
               {/* Botão Ligar */}
               <button
                 onClick={() => {
                   if (dadosCliente.celular) {
                     window.location.href = `tel:${dadosCliente.celular}`;
                   } else {
-                    alert('Cliente sem telefone cadastrado');
+                    mostrarFeedbackContato('Nenhum telefone cadastrado para este cliente.');
                   }
                 }}
                 className={`w-full py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                  dadosCliente.celular 
-                    ? 'bg-primary text-white hover:bg-primary/90' 
+                  dadosCliente.celular
+                    ? 'bg-primary text-white hover:bg-primary/90 active:bg-primary/80'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
                 disabled={!dadosCliente.celular}
@@ -464,17 +559,16 @@ const DetalhesCliente: React.FC = () => {
               <button
                 onClick={() => {
                   if (dadosCliente.celular) {
-                    // Remover caracteres não numéricos e adicionar código do país se necessário
                     const numeroLimpo = dadosCliente.celular.replace(/\D/g, '');
                     const numeroWhatsApp = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
                     window.open(`https://wa.me/${numeroWhatsApp}`, '_blank');
                   } else {
-                    alert('Cliente sem WhatsApp cadastrado');
+                    mostrarFeedbackContato('Nenhum telefone cadastrado para este cliente.');
                   }
                 }}
                 className={`w-full py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                  dadosCliente.celular 
-                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                  dadosCliente.celular
+                    ? 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
                 disabled={!dadosCliente.celular}
@@ -487,7 +581,95 @@ const DetalhesCliente: React.FC = () => {
             </div>
           </div>
 
-          {/* Seção de Visitas Recentes */}
+          {/* Seção Visita de Hoje */}
+          {user && codigoClienteNumerico > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">Visita de hoje</h3>
+              {loadingVisita ? (
+                <div className="flex items-center py-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mr-2" />
+                  <span className="text-sm text-gray-500">Carregando...</span>
+                </div>
+              ) : visitaHoje ? (
+                <VisitaRegistradaCard visita={visitaHoje} />
+              ) : (
+                <button
+                  onClick={() => setShowSheet(true)}
+                  className="w-full py-3 rounded-xl border-2 border-dashed border-primary/40 text-primary font-medium text-sm hover:bg-primary/5 active:scale-95 transition-all"
+                >
+                  + Registrar Visita
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Banner proativo: agendar próxima visita após registrar resultado (AC10) */}
+          {showBannerAgenda && !proximoAgendamento && (
+            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between gap-2">
+              <p className="text-sm text-blue-800 font-medium">Agendar próxima visita?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowBannerAgenda(false)}
+                  className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1"
+                >
+                  Agora não
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBannerAgenda(false)
+                    setEditandoAgendamento(false)
+                    setShowAgendarSheet(true)
+                  }}
+                  className="text-xs bg-blue-600 text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Sim
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Seção Próxima Visita */}
+          {user && codigoClienteNumerico > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">Próxima Visita</h3>
+              {loadingVisita ? (
+                <div className="flex items-center py-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mr-2" />
+                  <span className="text-sm text-gray-500">Carregando...</span>
+                </div>
+              ) : proximoAgendamento ? (
+                <ProximaVisitaCard
+                  agendamento={proximoAgendamento}
+                  onEditar={() => {
+                    setEditandoAgendamento(true)
+                    setShowAgendarSheet(true)
+                  }}
+                  onCancelado={refreshVisitas}
+                  cancelarAgendamento={cancelarAgendamento}
+                />
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setEditandoAgendamento(false)
+                      setShowAgendarSheet(true)
+                    }}
+                    className="flex-1 py-3 rounded-xl border-2 border-dashed border-blue-400/50 text-blue-600 font-medium text-sm hover:bg-blue-50 active:bg-blue-100 active:scale-95 transition-all"
+                  >
+                    + Agendar próxima visita
+                  </button>
+                  {/* AC9: badge vermelho quando DSV > threshold amarelo e sem agendamento futuro (Story 3.11) */}
+                  {(cliente?.dias_sem_comprar ?? 0) > config.prazo_alerta_amarelo_dias && (
+                    <span className="text-xs text-red-600 font-semibold bg-red-50 border border-red-200 rounded-lg px-2 py-1 whitespace-nowrap">
+                      {cliente.dias_sem_comprar}d s/ comprar
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Seção de Visitas Recentes (legacy check-in) */}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <h3 className="text-base font-semibold text-gray-900 mb-3">Visitas Recentes</h3>
             
@@ -497,24 +679,26 @@ const DetalhesCliente: React.FC = () => {
                 <span className="ml-2 text-sm text-gray-600">Carregando visitas...</span>
               </div>
             ) : historicoVisitas.length > 0 ? (
-              <div className="max-h-32 overflow-y-auto">
-                <ul className="space-y-1">
-                  {historicoVisitas.slice(0, 4).map((visita, index) => (
-                    <li key={index} className="flex items-center justify-between py-1">
-                      <span className={`text-xs ${visita.status === 'cancelado' ? 'line-through opacity-50' : ''}`}>
-                        • {new Date(visita.data_visita).toLocaleDateString('pt-BR')} {new Date(visita.data_visita).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              <div className="space-y-1.5">
+                {historicoVisitas.slice(0, 5).map((visita, index) => {
+                  const d = new Date(visita.data_visita)
+                  const cancelado = visita.status === 'cancelado'
+                  return (
+                    <div key={index} className={`flex items-center justify-between text-xs py-1.5 px-2 rounded-lg ${cancelado ? 'bg-gray-50 opacity-60' : 'bg-green-50'}`}>
+                      <span className={`${cancelado ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                        {d.toLocaleDateString('pt-BR')}
                       </span>
-                      {visita.status === 'cancelado' && (
-                        <span className="text-xs text-red-500">Cancelado</span>
-                      )}
-                    </li>
-                  ))}
-                  {historicoVisitas.length > 4 && (
-                    <li className="text-xs text-gray-500 italic pt-1">
-                      + {historicoVisitas.length - 4} visitas anteriores
-                    </li>
-                  )}
-                </ul>
+                      <span className={`font-medium ${cancelado ? 'text-gray-400' : 'text-green-700'}`}>
+                        {cancelado ? 'Cancelado' : '✓ Realizada'}
+                      </span>
+                    </div>
+                  )
+                })}
+                {historicoVisitas.length > 5 && (
+                  <p className="text-xs text-gray-400 text-center pt-1">
+                    + {historicoVisitas.length - 5} visitas anteriores
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-xs text-gray-500 py-2">Nenhuma visita registrada</p>
@@ -525,7 +709,7 @@ const DetalhesCliente: React.FC = () => {
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-blue-600" />
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
                 Títulos Abertos
               </h3>
             </div>
@@ -558,8 +742,10 @@ const DetalhesCliente: React.FC = () => {
                       return (
                         <div key={index} className={`grid grid-cols-3 gap-2 text-xs items-center px-2 py-1.5 rounded ${estaVencido ? 'bg-red-50' : ''}`}>
                           <span className={`font-semibold ${estaVencido ? 'text-red-700' : 'text-gray-700'}`}>{dataFormatada}</span>
-                          <span className={`text-center font-bold ${estaVencido ? 'text-red-600' : 'text-gray-600'}`}>
-                            {titulo.dias_atraso > 0 ? `${titulo.dias_atraso}d` : `${Math.abs(titulo.dias_atraso)}d`}
+                          <span className={`text-center font-bold ${estaVencido ? 'text-red-600' : 'text-green-600'}`}>
+                            {titulo.dias_atraso > 0
+                              ? `${titulo.dias_atraso}d atraso`
+                              : `em ${Math.abs(titulo.dias_atraso)}d`}
                           </span>
                           <span className={`text-right font-semibold ${estaVencido ? 'text-red-700' : 'text-gray-700'}`}>{formatCurrency(titulo.valor_titulo)}</span>
                         </div>
@@ -574,6 +760,54 @@ const DetalhesCliente: React.FC = () => {
           </div>
         </Card>
       </main>
+
+      {/* Bottom Sheet de Registro de Visita */}
+      {user && (
+        <RegistrarVisitaSheet
+          isOpen={showSheet}
+          onClose={() => setShowSheet(false)}
+          onSuccess={() => {
+            setShowSheet(false)
+            refreshVisitas()
+            // AC10: sugestão proativa de agendar se não há agendamento futuro
+            if (!proximoAgendamento) setShowBannerAgenda(true)
+          }}
+          codigoCliente={codigoClienteNumerico}
+          vendedorId={user.id}
+          rfmPerfil={cliente?.perfil ?? null}
+          rfmOportunidade={cliente?.previsao_pedido ?? null}
+          rfmDsv={cliente?.dias_sem_comprar ?? null}
+          motivos={motivos}
+          loadingMotivos={loadingMotivos}
+          carregarMotivos={carregarMotivos}
+          registrarVisita={registrarVisita}
+        />
+      )}
+
+      {/* Bottom Sheet de Adicionar Telefone */}
+      {user && (
+        <AdicionarTelefoneSheet
+          isOpen={showAdicionarTelefoneSheet}
+          codigoCliente={codigoClienteNumerico}
+          onClose={() => setShowAdicionarTelefoneSheet(false)}
+          onSuccess={() => setShowAdicionarTelefoneSheet(false)}
+          adicionarTelefone={adicionarTelefone}
+        />
+      )}
+
+      {/* Bottom Sheet de Agendamento */}
+      {user && (
+        <AgendarVisitaSheet
+          isOpen={showAgendarSheet}
+          onClose={() => setShowAgendarSheet(false)}
+          onSuccess={refreshVisitas}
+          codigoCliente={codigoClienteNumerico}
+          vendedorId={user.id}
+          agendamentoExistente={editandoAgendamento ? proximoAgendamento : null}
+          criarAgendamento={criarAgendamento}
+          editarAgendamento={editarAgendamento}
+        />
+      )}
     </div>
   )
 }

@@ -41,8 +41,18 @@ export function AppTopBar({ showMenuButton, onMenuToggle }: AppTopBarProps) {
         {title}
       </span>
 
-      {/* Direita: usuário + logout */}
-      <div className="w-auto flex items-center gap-2 flex-shrink-0">
+      {/* Direita: hamburger (em subpages) + usuário + logout */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Hambúrguer no lado direito quando há botão voltar — garante acesso ao menu em qualquer tela */}
+        {onBack && showMenuButton && (
+          <button
+            onClick={onMenuToggle}
+            className="p-1 rounded hover:bg-white/20 transition-colors"
+            aria-label="Menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
         {displayName && (
           <div className="hidden sm:flex items-center gap-1 text-sm text-white/90">
             <User className="h-4 w-4" />
