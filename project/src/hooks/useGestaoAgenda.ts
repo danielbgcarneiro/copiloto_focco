@@ -6,6 +6,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { getAllVendedores } from '../lib/queries/vendedores'
+import { calcularMetaSemana } from '../utils/agendaUtils'
+import type { AgendaTotalizacaoItem } from '../components/molecules/AgendaTotalizacaoCard'
 
 export type PeriodoAgenda = 'semana' | 'mes'
 export type PeriodoAgendaDetalhe = 'semana' | 'mes' | 'trimestre'
@@ -57,6 +59,11 @@ export interface KpisDetalhadosVendedor {
   clientesNaoVisitados: ClienteNaoVisitado[]
   // AC7 — Últimas visitas
   ultimasVisitas: UltimaVisita[]
+  // Story 3.21 — alinhamento com visão do vendedor
+  somaOportunidade: number
+  metaMes: number
+  realizadoMes: number
+  agendaItems: AgendaTotalizacaoItem[]
 }
 
 export interface KpisVendedor {
@@ -147,6 +154,7 @@ async function fetchKpisDetalhados(
     { data: metasData },
     { data: clientesData },
     { data: motivosData },
+    { data: vendasMesData },
   ] = await Promise.all([
     supabase
       .from('visitas')
@@ -158,7 +166,7 @@ async function fetchKpisDetalhados(
       .order('data_visita', { ascending: false }),
     supabase
       .from('agendamentos')
-      .select('valor_previsto')
+      .select('id, codigo_cliente, valor_previsto, data_agendada')
       .eq('vendedor_id', vendedorId)
       .gte('data_agendada', inicio)
       .lte('data_agendada', fim),
@@ -170,8 +178,15 @@ async function fetchKpisDetalhados(
       .eq('mes', hoje.getMonth() + 1),
     supabase
       .from('tabela_clientes')
-      .select('codigo_cliente, nome_fantasia, razao_social')
+      .select('codigo_cliente, nome_fantasia, razao_social, cidade')
       .eq('cod_vendedor', codVendedor),
+    supabase
+      .from('vendas_mes')
+      .select('total_vendas')
+      .eq('vendedor_id', vendedorId)
+      .eq('ano', hoje.getFullYear())
+      .eq('mes', hoje.getMonth() + 1)
+      .maybeSingle(),
     supabase
       .from('motivos_nao_venda')
       .select('id, descricao')
@@ -186,26 +201,34 @@ async function fetchKpisDetalhados(
     data_visita: string
     codigo_cliente: number
   }[]
-  const agendamentos = (agendamentosData ?? []) as { valor_previsto: number | null }[]
+  const agendamentos = (agendamentosData ?? []) as { id: string; codigo_cliente: number; valor_previsto: number | null; data_agendada: string }[]
   const metaMensal = (metasData ?? [])[0]?.meta_valor ?? 0
-  const clientes = (clientesData ?? []) as { codigo_cliente: number; nome_fantasia: string | null; razao_social: string | null }[]
+  const clientes = (clientesData ?? []) as { codigo_cliente: number; nome_fantasia: string | null; razao_social: string | null; cidade: string | null }[]
+  const realizadoMes = (vendasMesData as { total_vendas: number } | null)?.total_vendas ?? 0
   const motivos = (motivosData ?? []) as { id: number; descricao: string }[]
 
-  const meta = periodo === 'semana' ? metaMensal / 4 : periodo === 'mes' ? metaMensal : metaMensal * 3
+  const meta = periodo === 'semana'
+    ? calcularMetaSemana(metaMensal, realizadoMes, hoje)
+    : periodo === 'mes' ? metaMensal : metaMensal * 3
 
   // 3. Analise RFM para a carteira
-  const rfmMap = new Map<number, { diasSemComprar: number; perfil: string }>()
+  const rfmMap = new Map<number, { diasSemComprar: number; perfil: string; previsaoPedido: number; metaAnoAtual: number }>()
   if (clientes.length > 0) {
     const clienteCodes = clientes.map((c) => c.codigo_cliente)
     const { data: rfmData } = await supabase
       .from('analise_rfm')
-      .select('codigo_cliente, dias_sem_comprar, perfil')
+      .select('codigo_cliente, dias_sem_comprar, perfil, previsao_pedido, meta_ano_atual')
       .in('codigo_cliente', clienteCodes)
       .order('data_analise', { ascending: false })
 
     for (const r of rfmData ?? []) {
       if (!rfmMap.has(r.codigo_cliente)) {
-        rfmMap.set(r.codigo_cliente, { diasSemComprar: r.dias_sem_comprar ?? 0, perfil: r.perfil ?? '' })
+        rfmMap.set(r.codigo_cliente, {
+          diasSemComprar: r.dias_sem_comprar ?? 0,
+          perfil: r.perfil ?? '',
+          previsaoPedido: r.previsao_pedido ?? 0,
+          metaAnoAtual: r.meta_ano_atual ?? 0,
+        })
       }
     }
   }
@@ -223,6 +246,42 @@ async function fetchKpisDetalhados(
   const realizadoTotal = visitas.reduce((sum, v) => sum + (v.valor_realizado ?? 0), 0)
   const forecastAccuracy = forecastTotal > 0 ? realizadoTotal / forecastTotal : 0
   const atingimentoMeta = meta > 0 ? (realizadoTotal / meta) * 100 : 0
+
+  // 3.21 — Oportunidade RFM dos clientes agendados no período
+  const somaOportunidade = agendamentos.reduce((sum, a) => sum + (rfmMap.get(a.codigo_cliente)?.previsaoPedido ?? 0), 0)
+
+  // 3.21 — AgendaItems para tab Agenda (read-only no drilldown)
+  const clienteNomeMapAgenda = new Map<number, { nome: string; cidade: string | null }>()
+  for (const c of clientes) {
+    clienteNomeMapAgenda.set(c.codigo_cliente, {
+      nome: c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`,
+      cidade: c.cidade ?? null,
+    })
+  }
+  // mapa codigo_cliente → última visita do período
+  const visitaPorCliente = new Map<number, { resultado: string; valor_realizado: number | null }>()
+  for (const v of visitas) {
+    if (!visitaPorCliente.has(v.codigo_cliente)) {
+      visitaPorCliente.set(v.codigo_cliente, { resultado: v.resultado ?? '', valor_realizado: v.valor_realizado })
+    }
+  }
+  const agendaItems: AgendaTotalizacaoItem[] = agendamentos.map((a) => {
+    const info = clienteNomeMapAgenda.get(a.codigo_cliente)
+    const rfm = rfmMap.get(a.codigo_cliente)
+    const visita = visitaPorCliente.get(a.codigo_cliente)
+    return {
+      id: a.id,
+      codigo_cliente: a.codigo_cliente,
+      nome: info?.nome ?? `Cliente ${a.codigo_cliente}`,
+      cidade: info?.cidade ?? null,
+      perfil_rfm: rfm?.perfil ?? null,
+      valor_previsto: a.valor_previsto,
+      oportunidade: rfm?.previsaoPedido ?? null,
+      meta_ano_atual: rfm?.metaAnoAtual ?? null,
+      visita_resultado: visita?.resultado ?? null,
+      visita_valor_realizado: visita?.valor_realizado ?? null,
+    }
+  })
 
   // AC5 — Qualidade
   const motivoDescMap = new Map<number, string>()
@@ -301,6 +360,10 @@ async function fetchKpisDetalhados(
     pctCobertura,
     clientesNaoVisitados,
     ultimasVisitas,
+    somaOportunidade,
+    metaMes: metaMensal,
+    realizadoMes,
+    agendaItems,
   }
 }
 

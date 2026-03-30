@@ -11,6 +11,7 @@ interface KpiForecastCardProps {
   forecastAccuracy: number
   meta: number
   atingimentoMeta: number
+  somaOportunidade?: number
 }
 
 function fmt(value: number): string {
@@ -29,6 +30,7 @@ export function KpiForecastCard({
   forecastAccuracy,
   meta,
   atingimentoMeta,
+  somaOportunidade,
 }: KpiForecastCardProps) {
   const progresso = Math.min(atingimentoMeta, 100)
 
@@ -44,6 +46,12 @@ export function KpiForecastCard({
           <span className="text-xs text-gray-500">Previsão total</span>
           <span className="text-xs text-gray-900">{fmt(forecastTotal)}</span>
         </div>
+        {somaOportunidade !== undefined && somaOportunidade > 0 && (
+          <div className="flex justify-between gap-2">
+            <span className="text-xs text-gray-500">Soma oportunidades</span>
+            <span className="text-xs font-medium text-yellow-600">{fmt(somaOportunidade)}</span>
+          </div>
+        )}
         <div className="flex justify-between gap-2">
           <span className="text-xs text-gray-500">Realizado</span>
           <span className="text-xs font-semibold text-gray-900">{fmt(realizadoTotal)}</span>
