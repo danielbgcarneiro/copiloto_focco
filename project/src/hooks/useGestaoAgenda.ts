@@ -8,6 +8,56 @@ import { supabase } from '../lib/supabase'
 import { getAllVendedores } from '../lib/queries/vendedores'
 
 export type PeriodoAgenda = 'semana' | 'mes'
+export type PeriodoAgendaDetalhe = 'semana' | 'mes' | 'trimestre'
+
+export interface TopMotivo {
+  motivo: string
+  count: number
+}
+
+export interface ClienteNaoVisitado {
+  codigoCliente: number
+  nomeCliente: string
+  diasSemComprar: number
+  perfil: string
+}
+
+export interface UltimaVisita {
+  data: string
+  codigoCliente: number
+  nomeCliente: string
+  resultado: string
+  valorRealizado: number | null
+}
+
+export interface KpisDetalhadosVendedor {
+  nomeVendedor: string
+  // AC3 — Atividade
+  totalVisitas: number
+  visitasAgendadas: number
+  taxaCumprimento: number
+  taxaConversao: number
+  mediaVisitasPorSemana: number
+  // AC4 — Forecast
+  forecastTotal: number
+  realizadoTotal: number
+  forecastAccuracy: number
+  meta: number
+  atingimentoMeta: number
+  // AC5 — Qualidade
+  topMotivos: TopMotivo[]
+  pctComObservacao: number
+  clientes30d: number
+  clientes60d: number
+  clientes90d: number
+  // AC6 — Cobertura de carteira
+  totalClientesCarteira: number
+  clientesVisitados: number
+  pctCobertura: number
+  clientesNaoVisitados: ClienteNaoVisitado[]
+  // AC7 — Últimas visitas
+  ultimasVisitas: UltimaVisita[]
+}
 
 export interface KpisVendedor {
   vendedorId: string
@@ -47,6 +97,210 @@ function getPeriodoDates(periodo: PeriodoAgenda): { inicio: string; fim: string 
   } else {
     const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
     return { inicio: formatDateLocal(inicio), fim }
+  }
+}
+
+function getPeriodoDatesDetalhe(periodo: PeriodoAgendaDetalhe): { inicio: string; fim: string; numSemanas: number } {
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  const fim = formatDateLocal(hoje)
+
+  let inicio: Date
+  if (periodo === 'semana') {
+    inicio = new Date(hoje)
+    inicio.setDate(inicio.getDate() - inicio.getDay())
+  } else if (periodo === 'mes') {
+    inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+  } else {
+    const quarterStart = Math.floor(hoje.getMonth() / 3) * 3
+    inicio = new Date(hoje.getFullYear(), quarterStart, 1)
+  }
+
+  const diffMs = Math.max(hoje.getTime() - inicio.getTime(), 0)
+  const numSemanas = Math.max(1, diffMs / (7 * 24 * 60 * 60 * 1000))
+
+  return { inicio: formatDateLocal(inicio), fim, numSemanas }
+}
+
+async function fetchKpisDetalhados(
+  vendedorId: string,
+  periodo: PeriodoAgendaDetalhe
+): Promise<KpisDetalhadosVendedor> {
+  const { inicio, fim, numSemanas } = getPeriodoDatesDetalhe(periodo)
+  const hoje = new Date()
+
+  // 1. Perfil do vendedor
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('cod_vendedor, nome_completo, apelido')
+    .eq('id', vendedorId)
+    .maybeSingle()
+
+  if (!perfil) throw new Error('Vendedor não encontrado')
+  const nomeVendedor = (perfil.apelido || perfil.nome_completo) as string
+  const codVendedor = perfil.cod_vendedor as number
+
+  // 2. Queries paralelas
+  const [
+    { data: visitasData },
+    { data: agendamentosData },
+    { data: metasData },
+    { data: clientesData },
+    { data: motivosData },
+  ] = await Promise.all([
+    supabase
+      .from('visitas')
+      .select('resultado, valor_realizado, observacoes, motivo_nao_venda_id, data_visita, codigo_cliente')
+      .eq('vendedor_id', vendedorId)
+      .gte('data_visita', inicio)
+      .lte('data_visita', fim)
+      .eq('ativo', true)
+      .order('data_visita', { ascending: false }),
+    supabase
+      .from('agendamentos')
+      .select('valor_previsto')
+      .eq('vendedor_id', vendedorId)
+      .gte('data_agendada', inicio)
+      .lte('data_agendada', fim),
+    supabase
+      .from('metas_vendedores')
+      .select('meta_valor')
+      .eq('cod_vendedor', codVendedor)
+      .eq('ano', hoje.getFullYear())
+      .eq('mes', hoje.getMonth() + 1),
+    supabase
+      .from('tabela_clientes')
+      .select('codigo_cliente, nome_fantasia, razao_social')
+      .eq('cod_vendedor', codVendedor),
+    supabase
+      .from('motivos_nao_venda')
+      .select('id, descricao')
+      .eq('ativo', true),
+  ])
+
+  const visitas = (visitasData ?? []) as {
+    resultado: string | null
+    valor_realizado: number | null
+    observacoes: string | null
+    motivo_nao_venda_id: number | null
+    data_visita: string
+    codigo_cliente: number
+  }[]
+  const agendamentos = (agendamentosData ?? []) as { valor_previsto: number | null }[]
+  const metaMensal = (metasData ?? [])[0]?.meta_valor ?? 0
+  const clientes = (clientesData ?? []) as { codigo_cliente: number; nome_fantasia: string | null; razao_social: string | null }[]
+  const motivos = (motivosData ?? []) as { id: number; descricao: string }[]
+
+  const meta = periodo === 'semana' ? metaMensal / 4 : periodo === 'mes' ? metaMensal : metaMensal * 3
+
+  // 3. Analise RFM para a carteira
+  const rfmMap = new Map<number, { diasSemComprar: number; perfil: string }>()
+  if (clientes.length > 0) {
+    const clienteCodes = clientes.map((c) => c.codigo_cliente)
+    const { data: rfmData } = await supabase
+      .from('analise_rfm')
+      .select('codigo_cliente, dias_sem_comprar, perfil')
+      .in('codigo_cliente', clienteCodes)
+      .order('data_analise', { ascending: false })
+
+    for (const r of rfmData ?? []) {
+      if (!rfmMap.has(r.codigo_cliente)) {
+        rfmMap.set(r.codigo_cliente, { diasSemComprar: r.dias_sem_comprar ?? 0, perfil: r.perfil ?? '' })
+      }
+    }
+  }
+
+  // AC3 — Atividade
+  const totalVisitas = visitas.length
+  const visitasAgendadas = agendamentos.length
+  const taxaCumprimento = visitasAgendadas > 0 ? (totalVisitas / visitasAgendadas) * 100 : 0
+  const vendeu = visitas.filter((v) => v.resultado === 'vendeu').length
+  const taxaConversao = totalVisitas > 0 ? (vendeu / totalVisitas) * 100 : 0
+  const mediaVisitasPorSemana = totalVisitas / numSemanas
+
+  // AC4 — Forecast
+  const forecastTotal = agendamentos.reduce((sum, a) => sum + (a.valor_previsto ?? 0), 0)
+  const realizadoTotal = visitas.reduce((sum, v) => sum + (v.valor_realizado ?? 0), 0)
+  const forecastAccuracy = forecastTotal > 0 ? realizadoTotal / forecastTotal : 0
+  const atingimentoMeta = meta > 0 ? (realizadoTotal / meta) * 100 : 0
+
+  // AC5 — Qualidade
+  const motivoDescMap = new Map<number, string>()
+  for (const m of motivos) motivoDescMap.set(m.id, m.descricao)
+
+  const motivoCounts = new Map<number, number>()
+  for (const v of visitas) {
+    if (v.motivo_nao_venda_id != null) {
+      motivoCounts.set(v.motivo_nao_venda_id, (motivoCounts.get(v.motivo_nao_venda_id) ?? 0) + 1)
+    }
+  }
+  const topMotivos: TopMotivo[] = [...motivoCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([id, count]) => ({ motivo: motivoDescMap.get(id) ?? `Motivo ${id}`, count }))
+
+  const comObservacao = visitas.filter((v) => v.observacoes && v.observacoes.trim() !== '').length
+  const pctComObservacao = totalVisitas > 0 ? (comObservacao / totalVisitas) * 100 : 0
+
+  let clientes30d = 0, clientes60d = 0, clientes90d = 0
+  for (const c of clientes) {
+    const dsv = rfmMap.get(c.codigo_cliente)?.diasSemComprar ?? 0
+    if (dsv > 30) clientes30d++
+    if (dsv > 60) clientes60d++
+    if (dsv > 90) clientes90d++
+  }
+
+  // AC6 — Cobertura de carteira
+  const visitadosSet = new Set(visitas.map((v) => v.codigo_cliente))
+  const clientesVisitados = clientes.filter((c) => visitadosSet.has(c.codigo_cliente)).length
+  const pctCobertura = clientes.length > 0 ? (clientesVisitados / clientes.length) * 100 : 0
+
+  const clienteNomeMap = new Map<number, string>()
+  for (const c of clientes) {
+    clienteNomeMap.set(c.codigo_cliente, c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`)
+  }
+
+  const clientesNaoVisitados: ClienteNaoVisitado[] = clientes
+    .filter((c) => !visitadosSet.has(c.codigo_cliente))
+    .map((c) => ({
+      codigoCliente: c.codigo_cliente,
+      nomeCliente: c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`,
+      diasSemComprar: rfmMap.get(c.codigo_cliente)?.diasSemComprar ?? 0,
+      perfil: rfmMap.get(c.codigo_cliente)?.perfil ?? '',
+    }))
+    .sort((a, b) => b.diasSemComprar - a.diasSemComprar)
+
+  // AC7 — Últimas 10 visitas
+  const ultimasVisitas: UltimaVisita[] = visitas.slice(0, 10).map((v) => ({
+    data: v.data_visita,
+    codigoCliente: v.codigo_cliente,
+    nomeCliente: clienteNomeMap.get(v.codigo_cliente) ?? `Cliente ${v.codigo_cliente}`,
+    resultado: v.resultado ?? '',
+    valorRealizado: v.valor_realizado,
+  }))
+
+  return {
+    nomeVendedor,
+    totalVisitas,
+    visitasAgendadas,
+    taxaCumprimento,
+    taxaConversao,
+    mediaVisitasPorSemana,
+    forecastTotal,
+    realizadoTotal,
+    forecastAccuracy,
+    meta,
+    atingimentoMeta,
+    topMotivos,
+    pctComObservacao,
+    clientes30d,
+    clientes60d,
+    clientes90d,
+    totalClientesCarteira: clientes.length,
+    clientesVisitados,
+    pctCobertura,
+    clientesNaoVisitados,
+    ultimasVisitas,
   }
 }
 
@@ -204,4 +458,30 @@ export function useGestaoAgenda(periodo: PeriodoAgenda) {
   }, [load])
 
   return { kpis, resumo, loading, error }
+}
+
+export function useKpisDetalhadosVendedor(vendedorId: string, periodo: PeriodoAgendaDetalhe) {
+  const [data, setData] = useState<KpisDetalhadosVendedor | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    if (!vendedorId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await fetchKpisDetalhados(vendedorId, periodo)
+      setData(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
+    } finally {
+      setLoading(false)
+    }
+  }, [vendedorId, periodo])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return { data, loading, error }
 }

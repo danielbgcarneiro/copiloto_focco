@@ -52,20 +52,23 @@ export function useSugestoesAgenda(vendedorId: string | undefined) {
           return
         }
 
-        // 2. Pesos e prazo de configuracoes_agenda
-        const { data: config } = await supabase
+        // 2. Pesos e prazo de configuracoes_agenda (tabela chave/valor)
+        const { data: configRows } = await supabase
           .from('configuracoes_agenda')
-          .select(
-            'score_peso_oportunidade, score_peso_dsv, score_peso_historico, prazo_alerta_amarelo_dias'
-          )
-          .maybeSingle()
+          .select('chave, valor')
+          .in('chave', ['score_peso_oportunidade', 'score_peso_dsv', 'score_peso_historico', 'prazo_alerta_amarelo_dias'])
+
+        const configMap = (configRows ?? []).reduce<Record<string, number>>(
+          (acc, row) => ({ ...acc, [row.chave]: Number(row.valor) }),
+          {}
+        )
 
         const pesos: ScorePesos = {
-          oportunidade: config?.score_peso_oportunidade ?? PESOS_DEFAULT.oportunidade,
-          dsv: config?.score_peso_dsv ?? PESOS_DEFAULT.dsv,
-          historico: config?.score_peso_historico ?? PESOS_DEFAULT.historico,
+          oportunidade: configMap['score_peso_oportunidade'] ?? PESOS_DEFAULT.oportunidade,
+          dsv: configMap['score_peso_dsv'] ?? PESOS_DEFAULT.dsv,
+          historico: configMap['score_peso_historico'] ?? PESOS_DEFAULT.historico,
         }
-        const prazo: number = config?.prazo_alerta_amarelo_dias ?? 60
+        const prazo: number = configMap['prazo_alerta_amarelo_dias'] ?? 60
 
         // 3. Clientes da carteira com analise_rfm
         const { data: clientesRaw } = await supabase

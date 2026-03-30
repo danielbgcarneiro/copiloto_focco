@@ -355,7 +355,7 @@ const Clientes: React.FC = () => {
         const dados = obterCache(cliente.codigo_cliente)
         setInadimplencia(dados)
 
-        // Se dados ainda não estão no cache, adicionar listener para atualização
+        // Se dados ainda não estão no cache, aguardar até chegarem (sem timeout fixo)
         if (dados === undefined) {
           const checkInterval = setInterval(() => {
             const novosDados = obterCache(cliente.codigo_cliente)
@@ -363,10 +363,7 @@ const Clientes: React.FC = () => {
               setInadimplencia(novosDados)
               clearInterval(checkInterval)
             }
-          }, 500) // Verificar a cada 500ms
-
-          // Limpar após 10 segundos
-          setTimeout(() => clearInterval(checkInterval), 10000)
+          }, 500)
 
           return () => clearInterval(checkInterval)
         }
@@ -379,7 +376,7 @@ const Clientes: React.FC = () => {
         const dados = obterCacheTitulos(cliente.codigo_cliente)
         setTitulos(dados)
 
-        // Se dados ainda não estão no cache, adicionar listener para atualização
+        // Se dados ainda não estão no cache, aguardar até chegarem (sem timeout fixo)
         if (dados === undefined) {
           const checkInterval = setInterval(() => {
             const novosDados = obterCacheTitulos(cliente.codigo_cliente)
@@ -387,10 +384,7 @@ const Clientes: React.FC = () => {
               setTitulos(novosDados)
               clearInterval(checkInterval)
             }
-          }, 500) // Verificar a cada 500ms
-
-          // Limpar após 10 segundos
-          setTimeout(() => clearInterval(checkInterval), 10000)
+          }, 500)
 
           return () => clearInterval(checkInterval)
         }

@@ -17,6 +17,8 @@ export interface AgendamentoDia {
   data_agendada: string // YYYY-MM-DD
   status: 'pendente' | 'realizado' | 'cancelado'
   valor_previsto: number | null
+  previsao_pedido: number | null
+  meta_ano_atual: number | null
   perfil_rfm: string | null // 'Ouro' | 'Prata' | 'Bronze' | null
   offline_pending?: boolean
 }
@@ -136,20 +138,25 @@ export function useAgenda(vendedorId: string | undefined) {
         // 3. Buscar perfil RFM mais recente por cliente
         const { data: rfmData } = await supabase
           .from('analise_rfm')
-          .select('codigo_cliente, perfil')
+          .select('codigo_cliente, perfil, previsao_pedido, meta_ano_atual')
           .in('codigo_cliente', codigosCliente)
           .order('data_analise', { ascending: false })
 
-        const rfmMap = new Map<number, string>()
+        const rfmMap = new Map<number, { perfil: string; previsao_pedido: number | null; meta_ano_atual: number | null }>()
         for (const r of rfmData ?? []) {
           if (!rfmMap.has(r.codigo_cliente)) {
-            rfmMap.set(r.codigo_cliente, r.perfil)
+            rfmMap.set(r.codigo_cliente, {
+              perfil: r.perfil,
+              previsao_pedido: r.previsao_pedido ?? null,
+              meta_ano_atual: r.meta_ano_atual ?? null,
+            })
           }
         }
 
         // 4. Montar mapa agrupado por data
         for (const ag of items) {
           const client = clienteMap.get(ag.codigo_cliente)
+          const rfm = rfmMap.get(ag.codigo_cliente)
           const entry: AgendamentoDia = {
             id: ag.id,
             codigo_cliente: ag.codigo_cliente,
@@ -158,7 +165,9 @@ export function useAgenda(vendedorId: string | undefined) {
             data_agendada: ag.data_agendada,
             status: ag.status,
             valor_previsto: ag.valor_previsto ?? null,
-            perfil_rfm: rfmMap.get(ag.codigo_cliente) ?? null,
+            previsao_pedido: rfm?.previsao_pedido ?? null,
+            meta_ano_atual: rfm?.meta_ano_atual ?? null,
+            perfil_rfm: rfm?.perfil ?? null,
           }
           const key = ag.data_agendada
           if (key in grouped) {
@@ -250,7 +259,7 @@ export function useAgenda(vendedorId: string | undefined) {
             .in('codigo_cliente', codigosCliente),
           supabase
             .from('analise_rfm')
-            .select('codigo_cliente, perfil')
+            .select('codigo_cliente, perfil, previsao_pedido, meta_ano_atual')
             .in('codigo_cliente', codigosCliente)
             .order('data_analise', { ascending: false }),
         ])
@@ -263,13 +272,20 @@ export function useAgenda(vendedorId: string | undefined) {
           })
         }
 
-        const rfmMap = new Map<number, string>()
+        const rfmMap = new Map<number, { perfil: string; previsao_pedido: number | null; meta_ano_atual: number | null }>()
         for (const r of rfmRes.data ?? []) {
-          if (!rfmMap.has(r.codigo_cliente)) rfmMap.set(r.codigo_cliente, r.perfil)
+          if (!rfmMap.has(r.codigo_cliente)) {
+            rfmMap.set(r.codigo_cliente, {
+              perfil: r.perfil,
+              previsao_pedido: r.previsao_pedido ?? null,
+              meta_ano_atual: r.meta_ano_atual ?? null,
+            })
+          }
         }
 
         for (const ag of items) {
           const client = clienteMap.get(ag.codigo_cliente)
+          const rfm = rfmMap.get(ag.codigo_cliente)
           const entry: AgendamentoDia = {
             id: ag.id,
             codigo_cliente: ag.codigo_cliente,
@@ -278,7 +294,9 @@ export function useAgenda(vendedorId: string | undefined) {
             data_agendada: ag.data_agendada,
             status: ag.status,
             valor_previsto: ag.valor_previsto ?? null,
-            perfil_rfm: rfmMap.get(ag.codigo_cliente) ?? null,
+            previsao_pedido: rfm?.previsao_pedido ?? null,
+            meta_ano_atual: rfm?.meta_ano_atual ?? null,
+            perfil_rfm: rfm?.perfil ?? null,
           }
           if (ag.data_agendada in grouped) {
             grouped[ag.data_agendada].push(entry)
@@ -324,8 +342,9 @@ export interface AgendamentoDiaDetalhado {
   status: 'pendente' | 'realizado' | 'cancelado'
   valor_previsto: number | null
   perfil_rfm: string | null
-  dsv: number | null          // dias sem comprar
+  dsv: number | null
   oportunidade_rfm: number | null  // previsao_pedido RFM
+  meta_ano_atual: number | null
   visita_resultado: 'vendeu' | 'nao_vendeu' | 'ausente' | 'reagendou' | null
   visita_valor_realizado: number | null
   visita_id: string | null
@@ -362,7 +381,7 @@ export async function getAgendamentosDia(
       .in('codigo_cliente', codigosCliente),
     supabase
       .from('analise_rfm')
-      .select('codigo_cliente, perfil, dias_sem_comprar, previsao_pedido')
+      .select('codigo_cliente, perfil, dias_sem_comprar, previsao_pedido, meta_ano_atual')
       .in('codigo_cliente', codigosCliente)
       .order('data_analise', { ascending: false }),
     visitaIds.length > 0
@@ -382,13 +401,14 @@ export async function getAgendamentosDia(
     })
   }
 
-  const rfmMap = new Map<number, { perfil: string; dsv: number | null; oportunidade: number | null }>()
+  const rfmMap = new Map<number, { perfil: string; dsv: number | null; oportunidade: number | null; meta_ano_atual: number | null }>()
   for (const r of rfmRes.data ?? []) {
     if (!rfmMap.has(r.codigo_cliente)) {
       rfmMap.set(r.codigo_cliente, {
         perfil: r.perfil,
         dsv: r.dias_sem_comprar ?? null,
         oportunidade: r.previsao_pedido ?? null,
+        meta_ano_atual: r.meta_ano_atual ?? null,
       })
     }
   }
@@ -415,6 +435,7 @@ export async function getAgendamentosDia(
       perfil_rfm: rfm?.perfil ?? null,
       dsv: rfm?.dsv ?? null,
       oportunidade_rfm: rfm?.oportunidade ?? null,
+      meta_ano_atual: rfm?.meta_ano_atual ?? null,
       visita_resultado: (visita?.resultado ?? null) as AgendamentoDiaDetalhado['visita_resultado'],
       visita_valor_realizado: visita?.valor_realizado ?? null,
       visita_id: ag.visita_id ?? null,
@@ -496,4 +517,41 @@ export async function getForecastSemana(
   }
 
   return { planejado, oportunidade, metaSemana, realizado }
+}
+
+export async function getForecastMes(
+  year: number,
+  month: number,
+  vendedorId: string
+): Promise<{ metaMes: number; realizadoMes: number }> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('cod_vendedor')
+    .eq('id', vendedorId)
+    .single()
+  const codVendedor = profile?.cod_vendedor
+  if (!codVendedor) return { metaMes: 0, realizadoMes: 0 }
+
+  const mesRef = `${year}-${String(month).padStart(2, '0')}-01`
+
+  const [metaRes, vendasRes] = await Promise.all([
+    supabase
+      .from('metas_vendedores')
+      .select('meta_valor')
+      .eq('cod_vendedor', codVendedor)
+      .eq('ano', year)
+      .eq('mes', month)
+      .maybeSingle(),
+    supabase
+      .from('vendas_mes')
+      .select('total_vendas')
+      .eq('codigo_vendedor', codVendedor)
+      .eq('mes_referencia', mesRef)
+      .maybeSingle(),
+  ])
+
+  return {
+    metaMes: Number(metaRes.data?.meta_valor ?? 0),
+    realizadoMes: Number(vendasRes.data?.total_vendas ?? 0),
+  }
 }
