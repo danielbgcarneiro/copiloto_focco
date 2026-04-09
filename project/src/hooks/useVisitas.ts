@@ -38,6 +38,7 @@ export interface RegistrarVisitaParams {
   rfmPerfilSnapshot?: string | null
   rfmOportunidadeSnapshot?: number | null
   rfmDsvSnapshot?: number | null
+  agendamentoId?: string | null
 }
 
 export interface Agendamento {
@@ -131,6 +132,15 @@ export function useVisitas(codigoCliente: number) {
       .single()
 
     if (error) throw new Error(error.message)
+
+    // Vincular agendamento à visita e marcar como realizado
+    if (params.agendamentoId) {
+      await supabase
+        .from('agendamentos')
+        .update({ status: 'realizado', visita_id: data.id })
+        .eq('id', params.agendamentoId)
+    }
+
     return data as Visita
   }, [hoje])
 

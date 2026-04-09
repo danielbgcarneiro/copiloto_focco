@@ -245,6 +245,8 @@ export default function Agenda() {
           : ag
       )
     )
+    // Invalida o cache da semana para atualizar o banner de visitas sem resultado
+    invalidateWeek(selectedDate)
     setSheetAg(null)
   }
 
@@ -578,6 +580,7 @@ export default function Agenda() {
           onSuccess={handleVisitaSuccess}
           codigoCliente={sheetAg.codigo_cliente}
           vendedorId={vendedorId}
+          agendamentoId={sheetAg.id}
           rfmPerfil={sheetAg.perfil_rfm}
           rfmOportunidade={sheetAg.oportunidade_rfm}
           rfmDsv={sheetAg.dsv}

@@ -21,6 +21,7 @@ interface RegistrarVisitaSheetProps {
   onSuccess: (visita: Visita) => void
   codigoCliente: number
   vendedorId: string
+  agendamentoId?: string | null
   rfmPerfil?: string | null
   rfmOportunidade?: number | null
   rfmDsv?: number | null
@@ -48,6 +49,7 @@ export const RegistrarVisitaSheet: React.FC<RegistrarVisitaSheetProps> = ({
   onSuccess,
   codigoCliente,
   vendedorId,
+  agendamentoId,
   rfmPerfil,
   rfmOportunidade,
   rfmDsv,
@@ -108,6 +110,7 @@ export const RegistrarVisitaSheet: React.FC<RegistrarVisitaSheetProps> = ({
         rfmPerfilSnapshot: rfmPerfil ?? null,
         rfmOportunidadeSnapshot: rfmOportunidade ?? null,
         rfmDsvSnapshot: rfmDsv ?? null,
+        agendamentoId: agendamentoId ?? null,
       })
       onSuccess(visita)
 
