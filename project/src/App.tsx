@@ -73,20 +73,20 @@ const router = createBrowserRouter([
       },
       {
         path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes",
-        element: <DetalhesCliente />
+        element: <DetalhesClienteV2 />
       },
       {
         path: "/clientes/detalhes/:id",
-        element: <DetalhesCliente />
+        element: <DetalhesClienteV2 />
       },
-      // ── Rota de teste V2 (não altera original) ──────────────────────────
+      // ── DetalhesCliente V1 — backup temporário (remover após validação) ──
       {
         path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes-v2",
-        element: <DetalhesClienteV2 />
+        element: <DetalhesCliente />
       },
       {
         path: "/clientes/detalhes-v2/:id",
-        element: <DetalhesClienteV2 />
+        element: <DetalhesCliente />
       },
       {
         path: "/inadimplentes",

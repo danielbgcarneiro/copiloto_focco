@@ -1,9 +1,10 @@
 /**
  * Copiloto Focco Brasil
- * DetalhesClienteV2 — página de teste com melhorias de UX/UI (Uma · Story visual V2)
- * NÃO modificar DetalhesCliente.tsx · rota de teste: /detalhes-v2/:id
+ * DetalhesClienteV2 — página principal de detalhes do cliente
+ * Desenvolvedor: Daniel Carneiro
+ * Copyright © 2025 Daniel Carneiro. Todos os direitos reservados.
  *
- * Melhorias vs V1:
+ * Melhorias vs V1 (DetalhesCliente.tsx — mantido como backup em /detalhes-v2):
  * 1. Layout mobile-first sem max-w-4xl (alinhado com Clientes.tsx)
  * 2. Oportunidade + ação recomendada em banner laranja
  * 3. Barra de progresso visual para meta

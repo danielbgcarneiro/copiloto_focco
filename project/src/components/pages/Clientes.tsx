@@ -16,6 +16,7 @@ import { getTitulosClienteResumo, TitulosClienteResumo } from '../../lib/queries
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import { useSetPage } from '../../contexts'
 import { RegistrarVisitaSheet } from '../molecules/RegistrarVisitaSheet'
+import { AgendarVisitaSheet } from '../molecules/AgendarVisitaSheet'
 import { useVisitas } from '../../hooks/useVisitas'
 
 // Cache de formatadores (criado uma única vez)
@@ -40,8 +41,9 @@ const Clientes: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [processandoVisita] = useState<number | null>(null)
   const [sheetCliente, setSheetCliente] = useState<{ codigo: number; perfil?: string; oportunidade?: number; dsv?: number } | null>(null)
+  const [agendamentoSheet, setAgendamentoSheet] = useState<{ codigoCliente: number } | null>(null)
 
-  const { motivos, loadingMotivos, carregarMotivos, registrarVisita } = useVisitas(sheetCliente?.codigo ?? 0)
+  const { motivos, loadingMotivos, carregarMotivos, registrarVisita, criarAgendamento, editarAgendamento } = useVisitas(sheetCliente?.codigo ?? 0)
   
   // Cache otimizado com timestamp para TTL
   const inadimplenciaCache = useRef<{
@@ -720,10 +722,8 @@ const Clientes: React.FC = () => {
   // Função para lidar com click no check button (otimizada com useCallback)
   const handleAgendarClick = useCallback((cliente: any, event: React.MouseEvent) => {
     event.stopPropagation()
-    const rotaPath = rotaNome ? encodeURIComponent(rotaNome) : 'sem-rota'
-    const cidadePath = cidadeDecodificada ? encodeURIComponent(cidadeDecodificada) : 'sem-cidade'
-    navigate(`/rotas/${rotaPath}/cidades/${cidadePath}/clientes/${cliente.codigo_cliente}/detalhes`)
-  }, [rotaNome, cidadeDecodificada, navigate])
+    setAgendamentoSheet({ codigoCliente: cliente.codigo_cliente })
+  }, [])
 
   const handleCheckClick = useCallback((cliente: any, event: React.MouseEvent) => {
     event.stopPropagation()
@@ -901,6 +901,19 @@ const Clientes: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* AgendarVisitaSheet — abre ao clicar em "Agendar" */}
+      {agendamentoSheet && user && (
+        <AgendarVisitaSheet
+          isOpen={!!agendamentoSheet}
+          onClose={() => setAgendamentoSheet(null)}
+          onSuccess={() => setAgendamentoSheet(null)}
+          codigoCliente={agendamentoSheet.codigoCliente}
+          vendedorId={user.id}
+          criarAgendamento={criarAgendamento}
+          editarAgendamento={editarAgendamento}
+        />
+      )}
 
       {/* RegistrarVisitaSheet — abre ao clicar em "Registrar visita" */}
       {sheetCliente && user && (
