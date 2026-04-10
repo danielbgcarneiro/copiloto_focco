@@ -134,7 +134,7 @@ export default function Agenda() {
   const [showBusca, setShowBusca] = useState(false)
   const [showSugestoes, setShowSugestoes] = useState(false)
 
-  const { sugestoes, loading: loadingSugestoes, carregar: carregarSugestoes } = useSugestoesAgenda(vendedorId)
+  const { sugestoes, rotasSugestoes, loading: loadingSugestoes, carregar: carregarSugestoes } = useSugestoesAgenda(vendedorId)
 
   const visitasSemResultado = useMemo(
     () => hasAgendamentosSemResultado(cache, formatDate(today)),
@@ -564,8 +564,9 @@ export default function Agenda() {
           vendedorId={vendedorId}
           sugestoes={sugestoes}
           loadingSugestoes={loadingSugestoes}
+          rotasSugestoes={rotasSugestoes}
           onSuccess={(dataAgendada) => {
-            setShowSugestoes(false)
+            // Sheet retorna sozinho à lista de clientes; apenas invalida cache e recarrega
             invalidateWeek(new Date(dataAgendada + 'T00:00:00'))
             carregarSugestoes(weekStart)
             setRefreshKey((k) => k + 1)

@@ -13,7 +13,8 @@ export interface Telefone {
   tipo: 'celular' | 'fixo' | 'whatsapp' | 'outro'
   descricao: string | null
   whatsapp_habilitado: boolean
-  adicionado_por: string
+  adicionado_por: string | null  // null = importado do ERP
+  origem?: 'erp' | 'manual'
   ativo: boolean
   created_at: string | null
 }

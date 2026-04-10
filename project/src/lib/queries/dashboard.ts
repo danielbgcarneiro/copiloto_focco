@@ -32,8 +32,9 @@ export interface ClientePerfil {
   objetivo: number;
   vendas: number;
   percentual: number;
-  cod_vendedor?: number; // Changed to number
-  apelido_vendedor?: string; // Added for filtering in Gestao
+  cod_vendedor?: number;
+  apelido_vendedor?: string;
+  maior_dias_atraso?: number; // > 0 = inadimplente
 }
 
 export interface TabelaPerfil {
@@ -425,6 +426,25 @@ export async function getTabelaPerfil(perfil: 'ouro' | 'prata' | 'bronze'): Prom
     const clientesMap = new Map<number, any>();
     (clientesInfo as any[]).forEach(c => clientesMap.set(c.codigo_cliente, c));
 
+    // 4) Buscar inadimplência em batch para todos os clientes do perfil
+    const inadimplenciaMap = new Map<number, number>()
+    try {
+      const { data: inadData } = await supabase
+        .from('vw_titulos_vencidos_detalhado')
+        .select('codigo_cliente, dias_atraso')
+        .in('codigo_cliente', codigosClientes)
+        .eq('vendedor_uuid', user.id)
+        .gt('dias_atraso', 0)
+      if (inadData) {
+        inadData.forEach((r: any) => {
+          const atual = inadimplenciaMap.get(r.codigo_cliente) ?? 0
+          if (r.dias_atraso > atual) inadimplenciaMap.set(r.codigo_cliente, r.dias_atraso)
+        })
+      }
+    } catch {
+      // não crítico — tabela pode não existir em todos os ambientes
+    }
+
     const clientesPerfil: ClientePerfil[] = (rfmData as any[]).map(rfm => {
       const info = clientesMap.get(rfm.codigo_cliente);
       const objetivo = Number(rfm.meta_ano_atual || 0);
@@ -434,11 +454,11 @@ export async function getTabelaPerfil(perfil: 'ouro' | 'prata' | 'bronze'): Prom
       return {
         codigo_cliente: rfm.codigo_cliente,
         nome_fantasia: info?.nome_fantasia || 'N/A',
-        // tabela_clientes may not have 'uf' column; show cidade only as fallback
         cidade_uf: info ? `${info.cidade || 'N/A'}` : 'N/A',
         objetivo,
         vendas,
-        percentual: Math.round(percentual * 100) / 100 // 2 casas decimais
+        percentual: Math.round(percentual * 100) / 100,
+        maior_dias_atraso: inadimplenciaMap.get(rfm.codigo_cliente) ?? 0,
       };
     });
 

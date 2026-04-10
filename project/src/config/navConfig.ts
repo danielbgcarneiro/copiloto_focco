@@ -1,4 +1,4 @@
-import { Map, AlertTriangle, ShoppingBag, BarChart3, Calendar, LucideIcon } from 'lucide-react'
+import { Map, AlertTriangle, ShoppingBag, BarChart3, Calendar, LayoutDashboard, LucideIcon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export type Role = 'vendedor' | 'gestor' | 'diretor'
@@ -12,6 +12,13 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    path: '/dashboard',
+    roles: ['vendedor'],
+  },
   {
     id: 'rotas',
     label: 'Rotas',

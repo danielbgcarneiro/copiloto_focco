@@ -5,9 +5,9 @@
  */
 
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Search, MapPin, Home, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Search, MapPin, Home, AlertTriangle, TrendingUp, Funnel, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getCidadesCompleto, normalizeText, type CidadeMapeada } from '../../lib/queries/cidades'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
@@ -24,6 +24,10 @@ const Cidades: React.FC = () => {
   const [cidades, setCidades] = useState<CidadeMapeada[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<'oportunidade' | 'meta' | 'nome'>('oportunidade')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [showSortMenu, setShowSortMenu] = useState(false)
+  const sortMenuRef = useRef<HTMLDivElement>(null)
 
   // Decodificar o nome da rota
   const rotaNome = rotaId ? decodeURIComponent(rotaId) : null
@@ -64,11 +68,42 @@ const Cidades: React.FC = () => {
     }
   }
 
-  // Filtrar cidades baseado na busca
-  const filteredCidades = cidades.filter(cidade => {
-    const normalizedSearchTerm = normalizeText(searchTerm)
-    return normalizeText(cidade.nome).includes(normalizedSearchTerm)
-  })
+  // Fechar menu ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
+        setShowSortMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSortSelect = (opcao: 'oportunidade' | 'meta' | 'nome') => {
+    if (sortBy === opcao) {
+      // mesma coluna: alterna direção
+      setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    } else {
+      // nova coluna: sempre desc (maior → menor) exceto nome que começa asc
+      setSortBy(opcao)
+      setSortDir(opcao === 'nome' ? 'asc' : 'desc')
+    }
+    setShowSortMenu(false)
+  }
+
+  // Filtrar + ordenar cidades
+  const filteredCidades = cidades
+    .filter(cidade => {
+      const normalizedSearchTerm = normalizeText(searchTerm)
+      return normalizeText(cidade.nome).includes(normalizedSearchTerm)
+    })
+    .sort((a, b) => {
+      let diff = 0
+      if (sortBy === 'oportunidade') diff = (a.somaOportunidades ?? 0) - (b.somaOportunidades ?? 0)
+      else if (sortBy === 'meta')    diff = (a.somaMetas ?? 0) - (b.somaMetas ?? 0)
+      else                           diff = a.nome.localeCompare(b.nome, 'pt-BR')
+      return sortDir === 'desc' ? -diff : diff
+    })
 
   // Componente do Card de Cidade
   const CidadeCard: React.FC<{ cidade: CidadeMapeada }> = ({ cidade }) => {
@@ -191,9 +226,9 @@ const Cidades: React.FC = () => {
           </div>
         )}
         
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
+        {/* Search Bar + Filtro */}
+        <div className="mb-6 flex gap-2">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
@@ -202,6 +237,49 @@ const Cidades: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
+          </div>
+
+          {/* Botão de ordenação */}
+          <div className="relative" ref={sortMenuRef}>
+            <button
+              onClick={() => setShowSortMenu(v => !v)}
+              className={`p-2 border rounded-lg hover:bg-gray-50 transition-colors ${
+                sortBy !== 'oportunidade' || sortDir !== 'desc'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-gray-300 text-gray-600'
+              }`}
+              aria-label="Ordenar cidades"
+            >
+              <Funnel className="h-4 w-4" />
+            </button>
+
+            {showSortMenu && (
+              <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-2.5 pb-1">
+                  Ordenar por
+                </p>
+                {([
+                  { key: 'oportunidade', label: 'Maior Oportunidade' },
+                  { key: 'meta',         label: 'Maior Meta' },
+                  { key: 'nome',         label: 'Nome A→Z' },
+                ] as const).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => handleSortSelect(key)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
+                      sortBy === key ? 'text-primary font-semibold bg-primary/5' : 'text-gray-700'
+                    }`}
+                  >
+                    <span>{label}</span>
+                    {sortBy === key && (
+                      sortDir === 'desc'
+                        ? <ChevronDown className="h-3.5 w-3.5" />
+                        : <ChevronUp className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

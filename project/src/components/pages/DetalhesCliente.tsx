@@ -679,24 +679,32 @@ const DetalhesCliente: React.FC = () => {
                 <span className="ml-2 text-sm text-gray-600">Carregando visitas...</span>
               </div>
             ) : historicoVisitas.length > 0 ? (
-              <div className="space-y-1.5">
-                {historicoVisitas.slice(0, 5).map((visita, index) => {
-                  const d = new Date(visita.data_visita)
-                  const cancelado = visita.status === 'cancelado'
-                  return (
-                    <div key={index} className={`flex items-center justify-between text-xs py-1.5 px-2 rounded-lg ${cancelado ? 'bg-gray-50 opacity-60' : 'bg-green-50'}`}>
-                      <span className={`${cancelado ? 'line-through text-gray-500' : 'text-gray-700'}`}>
-                        {d.toLocaleDateString('pt-BR')}
-                      </span>
-                      <span className={`font-medium ${cancelado ? 'text-gray-400' : 'text-green-700'}`}>
-                        {cancelado ? 'Cancelado' : '✓ Realizada'}
-                      </span>
-                    </div>
-                  )
-                })}
+              <div className="rounded-lg overflow-hidden border border-gray-200">
+                <div className="grid grid-cols-3 text-[10px] font-semibold text-white uppercase tracking-wider bg-gray-700 px-3 py-2">
+                  <span>Data</span>
+                  <span className="text-center">Status</span>
+                  <span className="text-right">Vendeu?</span>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {historicoVisitas.slice(0, 5).map((visita, index) => {
+                    const d = new Date(visita.data_visita)
+                    const resultado = visita.resultado as string | undefined
+                    const vendeu = resultado === 'vendeu'
+                    const naoVendeu = resultado === 'nao_vendeu'
+                    return (
+                      <div key={index} className="grid grid-cols-3 items-center text-xs px-3 py-2 bg-white">
+                        <span className="text-gray-700">{d.toLocaleDateString('pt-BR')}</span>
+                        <span className="text-center text-green-700 font-medium">✓ Realizada</span>
+                        <span className={`text-right font-medium ${vendeu ? 'text-green-600' : naoVendeu ? 'text-red-500' : 'text-gray-400'}`}>
+                          {vendeu ? 'Sim' : naoVendeu ? 'Não' : '—'}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
                 {historicoVisitas.length > 5 && (
-                  <p className="text-xs text-gray-400 text-center pt-1">
-                    + {historicoVisitas.length - 5} visitas anteriores
+                  <p className="text-[10px] text-gray-400 text-center py-2 bg-gray-50 border-t border-gray-100">
+                    + {historicoVisitas.length - 5} anteriores
                   </p>
                 )}
               </div>
@@ -769,6 +777,7 @@ const DetalhesCliente: React.FC = () => {
           onSuccess={() => {
             setShowSheet(false)
             refreshVisitas()
+            carregarHistoricoVisitas(codigoClienteNumerico)
             // AC10: sugestão proativa de agendar se não há agendamento futuro
             if (!proximoAgendamento) setShowBannerAgenda(true)
           }}

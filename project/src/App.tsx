@@ -14,6 +14,7 @@ import Clientes from './components/pages/Clientes'
 import Rotas from './components/pages/Rotas'
 import Cidades from './components/pages/Cidades'
 import DetalhesCliente from './components/pages/DetalhesCliente'
+import DetalhesClienteV2 from './components/pages/DetalhesClienteV2'
 import Inadimplentes from './components/pages/Inadimplentes'
 import DashboardGestao from './components/pages/DashboardGestao'
 import PagAcumuladoAno from './components/pages/PagAcumuladoAno'
@@ -77,6 +78,15 @@ const router = createBrowserRouter([
       {
         path: "/clientes/detalhes/:id",
         element: <DetalhesCliente />
+      },
+      // ── Rota de teste V2 (não altera original) ──────────────────────────
+      {
+        path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes-v2",
+        element: <DetalhesClienteV2 />
+      },
+      {
+        path: "/clientes/detalhes-v2/:id",
+        element: <DetalhesClienteV2 />
       },
       {
         path: "/inadimplentes",

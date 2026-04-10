@@ -14,6 +14,9 @@ export interface ClienteBusca {
   perfil_rfm: string | null
   dsv: number | null
   oportunidade_rfm: number | null
+  meta_ano_atual: number | null
+  valor_ano_atual: number | null
+  maior_dias_atraso: number | null
   score: number
 }
 
@@ -90,13 +93,13 @@ export function useBuscaCliente(vendedorId: string | undefined) {
           // Buscar RFM mais recente por cliente
           const { data: rfmData } = await supabase
             .from('analise_rfm')
-            .select('codigo_cliente, perfil, previsao_pedido, dias_sem_comprar')
+            .select('codigo_cliente, perfil, previsao_pedido, dias_sem_comprar, meta_ano_atual, valor_ano_atual')
             .in('codigo_cliente', codes)
             .order('data_analise', { ascending: false })
 
           const rfmMap = new Map<
             number,
-            { perfil: string; previsao_pedido: number | null; dias_sem_comprar: number | null }
+            { perfil: string; previsao_pedido: number | null; dias_sem_comprar: number | null; meta_ano_atual: number | null; valor_ano_atual: number | null }
           >()
           for (const r of rfmData ?? []) {
             if (!rfmMap.has(r.codigo_cliente)) {
@@ -104,8 +107,21 @@ export function useBuscaCliente(vendedorId: string | undefined) {
                 perfil: r.perfil,
                 previsao_pedido: r.previsao_pedido ?? null,
                 dias_sem_comprar: r.dias_sem_comprar ?? null,
+                meta_ano_atual: r.meta_ano_atual ?? null,
+                valor_ano_atual: r.valor_ano_atual ?? null,
               })
             }
+          }
+
+          // Buscar inadimplência em batch para exibir badge na linha 4 do card
+          const inadMap = new Map<number, number>()
+          const { data: inadData } = await supabase
+            .from('titulos_aberto_clientes')
+            .select('codigo_cliente, dias_atraso')
+            .in('codigo_cliente', codes)
+          for (const t of inadData ?? []) {
+            const atual = inadMap.get(t.codigo_cliente) ?? 0
+            if (t.dias_atraso > atual) inadMap.set(t.codigo_cliente, t.dias_atraso)
           }
 
           const results: ClienteBusca[] = clientes.map((c) => {
@@ -118,11 +134,19 @@ export function useBuscaCliente(vendedorId: string | undefined) {
               perfil_rfm: rfm?.perfil ?? null,
               dsv: rfm?.dias_sem_comprar ?? null,
               oportunidade_rfm: rfm?.previsao_pedido ?? null,
+              meta_ano_atual: rfm?.meta_ano_atual ?? null,
+              valor_ano_atual: rfm?.valor_ano_atual ?? null,
+              maior_dias_atraso: inadMap.get(c.codigo_cliente) ?? null,
               score: calcScore(rfm ?? {}),
             }
           })
 
-          results.sort((a, b) => b.score - a.score)
+          results.sort((a, b) => {
+            const opA = a.oportunidade_rfm ?? 0
+            const opB = b.oportunidade_rfm ?? 0
+            if (opB !== opA) return opB - opA
+            return b.score - a.score
+          })
           setResultados(results)
         } catch {
           setResultados([])

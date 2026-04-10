@@ -18,6 +18,7 @@ interface RotaData {
   nome_rota: string
   vendedor_apelido: string
   vendedor_uuid: string
+  cod_vendedor: number
   qtd_oticas: number
   total_oticas: number
   vendido_2025: number
@@ -31,6 +32,15 @@ interface RotaData {
   soma_oportunidades: number
 }
 
+interface ClienteRotaData {
+  codigo_cliente: number
+  nome_fantasia: string
+  oportunidade: number
+  meta: number
+  vendas: number
+  percentual: number
+}
+
 // Interface CidadeData removida - Top Cidades não existe mais
 
 interface CidadeComMeta {
@@ -38,11 +48,13 @@ interface CidadeComMeta {
   codigo_ibge_cidade: string
   rota: string
   vendedor_apelido: string
+  vendedor_uuid?: string
   meta_cidade: number
   vendas_cidade: number
   qtd_clientes: number
   percentual_atingimento: number
   saldo_meta: number
+  soma_oportunidades?: number
 }
 
 interface VendedorInfo {
@@ -50,7 +62,7 @@ interface VendedorInfo {
   nome: string
 }
 
-type RotaSortField = 'rota' | 'meta_2025' | 'vendido_2025' | 'percentual_meta'
+type RotaSortField = 'rota' | 'soma_oportunidades' | 'meta_2025' | 'vendido_2025' | 'percentual_meta'
 type SortDirection = 'asc' | 'desc'
 
 const DashboardRotas: React.FC = () => {
@@ -69,6 +81,10 @@ const DashboardRotas: React.FC = () => {
   const [cidadesComMeta, setCidadesComMeta] = useState<Map<string, CidadeComMeta[]>>(new Map())
   const [loadingCidades, setLoadingCidades] = useState(false)
   const [sortCidadesExpandidas, setSortCidadesExpandidas] = useState<{ field: keyof CidadeComMeta; direction: SortDirection }>({ field: 'vendas_cidade', direction: 'desc' })
+
+  const [expandedCidade, setExpandedCidade] = useState<string | null>(null)
+  const [clientesPorCidade, setClientesPorCidade] = useState<Map<string, ClienteRotaData[]>>(new Map())
+  const [loadingClientesCidade, setLoadingClientesCidade] = useState(false)
 
   const [sortRotas, setSortRotas] = useState<{ field: RotaSortField; direction: SortDirection }>({ field: 'vendido_2025', direction: 'desc' })
 
@@ -125,16 +141,22 @@ const DashboardRotas: React.FC = () => {
           }
         })
 
+        // Mapa vendedor_uuid -> cod_vendedor para uso no drill-down de clientes
+        const vendedorCodMap = new Map<string, number>()
+        vendedoresUnicos.forEach((data, uuid) => vendedorCodMap.set(uuid, data.cod_vendedor))
+
         // 3. Inicializar mapa de rotas com todas as rotas configuradas
         const rotasStatsMap = new Map<string, {
           rota: string
           vendedor_uuid: string
+          cod_vendedor: number
           vendedor_apelido: string
           cidades: Set<string>
           oticas: number
           meta: number
           vendas: number
           semVendas90d: number
+          oportunidades: number
         }>()
 
         rotasVendedor.forEach(rv => {
@@ -144,12 +166,14 @@ const DashboardRotas: React.FC = () => {
             rotasStatsMap.set(key, {
               rota: rv.rota,
               vendedor_uuid: rv.vendedor_id,
+              cod_vendedor: profile.cod_vendedor || 0,
               vendedor_apelido: profile.apelido || 'Sem nome',
               cidades: new Set(),
               oticas: 0,
               meta: 0,
               vendas: 0,
-              semVendas90d: 0
+              semVendas90d: 0,
+              oportunidades: 0
             })
           }
         })
@@ -166,6 +190,7 @@ const DashboardRotas: React.FC = () => {
             stats.oticas += cidade.qtd_clientes || 0
             stats.meta += cidade.meta_cidade || 0
             stats.vendas += cidade.vendas_cidade || 0
+            stats.oportunidades += cidade.soma_oportunidades || 0
             // semVendas90d seria calculado pela view se necessário
           }
         })
@@ -177,6 +202,7 @@ const DashboardRotas: React.FC = () => {
             nome_rota: stats.rota,
             vendedor_apelido: stats.vendedor_apelido,
             vendedor_uuid: stats.vendedor_uuid,
+            cod_vendedor: stats.cod_vendedor,
             qtd_oticas: stats.oticas,
             total_oticas: stats.oticas,
             vendido_2025: stats.vendas,
@@ -187,7 +213,7 @@ const DashboardRotas: React.FC = () => {
             qtd_cidades: stats.cidades.size,
             clientes_sem_venda_90d: stats.semVendas90d,
             oticas_sem_vendas_90d: stats.semVendas90d,
-            soma_oportunidades: 0 // Não disponível na view, mas pode ser adicionado
+            soma_oportunidades: stats.oportunidades
           }))
           .sort((a, b) => b.percentual_meta - a.percentual_meta)
 
@@ -334,6 +360,65 @@ const DashboardRotas: React.FC = () => {
     }))
   }
 
+  const cidadeKey = (rotaNome: string, cidadeNome: string) => `${rotaNome}||${cidadeNome}`
+
+  const carregarClientesCidade = async (rotaNome: string, cidadeNome: string, codVendedor: number) => {
+    const key = cidadeKey(rotaNome, cidadeNome)
+    if (clientesPorCidade.has(key)) return
+
+    try {
+      setLoadingClientesCidade(true)
+      // @dev: confirmar que tabela_clientes tem nome_fantasia e que analise_rfm faz join por codigo_cliente
+      const { data, error } = await supabase
+        .from('tabela_clientes')
+        .select(`
+          codigo_cliente,
+          nome_fantasia,
+          analise_rfm (
+            previsao_pedido,
+            meta_ano_atual,
+            valor_ano_atual
+          )
+        `)
+        .eq('cidade', cidadeNome)
+        .eq('cod_vendedor', codVendedor)
+
+      if (error) throw error
+
+      const clientes: ClienteRotaData[] = (data || []).map((c: any) => {
+        const rfm = Array.isArray(c.analise_rfm) ? c.analise_rfm[0] : c.analise_rfm
+        const meta = rfm?.meta_ano_atual || 0
+        const vendas = rfm?.valor_ano_atual || 0
+        return {
+          codigo_cliente: c.codigo_cliente,
+          nome_fantasia: c.nome_fantasia || `Cliente ${c.codigo_cliente}`,
+          oportunidade: rfm?.previsao_pedido || 0,
+          meta,
+          vendas,
+          percentual: meta > 0 ? (vendas / meta) * 100 : 0,
+        }
+      }).sort((a, b) => b.oportunidade - a.oportunidade)
+
+      const novoMapa = new Map(clientesPorCidade)
+      novoMapa.set(key, clientes)
+      setClientesPorCidade(novoMapa)
+    } catch (err) {
+      console.error('Erro ao carregar clientes da cidade:', err)
+    } finally {
+      setLoadingClientesCidade(false)
+    }
+  }
+
+  const toggleCidadeExpansao = (rotaNome: string, cidadeNome: string, codVendedor: number) => {
+    const key = cidadeKey(rotaNome, cidadeNome)
+    if (expandedCidade === key) {
+      setExpandedCidade(null)
+    } else {
+      setExpandedCidade(key)
+      carregarClientesCidade(rotaNome, cidadeNome, codVendedor)
+    }
+  }
+
   const getCidadesOrdenadas = (cidades: CidadeComMeta[]): CidadeComMeta[] => {
     return [...cidades].sort((a, b) => {
       const aValue = a[sortCidadesExpandidas.field]
@@ -454,6 +539,15 @@ const DashboardRotas: React.FC = () => {
                       {getSortIcon('meta_2025', sortRotas)}
                     </button>
                   </th>
+                  <th className="text-right py-3 px-4 font-semibold text-orange-600">
+                    <button
+                      onClick={() => handleSortRotas('soma_oportunidades')}
+                      className="flex items-center justify-end space-x-1 hover:text-orange-800 w-full"
+                    >
+                      <span>Oportunidade</span>
+                      {getSortIcon('soma_oportunidades', sortRotas)}
+                    </button>
+                  </th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">
                     <button
                       onClick={() => handleSortRotas('vendido_2025')}
@@ -486,6 +580,7 @@ const DashboardRotas: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-gray-700">{rota.vendedor_apelido}</td>
                       <td className="py-3 px-4 text-right text-gray-700">{formatCurrency(rota.meta_2025, true)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-orange-600">{formatCurrency(rota.soma_oportunidades, true)}</td>
                       <td className="py-3 px-4 text-right font-semibold text-gray-900">{formatCurrency(rota.vendido_2025, true)}</td>
                       <td className="py-3 px-4 text-right">
                         <span className={`font-bold ${
@@ -498,8 +593,9 @@ const DashboardRotas: React.FC = () => {
                     </tr>
                     {expandedRota === rota.rota && (
                       <tr className="border-b border-gray-200">
-                        <td colSpan={5} className="p-0">
-                          <div className="bg-gray-50 p-4">
+                        <td colSpan={6} className="p-0">
+                          {/* Nível 2 — fundo slate para contraste com nível 1 (branco) */}
+                          <div className="bg-slate-100">
                             {loadingCidades ? (
                               <div className="flex items-center justify-center py-4">
                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
@@ -509,39 +605,48 @@ const DashboardRotas: React.FC = () => {
                               <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                   <thead>
-                                    <tr className="bg-gray-200">
-                                      <th className="text-left px-3 py-2 font-semibold text-gray-700">Cidade</th>
-                                      <th className="text-right px-3 py-2 font-semibold text-gray-700">
+                                    <tr className="bg-gray-700 text-white">
+                                      <th className="text-left px-4 py-2 font-semibold">Cidade</th>
+                                      <th className="text-right px-4 py-2 font-semibold">
                                         <button
-                                          onClick={() => handleSortCidadesExpandidas('meta_cidade')}
-                                          className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
+                                          onClick={(e) => { e.stopPropagation(); handleSortCidadesExpandidas('meta_cidade') }}
+                                          className="flex items-center justify-end space-x-1 hover:text-gray-200 w-full"
                                         >
                                           <span>Meta</span>
                                           {getSortIconExpandidas('meta_cidade', sortCidadesExpandidas)}
                                         </button>
                                       </th>
-                                      <th className="text-right px-3 py-2 font-semibold text-gray-700">
+                                      <th className="text-right px-4 py-2 font-semibold text-orange-300">
                                         <button
-                                          onClick={() => handleSortCidadesExpandidas('vendas_cidade')}
-                                          className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
+                                          onClick={(e) => { e.stopPropagation(); handleSortCidadesExpandidas('soma_oportunidades' as keyof CidadeComMeta) }}
+                                          className="flex items-center justify-end space-x-1 hover:text-orange-100 w-full"
+                                        >
+                                          <span>Oportunidade</span>
+                                          {getSortIconExpandidas('soma_oportunidades' as keyof CidadeComMeta, sortCidadesExpandidas)}
+                                        </button>
+                                      </th>
+                                      <th className="text-right px-4 py-2 font-semibold">
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); handleSortCidadesExpandidas('vendas_cidade') }}
+                                          className="flex items-center justify-end space-x-1 hover:text-gray-200 w-full"
                                         >
                                           <span>Vendas</span>
                                           {getSortIconExpandidas('vendas_cidade', sortCidadesExpandidas)}
                                         </button>
                                       </th>
-                                      <th className="text-right px-3 py-2 font-semibold text-gray-700">
+                                      <th className="text-right px-4 py-2 font-semibold">
                                         <button
-                                          onClick={() => handleSortCidadesExpandidas('percentual_atingimento')}
-                                          className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
+                                          onClick={(e) => { e.stopPropagation(); handleSortCidadesExpandidas('percentual_atingimento') }}
+                                          className="flex items-center justify-end space-x-1 hover:text-gray-200 w-full"
                                         >
                                           <span>Atingimento</span>
                                           {getSortIconExpandidas('percentual_atingimento', sortCidadesExpandidas)}
                                         </button>
                                       </th>
-                                      <th className="text-right px-3 py-2 font-semibold text-gray-700">
+                                      <th className="text-right px-4 py-2 font-semibold">
                                         <button
-                                          onClick={() => handleSortCidadesExpandidas('qtd_clientes')}
-                                          className="flex items-center justify-end space-x-1 hover:text-gray-900 w-full"
+                                          onClick={(e) => { e.stopPropagation(); handleSortCidadesExpandidas('qtd_clientes') }}
+                                          className="flex items-center justify-end space-x-1 hover:text-gray-200 w-full"
                                         >
                                           <span>Clientes</span>
                                           {getSortIconExpandidas('qtd_clientes', sortCidadesExpandidas)}
@@ -551,27 +656,91 @@ const DashboardRotas: React.FC = () => {
                                   </thead>
                                   <tbody>
                                     {getCidadesOrdenadas(cidadesComMeta.get(rota.rota) || []).map((cidade) => (
-                                      <tr key={cidade.codigo_ibge_cidade} className="border-b border-gray-200 hover:bg-white">
-                                        <td className="px-3 py-2 text-gray-900 font-medium">{cidade.cidade}</td>
-                                        <td className="text-right px-3 py-2 text-gray-700">{formatCurrency(cidade.meta_cidade, true)}</td>
-                                        <td className="text-right px-3 py-2 font-semibold text-gray-900">{formatCurrency(cidade.vendas_cidade, true)}</td>
-                                        <td className="text-right px-3 py-2">
-                                          <span className={`font-bold ${
-                                            cidade.percentual_atingimento >= 100 ? 'text-green-600' :
-                                            cidade.percentual_atingimento >= 80 ? 'text-yellow-600' :
-                                            'text-red-600'
-                                          }`}>
-                                            {cidade.percentual_atingimento.toFixed(1)}%
-                                          </span>
-                                        </td>
-                                        <td className="text-right px-3 py-2 text-gray-700">{cidade.qtd_clientes}</td>
-                                      </tr>
+                                      <React.Fragment key={cidade.codigo_ibge_cidade}>
+                                        {/* Linha da cidade — expansível para nível 3 */}
+                                        <tr
+                                          className="border-b border-slate-200 hover:bg-slate-50 cursor-pointer"
+                                          onClick={(e) => { e.stopPropagation(); toggleCidadeExpansao(rota.rota, cidade.cidade, rota.cod_vendedor) }}
+                                        >
+                                          <td className="px-4 py-2 text-gray-900 font-medium">
+                                            <div className="flex items-center space-x-1.5">
+                                              {expandedCidade === cidadeKey(rota.rota, cidade.cidade)
+                                                ? <ChevronUp className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                                                : <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                                              }
+                                              <span>{cidade.cidade}</span>
+                                            </div>
+                                          </td>
+                                          <td className="text-right px-4 py-2 text-gray-700">{formatCurrency(cidade.meta_cidade, true)}</td>
+                                          <td className="text-right px-4 py-2 font-semibold text-orange-600">{formatCurrency(cidade.soma_oportunidades ?? 0, true)}</td>
+                                          <td className="text-right px-4 py-2 font-semibold text-gray-900">{formatCurrency(cidade.vendas_cidade, true)}</td>
+                                          <td className="text-right px-4 py-2">
+                                            <span className={`font-bold ${
+                                              cidade.percentual_atingimento >= 100 ? 'text-green-600' :
+                                              cidade.percentual_atingimento >= 80 ? 'text-yellow-600' :
+                                              'text-red-600'
+                                            }`}>
+                                              {cidade.percentual_atingimento.toFixed(1)}%
+                                            </span>
+                                          </td>
+                                          <td className="text-right px-4 py-2 text-gray-700">{cidade.qtd_clientes}</td>
+                                        </tr>
+
+                                        {/* Nível 3 — fundo sky para contraste com nível 2 (slate) */}
+                                        {expandedCidade === cidadeKey(rota.rota, cidade.cidade) && (
+                                          <tr>
+                                            <td colSpan={6} className="p-0">
+                                              <div className="bg-sky-50">
+                                                {loadingClientesCidade ? (
+                                                  <div className="flex items-center justify-center py-3">
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                                    <span className="ml-2 text-xs text-gray-500">Carregando clientes...</span>
+                                                  </div>
+                                                ) : (clientesPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || []).length > 0 ? (
+                                                  <table className="w-full text-xs">
+                                                    <thead>
+                                                      <tr className="bg-sky-700 text-white">
+                                                        <th className="text-left px-4 py-1.5 font-semibold">Cliente</th>
+                                                        <th className="text-right px-4 py-1.5 font-semibold">Meta</th>
+                                                        <th className="text-right px-4 py-1.5 font-semibold text-orange-300">Oportunidade</th>
+                                                        <th className="text-right px-4 py-1.5 font-semibold">Vendas</th>
+                                                        <th className="text-right px-4 py-1.5 font-semibold">Atingimento</th>
+                                                      </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                      {(clientesPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || []).map((cliente, idx) => (
+                                                        <tr key={cliente.codigo_cliente} className={`border-b border-sky-100 ${idx % 2 === 0 ? 'bg-sky-50' : 'bg-white'}`}>
+                                                          <td className="px-4 py-1.5 text-gray-800 font-medium truncate max-w-[200px]">{cliente.nome_fantasia}</td>
+                                                          <td className="text-right px-4 py-1.5 text-gray-600">{formatCurrency(cliente.meta, true)}</td>
+                                                          <td className="text-right px-4 py-1.5 font-semibold text-orange-600">{formatCurrency(cliente.oportunidade, true)}</td>
+                                                          <td className="text-right px-4 py-1.5 text-gray-800">{formatCurrency(cliente.vendas, true)}</td>
+                                                          <td className="text-right px-4 py-1.5">
+                                                            <span className={`font-bold ${
+                                                              cliente.percentual >= 100 ? 'text-green-600' :
+                                                              cliente.percentual >= 80 ? 'text-yellow-600' :
+                                                              'text-red-500'
+                                                            }`}>
+                                                              {cliente.percentual.toFixed(1)}%
+                                                            </span>
+                                                          </td>
+                                                        </tr>
+                                                      ))}
+                                                    </tbody>
+                                                  </table>
+                                                ) : (
+                                                  <p className="text-center text-gray-500 text-xs py-3">Nenhum cliente encontrado</p>
+                                                )}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </React.Fragment>
                                     ))}
                                   </tbody>
                                 </table>
                               </div>
                             ) : (
-                              <p className="text-center text-gray-600 text-sm">Nenhuma cidade encontrada</p>
+                              <p className="text-center text-gray-600 text-sm py-4">Nenhuma cidade encontrada</p>
                             )}
                           </div>
                         </td>

@@ -143,13 +143,12 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
     };
   });
 
-  // Buscar visitas recentes para todos os clientes (reutilizar codigosClientes já definido)
-  
+  // Buscar visitas recentes para todos os clientes (tabela nova: visitas)
   const { data: visitas, error: visitasError } = await supabase
-    .from('visitas_clientes')
+    .from('visitas')
     .select('codigo_cliente')
-    .eq('cod_vendedor', profile.cod_vendedor)
-    .eq('status', 'ativo')
+    .eq('vendedor_id', user.id)
+    .eq('ativo', true)
     .in('codigo_cliente', codigosClientes)
     .gte('data_visita', new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString());
 
@@ -309,11 +308,13 @@ export async function getHistoricoVisitas(codigoCliente: number) {
     return []; // Retornar array vazio se não conseguir buscar vendedor
   }
 
+  // Lê da tabela 'visitas' (nova) onde registrarVisita grava — inclui campo resultado
   const { data, error } = await supabase
-    .from('visitas_clientes')
-    .select('data_visita, status, cod_vendedor')
+    .from('visitas')
+    .select('data_visita, resultado, observacoes, ativo')
     .eq('codigo_cliente', codigoCliente)
-    .eq('cod_vendedor', userData.cod_vendedor)
+    .eq('vendedor_id', user.id)
+    .eq('ativo', true)
     .order('data_visita', { ascending: false });
 
   if (error) {

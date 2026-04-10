@@ -7,13 +7,16 @@
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Search, Filter, Check, Clock, MapPin, CheckCircle } from 'lucide-react'
+import { Search, Filter, Check, Clock, MapPin, CheckCircle, Calendar, Plus, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { getClientesPorVendedor, fazerCheckInVisita, cancelarVisita } from '../../lib/queries/clientes'
+import { supabase } from '../../lib/supabase'
+import { getClientesPorVendedor } from '../../lib/queries/clientes'
 import { getClienteInadimplenteDetalhes, ClienteInadimplente } from '../../lib/queries/inadimplentes'
 import { getTitulosClienteResumo, TitulosClienteResumo } from '../../lib/queries/titulos'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import { useSetPage } from '../../contexts'
+import { RegistrarVisitaSheet } from '../molecules/RegistrarVisitaSheet'
+import { useVisitas } from '../../hooks/useVisitas'
 
 // Cache de formatadores (criado uma única vez)
 const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
@@ -35,9 +38,10 @@ const Clientes: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('perfil')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [clienteParaCancelar, setClienteParaCancelar] = useState<number | null>(null)
-  const [processandoVisita, setProcessandoVisita] = useState<number | null>(null)
+  const [processandoVisita] = useState<number | null>(null)
+  const [sheetCliente, setSheetCliente] = useState<{ codigo: number; perfil?: string; oportunidade?: number; dsv?: number } | null>(null)
+
+  const { motivos, loadingMotivos, carregarMotivos, registrarVisita } = useVisitas(sheetCliente?.codigo ?? 0)
   
   // Cache otimizado com timestamp para TTL
   const inadimplenciaCache = useRef<{
@@ -310,12 +314,14 @@ const Clientes: React.FC = () => {
   const CardCliente: React.FC<{
     cliente: any;
     onCheckClick: (cliente: any, e: React.MouseEvent) => void;
+    onAgendarClick: (cliente: any, e: React.MouseEvent) => void;
+    onCancelarClick: (cliente: any, e: React.MouseEvent) => void;
     processando: boolean;
     rotaNome: string | null;
     cidadeDecodificada: string | null;
     obterCache: (id: number) => ClienteInadimplente | null | undefined;
     obterCacheTitulos: (id: number) => TitulosClienteResumo | null | undefined;
-  }> = React.memo(({ cliente, onCheckClick, processando, rotaNome, cidadeDecodificada, obterCache, obterCacheTitulos }) => {
+  }> = React.memo(({ cliente, onCheckClick, onAgendarClick, onCancelarClick, processando, rotaNome, cidadeDecodificada, obterCache, obterCacheTitulos }) => {
     const navigate = useNavigate()
     const [inadimplencia, setInadimplencia] = useState<ClienteInadimplente | null | undefined>(undefined)
     const [titulos, setTitulos] = useState<TitulosClienteResumo | null | undefined>(undefined)
@@ -599,30 +605,54 @@ const Clientes: React.FC = () => {
             </span>
           </div>
 
-        {/* Check Button */}
-        <div className="p-4 pt-3">
-          <button
-            onClick={(e) => onCheckClick(cliente, e)}
-            disabled={processando}
-            className={`
-              w-full py-2.5 rounded-lg transition-all duration-200 ease-in-out flex items-center justify-center gap-2 font-medium text-sm
-              ${cliente.visitado
-                ? 'bg-green-500 text-white shadow-md hover:bg-green-600'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }
-              ${processando ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-            `}
-            title={cliente.visitado ? 'Cliente visitado - Clique para cancelar' : 'Registrar visita'}
-          >
-            {processando ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+        {/* Ações: sempre 2 colunas */}
+        <div className="px-4 py-3">
+          <div className="grid grid-cols-2 gap-2">
+            {cliente.visitado ? (
+              /* Visitado — col 1: badge verde com opção de cancelar */
+              <button
+                onClick={(e) => onCancelarClick(cliente, e)}
+                disabled={processando}
+                className="py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm shadow-sm hover:bg-red-500 active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed group"
+                title="Visita registrada — clique para cancelar"
+              >
+                {processando
+                  ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  : (
+                    <>
+                      <Check className="h-4 w-4 group-hover:hidden" />
+                      <X className="h-4 w-4 hidden group-hover:block" />
+                      <span className="group-hover:hidden">Visitado</span>
+                      <span className="hidden group-hover:inline">Cancelar</span>
+                    </>
+                  )
+                }
+              </button>
             ) : (
-              <>
-                <Check className="h-4 w-4" />
-                {cliente.visitado ? 'Visitado' : 'Registrar Visita'}
-              </>
+              /* Não visitado — col 1: registrar */
+              <button
+                onClick={(e) => onCheckClick(cliente, e)}
+                disabled={processando}
+                className="py-2.5 rounded-xl bg-primary text-white font-semibold text-sm shadow-sm hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Registrar visita"
+              >
+                {processando
+                  ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  : <><Plus className="h-4 w-4 shrink-0" />Registrar visita</>
+                }
+              </button>
             )}
-          </button>
+            {/* Col 2: Agendar — sempre visível */}
+            <button
+              onClick={(e) => onAgendarClick(cliente, e)}
+              disabled={processando}
+              className="py-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 font-semibold text-sm shadow-sm hover:bg-primary/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Agendar próxima visita"
+            >
+              <Calendar className="h-4 w-4 shrink-0" />
+              Agendar
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -651,31 +681,61 @@ const Clientes: React.FC = () => {
     } else {
       // Se mudar de categoria, define direção padrão
       setSortBy(newSortBy)
-      if (newSortBy === 'perfil' || newSortBy === 'maior-oportunidade' || newSortBy === 'dsv') {
-        setSortDirection('desc') // Perfil, Oportunidade e DSV começam do maior
+      if (['perfil', 'oportunidade', 'maior-oportunidade', 'dsv'].includes(newSortBy)) {
+        setSortDirection('desc') // Perfil, Oportunidade e DSV: maior → menor
       } else {
-        setSortDirection('asc') // Nome e Bairro começam A-Z
+        setSortDirection('asc') // Nome e Bairro: A-Z
       }
     }
   }, [sortBy, sortDirection])
 
+  const handleCancelarVisita = useCallback(async (cliente: any, event: React.MouseEvent) => {
+    event.stopPropagation()
+    if (!user) return
+    try {
+      // Inativar a visita mais recente do cliente neste vendedor
+      const { data: visita } = await supabase
+        .from('visitas')
+        .select('id')
+        .eq('codigo_cliente', cliente.codigo_cliente)
+        .eq('vendedor_id', user.id)
+        .eq('ativo', true)
+        .order('data_visita', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (visita) {
+        await supabase.from('visitas').update({ ativo: false }).eq('id', visita.id)
+      }
+
+      // Atualiza estado local imediatamente
+      setClientes(prev => prev.map(c =>
+        c.codigo_cliente === cliente.codigo_cliente ? { ...c, visitado: false } : c
+      ))
+    } catch (err) {
+      console.error('Erro ao cancelar visita:', err)
+    }
+  }, [user])
+
   // Função para lidar com click no check button (otimizada com useCallback)
-  const handleCheckClick = useCallback(async (cliente: any, event: React.MouseEvent) => {
-    event.stopPropagation() // Evita navegação para detalhes do cliente
+  const handleAgendarClick = useCallback((cliente: any, event: React.MouseEvent) => {
+    event.stopPropagation()
+    const rotaPath = rotaNome ? encodeURIComponent(rotaNome) : 'sem-rota'
+    const cidadePath = cidadeDecodificada ? encodeURIComponent(cidadeDecodificada) : 'sem-cidade'
+    navigate(`/rotas/${rotaPath}/cidades/${cidadePath}/clientes/${cliente.codigo_cliente}/detalhes`)
+  }, [rotaNome, cidadeDecodificada, navigate])
 
-    if (processandoVisita === cliente.codigo_cliente) {
-      return // Já está processando
-    }
-
-    if (cliente.visitado) {
-      // Se já visitado, mostrar modal de confirmação para cancelar
-      setClienteParaCancelar(cliente.codigo_cliente)
-      setShowConfirmModal(true)
-    } else {
-      // Se não visitado, fazer check-in
-      await realizarCheckIn(cliente.codigo_cliente)
-    }
-  }, [processandoVisita])
+  const handleCheckClick = useCallback((cliente: any, event: React.MouseEvent) => {
+    event.stopPropagation()
+    // Abre RegistrarVisitaSheet (só chamado quando visitado=false)
+    const rfm = cliente.analise_rfm || {}
+    setSheetCliente({
+      codigo: cliente.codigo_cliente,
+      perfil: rfm.perfil,
+      oportunidade: rfm.previsao_pedido,
+      dsv: rfm.dias_sem_comprar,
+    })
+  }, [])
 
   // Filtrar e ordenar clientes (otimizado com useMemo)
   const clientesFiltrados = useMemo(() => {
@@ -717,57 +777,14 @@ const Clientes: React.FC = () => {
       })
   }, [clientes, searchTerm, sortBy, sortDirection])
 
-  // Função para realizar check-in
-  const realizarCheckIn = async (codigoCliente: number) => {
-    try {
-      setProcessandoVisita(codigoCliente)
-      await fazerCheckInVisita(codigoCliente)
-      
-      // Atualizar estado local imediatamente
-      setClientes(prev => prev.map(c => 
-        c.codigo_cliente === codigoCliente 
-          ? { ...c, visitado: true }
-          : c
-      ))
-      
-      // Mensagem de sucesso
-      alert('✅ Visita registrada com sucesso!')
-    } catch (error) {
-      console.error('Erro ao fazer check-in:', error)
-      const message = error instanceof Error ? error.message : 'Erro ao registrar visita. Tente novamente.'
-      alert('❌ ' + message)
-    } finally {
-      setProcessandoVisita(null)
-    }
-  }
-
-  // Função para confirmar cancelamento
-  const confirmarCancelamento = async () => {
-    if (!clienteParaCancelar) return
-
-    try {
-      setProcessandoVisita(clienteParaCancelar)
-      await cancelarVisita(clienteParaCancelar)
-      
-      // Atualizar estado local imediatamente
-      setClientes(prev => prev.map(c => 
-        c.codigo_cliente === clienteParaCancelar 
-          ? { ...c, visitado: false }
-          : c
-      ))
-      
-      // Mensagem de sucesso
-      alert('✅ Visita cancelada com sucesso!')
-    } catch (error) {
-      console.error('Erro ao cancelar visita:', error)
-      const message = error instanceof Error ? error.message : 'Erro ao cancelar visita. Tente novamente.'
-      alert('❌ ' + message)
-    } finally {
-      setProcessandoVisita(null)
-      setShowConfirmModal(false)
-      setClienteParaCancelar(null)
-    }
-  }
+  // Callback após registrar visita com sucesso via RegistrarVisitaSheet
+  const handleVisitaSuccess = useCallback(() => {
+    if (!sheetCliente) return
+    setClientes(prev => prev.map(c =>
+      c.codigo_cliente === sheetCliente.codigo ? { ...c, visitado: true } : c
+    ))
+    setSheetCliente(null)
+  }, [sheetCliente])
 
   if (loading) {
     return (
@@ -863,6 +880,8 @@ const Clientes: React.FC = () => {
               key={cliente.codigo_cliente}
               cliente={cliente}
               onCheckClick={handleCheckClick}
+              onAgendarClick={handleAgendarClick}
+              onCancelarClick={handleCancelarVisita}
               processando={processandoVisita === cliente.codigo_cliente}
               rotaNome={rotaNome}
               cidadeDecodificada={cidadeDecodificada}
@@ -883,32 +902,23 @@ const Clientes: React.FC = () => {
         )}
       </main>
 
-      {/* Modal de Confirmação */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cancelar Visita</h3>
-            <p className="text-gray-600 mb-6">Deseja cancelar esta visita?</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowConfirmModal(false)
-                  setClienteParaCancelar(null)
-                }}
-                className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Não
-              </button>
-              <button
-                onClick={confirmarCancelamento}
-                disabled={processandoVisita !== null}
-                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-              >
-                {processandoVisita ? 'Cancelando...' : 'Sim'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* RegistrarVisitaSheet — abre ao clicar em "Registrar visita" */}
+      {sheetCliente && user && (
+        <RegistrarVisitaSheet
+          isOpen={!!sheetCliente}
+          onClose={() => setSheetCliente(null)}
+          onSuccess={handleVisitaSuccess}
+          codigoCliente={sheetCliente.codigo}
+          vendedorId={user.id}
+          agendamentoId={null}
+          rfmPerfil={sheetCliente.perfil ?? null}
+          rfmOportunidade={sheetCliente.oportunidade ?? null}
+          rfmDsv={sheetCliente.dsv ?? null}
+          motivos={motivos}
+          loadingMotivos={loadingMotivos}
+          carregarMotivos={carregarMotivos}
+          registrarVisita={registrarVisita}
+        />
       )}
     </div>
   )

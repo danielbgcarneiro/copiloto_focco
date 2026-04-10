@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react'
-import { Phone, PhoneCall, X, AlertCircle } from 'lucide-react'
+import { Phone, PhoneCall, MessageCircle, X, AlertCircle } from 'lucide-react'
 import { Telefone } from '../../hooks/useTelefones'
 
 interface TelefoneCardProps {
@@ -43,7 +43,7 @@ export const TelefoneCard: React.FC<TelefoneCardProps> = ({
   const [desativando, setDesativando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
-  const mostraWhatsApp = telefone.whatsapp_habilitado || telefone.tipo === 'whatsapp'
+  const mostraWhatsApp = telefone.tipo !== 'fixo' || telefone.whatsapp_habilitado
 
   const handleDesativar = async () => {
     setDesativando(true)
@@ -59,63 +59,58 @@ export const TelefoneCard: React.FC<TelefoneCardProps> = ({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-3">
-      {/* Linha principal */}
-      <div className="flex items-center justify-between gap-2">
+    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2">
+      {/* Grid 3 colunas: [info] [ligar] [whatsapp] + opcional [remover] */}
+      <div className="grid items-center gap-2" style={{ gridTemplateColumns: '1fr auto auto' + (isProprietario ? ' auto' : '') }}>
+
+        {/* Col 1 — ícone + número + badge */}
         <div className="flex items-center gap-2 min-w-0">
           <TipoIcon tipo={telefone.tipo} />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">
-              {formatarNumero(telefone.numero)}
-            </p>
-            {telefone.descricao && (
-              <p className="text-xs text-gray-500 truncate">{telefone.descricao}</p>
-            )}
-          </div>
+          <span className="text-sm font-semibold text-gray-900 flex-1 min-w-0 truncate">
+            {formatarNumero(telefone.numero)}
+          </span>
+          {telefone.origem === 'erp' ? (
+            <span className="text-[10px] text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 shrink-0">ERP</span>
+          ) : isProprietario ? (
+            <span className="text-[10px] text-blue-500 bg-blue-50 rounded px-1.5 py-0.5 shrink-0">seu</span>
+          ) : null}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Botão Ligar */}
+        {/* Col 2 — Ligar */}
+        <a
+          href={`tel:${telefone.numero.replace(/\D/g, '')}`}
+          className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 active:bg-primary/30 transition-colors shrink-0"
+          aria-label={`Ligar para ${formatarNumero(telefone.numero)}`}
+        >
+          <Phone className="h-4 w-4" />
+        </a>
+
+        {/* Col 3 — WhatsApp */}
+        {mostraWhatsApp ? (
           <a
-            href={`tel:${telefone.numero.replace(/\D/g, '')}`}
-            className="p-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 active:bg-primary/30 transition-colors"
-            aria-label={`Ligar para ${formatarNumero(telefone.numero)}`}
+            href={whatsappUrl(telefone.numero)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 active:bg-green-200 transition-colors shrink-0"
+            aria-label={`WhatsApp ${formatarNumero(telefone.numero)}`}
           >
-            <Phone className="h-4 w-4" />
+            <MessageCircle className="h-4 w-4" />
           </a>
+        ) : (
+          <span className="p-2 w-8" /> /* placeholder para manter alinhamento */
+        )}
 
-          {/* Botão WhatsApp */}
-          {mostraWhatsApp && (
-            <a
-              href={whatsappUrl(telefone.numero)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 active:bg-green-200 transition-colors"
-              aria-label={`WhatsApp ${formatarNumero(telefone.numero)}`}
-            >
-              <span className="text-xs font-bold">WA</span>
-            </a>
-          )}
-
-          {/* Botão remover — só para proprietário */}
-          {isProprietario && (
-            <button
-              onClick={() => setConfirmando(true)}
-              className="p-2.5 rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 active:bg-red-100 transition-colors"
-              aria-label="Remover telefone"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {/* Col 4 — Remover (só para proprietário) */}
+        {isProprietario && (
+          <button
+            onClick={() => setConfirmando(true)}
+            className="p-2 rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 active:bg-red-100 transition-colors shrink-0"
+            aria-label="Remover telefone"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
-
-      {/* Badge proprietário */}
-      {isProprietario && (
-        <span className="mt-1.5 inline-block text-[10px] text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
-          Adicionado por você
-        </span>
-      )}
 
       {/* Erro */}
       {erro && (

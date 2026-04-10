@@ -58,6 +58,7 @@ export function BuscarClienteSheet({
   const [aviso, setAviso] = useState<string | null>(null)
   const [isDuplicata, setIsDuplicata] = useState(false)
   const [loadingInsert, setLoadingInsert] = useState(false)
+  const [agendadosSessao, setAgendadosSessao] = useState<Set<number>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Reset quando fechar
@@ -66,6 +67,7 @@ export function BuscarClienteSheet({
       setQuery('')
       setStep('busca')
       setClienteSelecionado(null)
+      setAgendadosSessao(new Set())
       setDataSelecionada(dataPreSelecionada ?? formatDate(new Date()))
       setValorPrevisto('')
       setAviso(null)
@@ -157,7 +159,13 @@ export function BuscarClienteSheet({
       if (error) throw error
 
       onSuccess(dataSelecionada)
-      onClose()
+      // AC-2: marcar cliente como agendado na sessão e retornar à busca
+      setAgendadosSessao((prev) => new Set(prev).add(clienteSelecionado.codigo_cliente))
+      setValorPrevisto('')
+      setAviso(null)
+      setIsDuplicata(false)
+      setClienteSelecionado(null)
+      setStep('busca')
     } catch (err) {
       setAviso(err instanceof Error ? err.message : 'Erro ao criar agendamento')
       setIsDuplicata(false)
@@ -249,6 +257,7 @@ export function BuscarClienteSheet({
                     key={c.codigo_cliente}
                     cliente={c}
                     onClick={() => handleSelectCliente(c)}
+                    agendado={agendadosSessao.has(c.codigo_cliente)}
                   />
                 ))}
               </div>
