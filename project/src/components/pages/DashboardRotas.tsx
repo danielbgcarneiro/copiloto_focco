@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, Clock, TriangleAlert } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { Card, LoadingSpinner } from '../atoms'
@@ -39,6 +39,8 @@ interface ClienteRotaData {
   meta: number
   vendas: number
   percentual: number
+  dias_sem_venda: number
+  dias_atraso: number
 }
 
 // Interface CidadeData removida - Top Cidades não existe mais
@@ -368,8 +370,9 @@ const DashboardRotas: React.FC = () => {
 
     try {
       setLoadingClientesCidade(true)
-      // @dev: confirmar que tabela_clientes tem nome_fantasia e que analise_rfm faz join por codigo_cliente
-      const { data, error } = await supabase
+      
+      // 1. Buscar dados dos clientes e RFM
+      const { data: clientesData, error: clientesError } = await supabase
         .from('tabela_clientes')
         .select(`
           codigo_cliente,
@@ -377,15 +380,39 @@ const DashboardRotas: React.FC = () => {
           analise_rfm (
             previsao_pedido,
             meta_ano_atual,
-            valor_ano_atual
+            valor_ano_atual,
+            dias_sem_comprar
           )
         `)
         .eq('cidade', cidadeNome)
         .eq('cod_vendedor', codVendedor)
 
-      if (error) throw error
+      if (clientesError) throw clientesError
 
-      const clientes: ClienteRotaData[] = (data || []).map((c: any) => {
+      // 2. Buscar inadimplência em batch para os clientes da cidade
+      const codigosClientes = (clientesData || []).map(c => c.codigo_cliente)
+      const inadimplenciaMap = new Map<number, number>()
+      
+      if (codigosClientes.length > 0) {
+        try {
+          const { data: inadData } = await supabase
+            .from('vw_titulos_vencidos_detalhado')
+            .select('codigo_cliente, dias_atraso')
+            .in('codigo_cliente', codigosClientes)
+            .gt('dias_atraso', 0)
+          
+          if (inadData) {
+            inadData.forEach((r: any) => {
+              const atual = inadimplenciaMap.get(r.codigo_cliente) ?? 0
+              if (r.dias_atraso > atual) inadimplenciaMap.set(r.codigo_cliente, r.dias_atraso)
+            })
+          }
+        } catch (err) {
+          console.warn('Erro ao buscar inadimplência:', err)
+        }
+      }
+
+      const clientes: ClienteRotaData[] = (clientesData || []).map((c: any) => {
         const rfm = Array.isArray(c.analise_rfm) ? c.analise_rfm[0] : c.analise_rfm
         const meta = rfm?.meta_ano_atual || 0
         const vendas = rfm?.valor_ano_atual || 0
@@ -396,6 +423,8 @@ const DashboardRotas: React.FC = () => {
           meta,
           vendas,
           percentual: meta > 0 ? (vendas / meta) * 100 : 0,
+          dias_sem_venda: rfm?.dias_sem_comprar || 0,
+          dias_atraso: inadimplenciaMap.get(c.codigo_cliente) || 0
         }
       }).sort((a, b) => b.oportunidade - a.oportunidade)
 
@@ -701,6 +730,7 @@ const DashboardRotas: React.FC = () => {
                                                     <thead>
                                                       <tr className="bg-sky-700 text-white">
                                                         <th className="text-left px-4 py-1.5 font-semibold">Cliente</th>
+                                                        <th className="text-left px-4 py-1.5 font-semibold">DSV</th>
                                                         <th className="text-right px-4 py-1.5 font-semibold">Meta</th>
                                                         <th className="text-right px-4 py-1.5 font-semibold text-orange-300">Oportunidade</th>
                                                         <th className="text-right px-4 py-1.5 font-semibold">Vendas</th>
@@ -710,7 +740,20 @@ const DashboardRotas: React.FC = () => {
                                                     <tbody>
                                                       {(clientesPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || []).map((cliente, idx) => (
                                                         <tr key={cliente.codigo_cliente} className={`border-b border-sky-100 ${idx % 2 === 0 ? 'bg-sky-50' : 'bg-white'}`}>
-                                                          <td className="px-4 py-1.5 text-gray-800 font-medium truncate max-w-[200px]">{cliente.nome_fantasia}</td>
+                                                          <td className="px-4 py-1.5 text-gray-800 font-medium truncate max-w-[200px]">
+                                                            <div className="flex items-center gap-1.5">
+                                                              {cliente.dias_atraso > 0 && (
+                                                                <TriangleAlert className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                                                              )}
+                                                              <span className="truncate">{cliente.nome_fantasia}</span>
+                                                            </div>
+                                                          </td>
+                                                          <td className="px-4 py-1.5 text-gray-500 font-medium">
+                                                            <div className="flex items-center gap-1">
+                                                              <Clock className="w-3 h-3 text-gray-400" />
+                                                              <span className="font-bold text-[10px] sm:text-[11px]">DSV-{cliente.dias_sem_venda}</span>
+                                                            </div>
+                                                          </td>
                                                           <td className="text-right px-4 py-1.5 text-gray-600">{formatCurrency(cliente.meta, true)}</td>
                                                           <td className="text-right px-4 py-1.5 font-semibold text-orange-600">{formatCurrency(cliente.oportunidade, true)}</td>
                                                           <td className="text-right px-4 py-1.5 text-gray-800">{formatCurrency(cliente.vendas, true)}</td>
