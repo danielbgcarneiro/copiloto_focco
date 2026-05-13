@@ -85,7 +85,7 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
 
   // Adicionar filtro por cidade se especificado (case-insensitive)
   if (cidade) {
-    query = query.ilike('cidade', `%${cidade}%`);
+    query = query.ilike('cidade', cidade);
   }
 
   const { data, error } = await query.order('nome_fantasia');
