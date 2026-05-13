@@ -13,6 +13,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores'
 import { Card, LoadingSpinner } from '../atoms'
+import { TabelaMarcas } from '../molecules/TabelaMarcas'
 import { formatCurrency } from '../../utils'
 import { useSetPage } from '../../contexts'
 
@@ -68,6 +69,7 @@ const DashboardGestao: React.FC = () => {
   const [metasData, setMetasData] = useState<any[]>([])
   const [allVendedores, setAllVendedores] = useState<VendedorProfile[]>([])
   const [detailedClientCounts, setDetailedClientCounts] = useState({ faturados: 0, aberto: 0 });
+  const [resumoMarcas, setResumoMarcas] = useState<any[]>([]);
 
 
   const fetchDashboardData = async (ano: number, mes: number) => {
@@ -98,7 +100,15 @@ const DashboardGestao: React.FC = () => {
         setVendasSemanais([]);
       }
 
-      // 3. Buscar metas
+      // 3. Buscar breakdown de vendas por marca (tabela resumo_marcas_mes — populada por ETL 12)
+      const { data: marcasData } = await supabase
+        .from('resumo_marcas_mes')
+        .select('cod_vendedor, valor_ob, valor_pw, valor_core, pecas_ob, pecas_pw, pecas_core')
+        .eq('ano', ano)
+        .eq('mes', mes);
+      setResumoMarcas(marcasData || []);
+
+      // 4. Buscar metas
       const { data: metas, error: metasError } = await supabase
         .from('metas_vendedores')
         .select('meta_valor').eq('ano', ano).eq('mes', mes);
@@ -106,13 +116,13 @@ const DashboardGestao: React.FC = () => {
       if(metasError) console.error('Erro ao buscar metas_vendedores:', metasError);
       else console.log(`✅ metas_vendedores: ${metas?.length || 0} registros`);
 
-      // 4. Buscar TODOS os vendedores (IMPORTANTE: isso atualiza allVendedores)
+      // 5. Buscar TODOS os vendedores (IMPORTANTE: isso atualiza allVendedores)
       console.log(`📍 Buscando vendedores ANTES de atualizar estado...`);
       const vendedores = await getAllVendedores();
       console.log(`👥 getAllVendedores retornou:`, { count: vendedores?.length || 0, primeiro: vendedores?.[0] });
       setAllVendedores(vendedores || []);
 
-      // Nova consulta para detailedClientCounts da tabela vendas_mes
+      // 6. Contagens detalhadas de clientes via vendas_mes
       const startDate = new Date(ano, mes - 1, 1).toISOString();
       const endDate = new Date(ano, mes, 0).toISOString();
       const { data: vendasMesData, error: vendasMesError } = await supabase
@@ -136,7 +146,8 @@ const DashboardGestao: React.FC = () => {
       setVendasSemanais([]);
       setMetasData([]);
       setAllVendedores([]);
-      setDetailedClientCounts({ faturados: 0, aberto: 0 }); // Resetar também em caso de erro geral
+      setDetailedClientCounts({ faturados: 0, aberto: 0 });
+      setResumoMarcas([]);
     } finally {
       setCarregandoDados(false);
       setLoading(false);
@@ -260,6 +271,22 @@ const DashboardGestao: React.FC = () => {
     const maxValor = Math.max(...dadosSemanas.map(d => Math.max(d.vendas, d.meta, d.vendasAcumuladas)));
     return Math.ceil(maxValor * 1.1);
   }, [dadosSemanas]);
+
+  // Totais consolidados de vendas por marca para o período (sum de todos os vendedores)
+  const totaisMarcas = useMemo(() => {
+    if (!resumoMarcas || resumoMarcas.length === 0) return null;
+    return resumoMarcas.reduce(
+      (acc, v) => ({
+        valorOb: acc.valorOb + (Number(v.valor_ob) || 0),
+        valorPw: acc.valorPw + (Number(v.valor_pw) || 0),
+        valorCore: acc.valorCore + (Number(v.valor_core) || 0),
+        pecasOb: acc.pecasOb + (Number(v.pecas_ob) || 0),
+        pecasPw: acc.pecasPw + (Number(v.pecas_pw) || 0),
+        pecasCore: acc.pecasCore + (Number(v.pecas_core) || 0),
+      }),
+      { valorOb: 0, valorPw: 0, valorCore: 0, pecasOb: 0, pecasPw: 0, pecasCore: 0 }
+    );
+  }, [resumoMarcas]);
 
   const rankingVendedores = useMemo<VendedorRankingGestao[]>(() => {
     const lista = (dashboardData || []).map((vendedor: any) => ({
@@ -446,6 +473,25 @@ const DashboardGestao: React.FC = () => {
                 </table>
               </div>
             </Card>
+
+            {/* Vendas por Marca — só exibe quando ETL 12 populou resumo_marcas_mes */}
+            {totaisMarcas && (
+              <Card variant="default" padding="none" className="p-4 sm:p-6 mt-6 sm:mt-8">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                  Vendas por Marca — {mesAtual}/{anoAtual}
+                </h3>
+                <div className="max-w-sm">
+                  <TabelaMarcas
+                    ob={{ pecas: totaisMarcas.pecasOb, valor: totaisMarcas.valorOb }}
+                    pw={{ pecas: totaisMarcas.pecasPw, valor: totaisMarcas.valorPw }}
+                    core={{ pecas: totaisMarcas.pecasCore, valor: totaisMarcas.valorCore }}
+                    objObPw={metricas.metaTotal}
+                    atingimento={metricas.atingimentoPercent}
+                    modo="resumido"
+                  />
+                </div>
+              </Card>
+            )}
 
             <Card variant="default" padding="none" className="p-6 mb-8 mt-6 sm:mt-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Performance Semanal</h3>

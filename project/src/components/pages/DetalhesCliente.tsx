@@ -20,6 +20,7 @@ import { useVisitas } from '../../hooks/useVisitas'
 import { useTelefones } from '../../hooks/useTelefones'
 import { useConfiguracoes } from '../../hooks/useConfiguracoes'
 import { RegistrarVisitaSheet, VisitaRegistradaCard, AgendarVisitaSheet, ProximaVisitaCard, TelefoneCard, AdicionarTelefoneSheet } from '../molecules'
+import { TabelaMarcas } from '../molecules/TabelaMarcas'
 
 const formatarTelefone = (telefone: string) => {
   if (!telefone) return '';
@@ -108,7 +109,7 @@ function processarMetricasCategoria(cliente: any) {
   if (!cliente) {
     return {
       categorias: [],
-      totais: { ob: 0, pw: 0 }
+      totais: { ob: 0, pw: 0, core: 0 }
     };
   }
 
@@ -117,29 +118,34 @@ function processarMetricasCategoria(cliente: any) {
     {
       nome: 'RX Feminino',
       ob: cliente.rx_fem_ob || 0,
-      pw: cliente.rx_fem_pw || 0
+      pw: cliente.rx_fem_pw || 0,
+      core: cliente.rx_fem_core || 0,
     },
     {
       nome: 'RX Masculino',
       ob: cliente.rx_mas_ob || 0,
-      pw: cliente.rx_mas_pw || 0
+      pw: cliente.rx_mas_pw || 0,
+      core: cliente.rx_mas_core || 0,
     },
     {
       nome: 'SOL Feminino',
       ob: cliente.sol_fem_ob || 0,
-      pw: cliente.sol_fem_pw || 0
+      pw: cliente.sol_fem_pw || 0,
+      core: cliente.sol_fem_core || 0,
     },
     {
       nome: 'SOL Masculino',
       ob: cliente.sol_mas_ob || 0,
-      pw: cliente.sol_mas_pw || 0
+      pw: cliente.sol_mas_pw || 0,
+      core: cliente.sol_mas_core || 0,
     }
   ];
 
   // Calcular totais
   const totais = {
     ob: (cliente.rx_fem_ob || 0) + (cliente.rx_mas_ob || 0) + (cliente.sol_fem_ob || 0) + (cliente.sol_mas_ob || 0),
-    pw: (cliente.rx_fem_pw || 0) + (cliente.rx_mas_pw || 0) + (cliente.sol_fem_pw || 0) + (cliente.sol_mas_pw || 0)
+    pw: (cliente.rx_fem_pw || 0) + (cliente.rx_mas_pw || 0) + (cliente.sol_fem_pw || 0) + (cliente.sol_mas_pw || 0),
+    core: (cliente.rx_fem_core || 0) + (cliente.rx_mas_core || 0) + (cliente.sol_fem_core || 0) + (cliente.sol_mas_core || 0),
   };
 
   return {
@@ -349,6 +355,14 @@ const DetalhesCliente: React.FC = () => {
     percentualMeta: cliente.percentual_atingimento,
     acaoRecomendada: cliente.acao_recomendada,
     celular: cliente.celular || '',
+    // Breakdown por marca (Story 4.4)
+    valorObAnoAtual: cliente.valor_ob_ano_atual ?? 0,
+    valorPwAnoAtual: cliente.valor_pw_ano_atual ?? 0,
+    valorCoreAnoAtual: cliente.valor_core_ano_atual ?? 0,
+    pecasObAnoAtual: cliente.pecas_ob_ano_atual ?? 0,
+    pecasPwAnoAtual: cliente.pecas_pw_ano_atual ?? 0,
+    pecasCoreAnoAtual: cliente.pecas_core_ano_atual ?? 0,
+    metaCorePecas: cliente.meta_core_pecas ?? 0,
   };
 
   // Processar Métricas por Categoria
@@ -420,7 +434,7 @@ const DetalhesCliente: React.FC = () => {
           <div className="mb-4 pb-4 border-b border-gray-200">
             <div className="grid grid-cols-2 gap-2 text-xs leading-tight">
               <div className="leading-tight">
-                <span className="text-blue-600">Meta: </span>
+                <span className="text-blue-600">Obj OB+PW: </span>
                 <span className="font-semibold text-blue-700">{formatCurrency(dadosCliente.meta)}</span>
               </div>
               <div className="text-right leading-tight">
@@ -435,6 +449,19 @@ const DetalhesCliente: React.FC = () => {
                 <span className="text-gray-600">Qnt: {dadosCliente.qtdVendasAnoAtual}</span>
               </div>
 
+              {/* Detalhe Core do ano atual — só exibe quando há vendas Core */}
+              {dadosCliente.valorCoreAnoAtual > 0 && (
+                <>
+                  <div className="leading-tight pl-3">
+                    <span className="text-[10px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded mr-1">Core</span>
+                    <span className="text-gray-600">{formatCurrency(dadosCliente.valorCoreAnoAtual)}</span>
+                  </div>
+                  <div className="text-right leading-tight">
+                    <span className="text-gray-500">{dadosCliente.pecasCoreAnoAtual.toLocaleString('pt-BR')} pç</span>
+                  </div>
+                </>
+              )}
+
               <div className="leading-tight">
                 <span className="text-gray-600">{anoAnterior}: </span>
                 <span className="font-semibold">{formatCurrency(dadosCliente.vendasAnoAnterior)}</span>
@@ -443,6 +470,20 @@ const DetalhesCliente: React.FC = () => {
                 <span className="text-gray-600">Qnt: {dadosCliente.qtdVendasAnoAnterior}</span>
               </div>
             </div>
+          </div>
+
+          {/* Vendas por Marca — Story 4.4 */}
+          <div className="mb-4 pb-4 border-b border-gray-200">
+            <TabelaMarcas
+              ob={{ pecas: dadosCliente.pecasObAnoAtual, valor: dadosCliente.valorObAnoAtual }}
+              pw={{ pecas: dadosCliente.pecasPwAnoAtual, valor: dadosCliente.valorPwAnoAtual }}
+              core={{ pecas: dadosCliente.pecasCoreAnoAtual, valor: dadosCliente.valorCoreAnoAtual }}
+              objObPw={dadosCliente.meta}
+              atingimento={dadosCliente.percentualMeta}
+              objCorePecas={dadosCliente.metaCorePecas}
+              modo="completo"
+              ano={anoAtual}
+            />
           </div>
 
           {/* Mix de Produtos */}
@@ -458,6 +499,7 @@ const DetalhesCliente: React.FC = () => {
                       <th className="pb-2 text-xs font-medium text-gray-700"></th>
                       <th className="pb-2 text-right text-xs font-medium text-gray-700">OB</th>
                       <th className="pb-2 text-right text-xs font-medium text-gray-700">PW</th>
+                      <th className="pb-2 text-right text-xs font-medium text-gray-700 text-blue-700">Core</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -466,12 +508,14 @@ const DetalhesCliente: React.FC = () => {
                         <td className="py-2 text-xs font-medium text-gray-900">{categoria.nome}</td>
                         <td className="py-2 text-right text-xs font-semibold text-gray-900">{categoria.ob}</td>
                         <td className="py-2 text-right text-xs font-semibold text-gray-900">{categoria.pw}</td>
+                        <td className="py-2 text-right text-xs font-semibold text-blue-700">{categoria.core}</td>
                       </tr>
                     ))}
                     <tr className="border-t-2 border-gray-400 font-bold">
                       <td className="pt-2 text-xs font-bold text-gray-900">TOTAL</td>
                       <td className="pt-2 text-right text-xs font-bold text-gray-900">{metricasCategoria.totais.ob}</td>
                       <td className="pt-2 text-right text-xs font-bold text-gray-900">{metricasCategoria.totais.pw}</td>
+                      <td className="pt-2 text-right text-xs font-bold text-blue-700">{metricasCategoria.totais.core}</td>
                     </tr>
                   </tbody>
                 </table>

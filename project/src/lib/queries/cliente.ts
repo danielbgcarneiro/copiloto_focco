@@ -40,6 +40,16 @@ export interface ClienteDetalhes {
 
   // Status financeiro (opcional, indicador de inadimplência)
   status_financeiro?: string;
+
+  // Breakdown por marca — analise_rfm (Story 4.3 / 4.4)
+  valor_ob_ano_atual?: number;
+  valor_pw_ano_atual?: number;
+  valor_core_ano_atual?: number;
+  pecas_ob_ano_atual?: number;
+  pecas_pw_ano_atual?: number;
+  pecas_core_ano_atual?: number;
+  meta_core_pecas?: number;
+  percentual_atingimento_core?: number;
 }
 
 export async function getClienteDetalhes(codigoCliente: number): Promise<ClienteDetalhes> {
@@ -85,7 +95,15 @@ export async function getClienteDetalhes(codigoCliente: number): Promise<Cliente
         previsao_pedido,
         qtd_compras_ano_anterior,
         qtd_compras_ano_atual,
-        perfil
+        perfil,
+        valor_ob_ano_atual,
+        valor_pw_ano_atual,
+        valor_core_ano_atual,
+        pecas_ob_ano_atual,
+        pecas_pw_ano_atual,
+        pecas_core_ano_atual,
+        meta_core_pecas,
+        percentual_atingimento_core
       `)
       .eq('codigo_cliente', codigoCliente)
       .maybeSingle();
