@@ -661,6 +661,30 @@ export async function getDashboardCompleto(): Promise<DashboardData> {
   }
 }
 
+export async function getMetaCorePecasMes(ano: number, mes: number): Promise<number> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return 0
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('cod_vendedor')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (!profile?.cod_vendedor) return 0
+    const { data } = await supabase
+      .from('metas_vendedores')
+      .select('meta_pecas')
+      .eq('cod_vendedor', profile.cod_vendedor)
+      .eq('ano', ano)
+      .eq('mes', mes)
+      .eq('marca', 'Core')
+      .maybeSingle()
+    return (data as any)?.meta_pecas ?? 0
+  } catch {
+    return 0
+  }
+}
+
 export async function getPercentualMetaAnual(ano: number): Promise<{ total_vendas_ano: number; total_metas_ano: number; percentual_anual: number } | null> {
   const { data, error } = await supabase.rpc('get_percentual_meta_anual', { ano_param: ano });
 

@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, Target, Map as MapIcon, Building, AlertTriangle, ClipboardList, Search } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { getDashboardCompleto, type DashboardData, getPercentualMetaAnual } from '../../lib/queries/dashboard'
+import { getDashboardCompleto, type DashboardData, getPercentualMetaAnual, getMetaCorePecasMes } from '../../lib/queries/dashboard'
 import { getVendedorRanking, type VendedorRanking, getOticasSemVendas180d } from '../../lib/queries/vendedores'
 import TabelaPerfil from './TabelaPerfil'
 import { Card } from '../atoms'
@@ -30,6 +30,7 @@ const Dashboard: React.FC = () => {
   const [isCarregando, setIsCarregando] = useState(false)
   const [filtroCidade, setFiltroCidade] = useState('');
   const [objAnualData, setObjAnualData] = useState<{ total_vendas_ano?: number; total_metas_ano?: number; percentual_anual?: number; clientes_atendidos_ano: number; } | null>(null);
+  const [metaCorePecas, setMetaCorePecas] = useState<number>(0)
   
   // Carregar dados reais de clientes e dashboard do usuário logado
   useEffect(() => {
@@ -45,10 +46,12 @@ const Dashboard: React.FC = () => {
 
 
         // Carregar dados completos do dashboard
-        const [dashboardCompleto, metaAnualData, semVendas180dData] = await Promise.all([
+        const now = new Date()
+        const [dashboardCompleto, metaAnualData, semVendas180dData, metaCore] = await Promise.all([
           getDashboardCompleto(),
-          getPercentualMetaAnual(new Date().getFullYear()),
-          getOticasSemVendas180d()
+          getPercentualMetaAnual(now.getFullYear()),
+          getOticasSemVendas180d(),
+          getMetaCorePecasMes(now.getFullYear(), now.getMonth() + 1),
         ]);
         
         // Tentar carregar ranking do vendedor separadamente (não-blocking)
@@ -66,8 +69,9 @@ const Dashboard: React.FC = () => {
           clientes_atendidos_ano: semVendas180dData?.clientesAtendidosAnoCount || 0, // Adiciona o novo campo
         });
 
-        setOticasSemVendas180d(semVendas180dData?.count || 0); // CORREÇÃO: Atualiza o estado com os dados do ranking do vendedor
-        setVendedorRanking(rankingVendedor); // CORREÇÃO: Atualiza o estado com os dados do ranking do vendedor
+        setOticasSemVendas180d(semVendas180dData?.count || 0);
+        setVendedorRanking(rankingVendedor);
+        setMetaCorePecas(metaCore)
 
         
       } catch (error) {
@@ -98,13 +102,19 @@ const Dashboard: React.FC = () => {
 
         {/* Cards de Métricas */}
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i} variant="default" padding="none" className="p-4">
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-4 mb-8">
+            <Card variant="default" padding="none" className="col-span-3 md:col-span-1 p-4">
+              <div className="animate-pulse">
+                <div className="h-3 bg-gray-200 rounded mb-2 w-1/2"></div>
+                <div className="h-7 bg-gray-200 rounded mb-2"></div>
+                <div className="h-2 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            </Card>
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} variant="default" padding="none" className="p-3">
                 <div className="animate-pulse">
-                  <div className="h-3 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-6 bg-gray-200 rounded mb-1"></div>
-                  <div className="h-2 bg-gray-200 rounded"></div>
+                  <div className="h-2 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-5 bg-gray-200 rounded"></div>
                 </div>
               </Card>
             ))}
@@ -114,9 +124,9 @@ const Dashboard: React.FC = () => {
             <p className="text-red-600 text-sm">Erro ao carregar métricas: {error}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            {/* Vendas do Mês */}
-            <Card variant="default" padding="none" className="p-4 relative">
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-4 mb-8">
+            {/* Vendas do Mês — hero card: largura total no mobile, 1 col no desktop */}
+            <Card variant="default" padding="none" className="col-span-3 md:col-span-1 p-4 relative">
               <div className="absolute top-3 right-3">
                 <div className="bg-blue-50 p-2 rounded-full">
                   <TrendingUp className="h-5 w-5 text-blue-600" />
@@ -124,66 +134,59 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="pr-12">
                 <p className="text-xs font-medium text-gray-600">Vendas do Mês</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">
+                <p className="text-2xl font-bold text-gray-900 mt-1">
                   {dashboardData?.metricas ? formatCurrency(dashboardData.metricas.vendas_mes || 0) : 'N/A'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Obj: {dashboardData?.metricas ? formatCurrency(dashboardData.metricas.meta_mes || 0) : 'N/A'} | {dashboardData?.metricas ? `${(dashboardData.metricas.percentual_meta || 0).toFixed(1)}%` : 'N/A'}
+                  Obj OB+PW: {dashboardData?.metricas ? formatCurrency(dashboardData.metricas.meta_mes || 0) : 'N/A'} | {dashboardData?.metricas ? `${(dashboardData.metricas.percentual_meta || 0).toFixed(1)}%` : 'N/A'}
                 </p>
+                {metaCorePecas > 0 && (
+                  <p className="text-xs text-blue-600 mt-0.5">
+                    Core: {metaCorePecas} pç (obj mês)
+                  </p>
+                )}
               </div>
             </Card>
 
-            {/* Óticas Positivadas */}
-            <Card variant="default" padding="none" className="p-4 relative">
-              <div className="absolute top-3 right-3">
-                <div className="bg-green-50 p-2 rounded-full">
-                  <Building className="h-5 w-5 text-green-600" />
-                </div>
+            {/* Óticas Positivadas — compacto */}
+            <Card variant="default" padding="none" className="p-3">
+              <div className="flex items-center gap-1 mb-1">
+                <Building className="h-3 w-3 text-green-600 flex-shrink-0" />
+                <p className="text-[10px] font-medium text-gray-600 leading-tight">Positivadas</p>
               </div>
-              <div className="pr-12">
-                <p className="text-xs font-medium text-gray-600">Óticas Positivadas</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">
-                  {dashboardData?.metricas ? 
-                    `${dashboardData.metricas.oticas_positivadas || 0} ${(dashboardData.metricas.oticas_positivadas || 0) === 1 ? 'ótica' : 'óticas'}` 
-                    : 'N/A'}
-                </p>
-              </div>
+              <p className="text-lg font-bold text-gray-900">
+                {dashboardData?.metricas?.oticas_positivadas || 0}
+              </p>
+              <p className="text-[10px] text-gray-400">óticas</p>
             </Card>
 
-            {/* Objetivo Anual */}
-            <Card variant="default" padding="none" className="p-4 relative">
-              <div className="absolute top-3 right-3">
-                <div className="bg-yellow-50 p-2 rounded-full">
-                  <Target className="h-5 w-5 text-yellow-600" />
-                </div>
+            {/* Objetivo Anual — compacto */}
+            <Card variant="default" padding="none" className="p-3">
+              <div className="flex items-center gap-1 mb-1">
+                <Target className="h-3 w-3 text-yellow-600 flex-shrink-0" />
+                <p className="text-[10px] font-medium text-gray-600 leading-tight">Obj Anual</p>
               </div>
-              <div className="pr-12">
-                <p className="text-xs font-medium text-gray-600">Obj Anual</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">
-                  {objAnualData?.percentual_anual ? `${objAnualData.percentual_anual.toFixed(1)}%` : 'N/A'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Obj: {objAnualData?.total_metas_ano ? formatCurrency(objAnualData.total_metas_ano) : 'N/A'}
-                </p>
-              </div>
+              <p className="text-lg font-bold text-gray-900">
+                {objAnualData?.percentual_anual ? `${objAnualData.percentual_anual.toFixed(1)}%` : 'N/A'}
+              </p>
+              <p className="text-[10px] text-gray-400 hidden md:block">
+                {objAnualData?.total_metas_ano ? formatCurrency(objAnualData.total_metas_ano) : ''}
+              </p>
             </Card>
 
-            {/* Óticas Sem Vendas +180d */}
-            <Card variant="default" padding="none" className="p-4 relative">
-              <div className="absolute top-3 right-3">
-                <div className="bg-red-50 p-2 rounded-full">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                </div>
+            {/* Sem Vendas +180d — compacto */}
+            <Card variant="default" padding="none" className="p-3">
+              <div className="flex items-center gap-1 mb-1">
+                <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />
+                <p className="text-[10px] font-medium text-gray-600 leading-tight">+180d</p>
               </div>
-              <div className="pr-12">
-                <p className="text-xs font-medium text-gray-600">Sem Vendas +180d</p>
-                <p className="text-xl font-bold text-red-600 mt-1">
-                  {oticasSemVendas180d || 0} óticas
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  VD: {objAnualData?.clientes_atendidos_ano || 0} | De {vendedorRanking?.total_clientes || 0}
-                </p>
-              </div>
+              <p className="text-lg font-bold text-red-600">
+                {oticasSemVendas180d || 0}
+              </p>
+              <p className="text-[10px] text-gray-400 hidden md:block">
+                De {vendedorRanking?.total_clientes || 0} clientes
+              </p>
+              <p className="text-[10px] text-gray-400 md:hidden">óticas</p>
             </Card>
           </div>
         )}
