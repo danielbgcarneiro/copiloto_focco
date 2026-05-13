@@ -35,6 +35,7 @@ import {
   TelefoneCard,
   AdicionarTelefoneSheet,
 } from '../molecules'
+import { TabelaMarcas } from '../molecules/TabelaMarcas'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -56,14 +57,21 @@ const getStatusInadimplenciaColors = (tem: boolean, dias?: number) => {
 }
 
 function processarMetricasCategoria(cliente: any) {
-  if (!cliente) return { categorias: [], totais: { ob: 0, pw: 0 } }
+  if (!cliente) return { categorias: [], totais: { ob: 0, pw: 0, core: 0 } }
   const categorias = [
-    { nome: 'RX Feminino',   ob: cliente.rx_fem_ob  || 0, pw: cliente.rx_fem_pw  || 0 },
-    { nome: 'RX Masculino',  ob: cliente.rx_mas_ob  || 0, pw: cliente.rx_mas_pw  || 0 },
-    { nome: 'SOL Feminino',  ob: cliente.sol_fem_ob || 0, pw: cliente.sol_fem_pw || 0 },
-    { nome: 'SOL Masculino', ob: cliente.sol_mas_ob || 0, pw: cliente.sol_mas_pw || 0 },
+    { nome: 'RX Feminino',   ob: cliente.rx_fem_ob  || 0, pw: cliente.rx_fem_pw  || 0, core: 0 },
+    { nome: 'RX Masculino',  ob: cliente.rx_mas_ob  || 0, pw: cliente.rx_mas_pw  || 0, core: 0 },
+    { nome: 'SOL Feminino',  ob: cliente.sol_fem_ob || 0, pw: cliente.sol_fem_pw || 0, core: 0 },
+    { nome: 'SOL Masculino', ob: cliente.sol_mas_ob || 0, pw: cliente.sol_mas_pw || 0, core: 0 },
   ]
-  return { categorias, totais: { ob: categorias.reduce((s,c) => s+c.ob, 0), pw: categorias.reduce((s,c) => s+c.pw, 0) } }
+  return {
+    categorias,
+    totais: {
+      ob:   categorias.reduce((s,c) => s+c.ob,   0),
+      pw:   categorias.reduce((s,c) => s+c.pw,   0),
+      core: categorias.reduce((s,c) => s+c.core, 0),
+    },
+  }
 }
 
 function formatarDataAgendamento(dateStr: string): string {
@@ -242,6 +250,14 @@ const DetalhesClienteV2: React.FC = () => {
     percentualMeta:  cliente.percentual_atingimento  ?? 0,
     oportunidade:    cliente.previsao_pedido,
     acaoRecomendada: cliente.acao_recomendada,
+    // multi-marca
+    valorObAnoAtual:    cliente.valor_ob_ano_atual   ?? 0,
+    valorPwAnoAtual:    cliente.valor_pw_ano_atual   ?? 0,
+    valorCoreAnoAtual:  cliente.valor_core_ano_atual ?? 0,
+    pecasObAnoAtual:    cliente.pecas_ob_ano_atual   ?? 0,
+    pecasPwAnoAtual:    cliente.pecas_pw_ano_atual   ?? 0,
+    pecasCoreAnoAtual:  cliente.pecas_core_ano_atual ?? 0,
+    metaCorePecas:      cliente.meta_core_pecas      ?? 0,
   }
 
   const metricasCategoria = processarMetricasCategoria(cliente)
@@ -335,10 +351,10 @@ const DetalhesClienteV2: React.FC = () => {
         {/* ── 3. FINANCEIRO ──────────────────────────────────────────────────── */}
         <SectionHeader label="Financeiro" />
         <div className="px-4 py-3">
-          {/* Meta + barra de progresso */}
+          {/* Obj OB+PW + barra de progresso */}
           <div className="mb-3">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-gray-700">Meta {anoAtual}</span>
+              <span className="text-xs font-semibold text-gray-700">Obj OB+PW {anoAtual}</span>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-900">{formatCurrency(d.meta)}</span>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
@@ -358,6 +374,11 @@ const DetalhesClienteV2: React.FC = () => {
                 style={{ width: `${progresso}%` }}
               />
             </div>
+            {d.valorCoreAnoAtual > 0 && (
+              <p className="text-[10px] text-blue-600 mt-1 font-medium">
+                Core: {formatCurrency(d.valorCoreAnoAtual)} · {d.pecasCoreAnoAtual} pç
+              </p>
+            )}
           </div>
           {/* Vendas: 2 colunas */}
           <div className="grid grid-cols-2 gap-3">
@@ -372,6 +393,20 @@ const DetalhesClienteV2: React.FC = () => {
               <p className="text-[10px] text-gray-400">{d.qtdAnterior} pedido{d.qtdAnterior !== 1 ? 's' : ''}</p>
             </div>
           </div>
+        </div>
+
+        {/* ── 3b. VENDAS POR MARCA ───────────────────────────────────────────── */}
+        <SectionHeader label="Vendas por Marca" />
+        <div className="px-4 py-3">
+          <TabelaMarcas
+            modo="completo"
+            ob={{ valor: d.valorObAnoAtual, pecas: d.pecasObAnoAtual }}
+            pw={{ valor: d.valorPwAnoAtual, pecas: d.pecasPwAnoAtual }}
+            core={{ valor: d.valorCoreAnoAtual, pecas: d.pecasCoreAnoAtual }}
+            objObPw={d.meta}
+            objCorePecas={d.metaCorePecas}
+            atingimento={d.percentualMeta}
+          />
         </div>
 
         {/* ── 4. VISITAS ─────────────────────────────────────────────────────── */}
@@ -538,6 +573,7 @@ const DetalhesClienteV2: React.FC = () => {
                     <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider">Categoria</th>
                     <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider">OB</th>
                     <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider">PW</th>
+                    <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider">Core</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -546,12 +582,14 @@ const DetalhesClienteV2: React.FC = () => {
                       <td className="px-3 py-2 text-xs font-medium text-gray-700 border-t border-gray-200">{c.nome}</td>
                       <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900 border-t border-gray-200">{c.ob}</td>
                       <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900 border-t border-gray-200">{c.pw}</td>
+                      <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900 border-t border-gray-200">{c.core}</td>
                     </tr>
                   ))}
                   <tr className="bg-gray-100 border-t-2 border-gray-400">
                     <td className="px-3 py-2 text-xs font-bold text-gray-900">TOTAL</td>
                     <td className="px-3 py-2 text-right text-xs font-bold text-gray-900">{metricasCategoria.totais.ob}</td>
                     <td className="px-3 py-2 text-right text-xs font-bold text-gray-900">{metricasCategoria.totais.pw}</td>
+                    <td className="px-3 py-2 text-right text-xs font-bold text-gray-900">{metricasCategoria.totais.core}</td>
                   </tr>
                 </tbody>
               </table>
