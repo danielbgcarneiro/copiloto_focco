@@ -108,10 +108,10 @@ const DashboardGestao: React.FC = () => {
         .eq('mes', mes);
       setResumoMarcas(marcasData || []);
 
-      // 4. Buscar metas
+      // 4. Buscar metas (apenas OB_PW — meta em R$)
       const { data: metas, error: metasError } = await supabase
         .from('metas_vendedores')
-        .select('meta_valor').eq('ano', ano).eq('mes', mes);
+        .select('meta_valor').eq('ano', ano).eq('mes', mes).eq('marca', 'OB_PW');
       setMetasData(metasError ? [] : (metas || []));
       if(metasError) console.error('Erro ao buscar metas_vendedores:', metasError);
       else console.log(`✅ metas_vendedores: ${metas?.length || 0} registros`);
