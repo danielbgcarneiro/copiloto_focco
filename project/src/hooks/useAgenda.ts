@@ -500,6 +500,7 @@ export async function getForecastSemana(
       .eq('cod_vendedor', codVendedor)
       .eq('ano', year)
       .eq('mes', month)
+      .eq('marca', 'OB_PW')
       .maybeSingle()
     metaSemana = ((metaMes?.meta_valor as number) ?? 0) / 4
   }
@@ -541,6 +542,7 @@ export async function getForecastMes(
       .eq('cod_vendedor', codVendedor)
       .eq('ano', year)
       .eq('mes', month)
+      .eq('marca', 'OB_PW')
       .maybeSingle(),
     supabase
       .from('vendas_mes')

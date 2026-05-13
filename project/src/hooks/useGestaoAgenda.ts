@@ -175,7 +175,8 @@ async function fetchKpisDetalhados(
       .select('meta_valor')
       .eq('cod_vendedor', codVendedor)
       .eq('ano', hoje.getFullYear())
-      .eq('mes', hoje.getMonth() + 1),
+      .eq('mes', hoje.getMonth() + 1)
+      .eq('marca', 'OB_PW'),
     supabase
       .from('tabela_clientes')
       .select('codigo_cliente, nome_fantasia, razao_social, cidade')
@@ -399,13 +400,14 @@ async function fetchKpis(
     .gte('data_agendada', inicio)
     .lte('data_agendada', fim)
 
-  // 4. Metas do mês atual (bulk)
+  // 4. Metas do mês atual (bulk) — apenas OB_PW
   const { data: metasData } = await supabase
     .from('metas_vendedores')
     .select('cod_vendedor, meta_valor')
     .in('cod_vendedor', codVendedores)
     .eq('ano', hoje.getFullYear())
     .eq('mes', hoje.getMonth() + 1)
+    .eq('marca', 'OB_PW')
 
   // 5. Clientes sem visita > 60d: via analise_rfm + tabela_clientes
   const { data: clientesData } = await supabase

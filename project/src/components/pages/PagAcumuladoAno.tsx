@@ -120,7 +120,7 @@ const PagAcumuladoAno: React.FC = () => {
           { data: cidades, error: cidadesError }
         ] = await Promise.all([
           supabase.from('vendas_mes').select('codigo_vendedor, nome_vendedor, mes_referencia, total_vendas, qtd_clientes_total'),
-          supabase.from('metas_vendedores').select('*'),
+          supabase.from('metas_vendedores').select('cod_vendedor, ano, mes, meta_valor').eq('marca', 'OB_PW'),
           supabase.from('vw_cidades_com_vendas').select('*')
         ])
 

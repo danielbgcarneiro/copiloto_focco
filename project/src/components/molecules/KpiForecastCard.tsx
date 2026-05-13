@@ -74,7 +74,7 @@ export function KpiForecastCard({
       {meta > 0 && (
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-gray-500">Meta do período</span>
+            <span className="text-xs text-gray-500">Obj OB+PW período</span>
             <span className={`text-xs font-semibold ${progresso >= 100 ? 'text-green-600' : 'text-gray-600'}`}>
               {atingimentoMeta.toFixed(0)}%
             </span>

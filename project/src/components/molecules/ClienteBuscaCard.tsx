@@ -103,7 +103,7 @@ export function ClienteBuscaCard({ cliente, onClick, agendado }: ClienteBuscaCar
             />
           </div>
           <span className="text-[10px] text-gray-400 font-medium flex-shrink-0">
-            {percentualMeta.toFixed(0)}% meta
+            {percentualMeta.toFixed(0)}% obj
           </span>
         </div>
       )}
