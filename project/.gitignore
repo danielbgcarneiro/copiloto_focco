@@ -36,3 +36,6 @@ dist-ssr
 Thumbs.db
 .DS_Store
 .vercel
+
+# Claude Code MCP config (pode conter tokens)
+.mcp.json

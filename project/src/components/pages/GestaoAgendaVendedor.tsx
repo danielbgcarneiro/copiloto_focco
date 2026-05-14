@@ -13,9 +13,9 @@
  */
 
 import { useNavigate, useParams } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, Check } from 'lucide-react'
-import { useKpisDetalhadosVendedor, PeriodoAgendaDetalhe } from '../../hooks/useGestaoAgenda'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { ChevronDown, Check, X, AlertTriangle } from 'lucide-react'
+import { useKpisDetalhadosVendedor, PeriodoAgendaDetalhe, UltimaVisita } from '../../hooks/useGestaoAgenda'
 import { useSetPage } from '../../contexts'
 import { KpiAtividadeCard } from '../molecules/KpiAtividadeCard'
 import { KpiForecastCard } from '../molecules/KpiForecastCard'
@@ -23,6 +23,7 @@ import { KpiQualidadeCard } from '../molecules/KpiQualidadeCard'
 import { CoberturaCarteiraSummary } from '../molecules/CoberturaCarteiraSummary'
 import { AgendaTotalizacaoCard } from '../molecules/AgendaTotalizacaoCard'
 import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores'
+import { supabase } from '../../lib/supabase'
 
 type Tab = 'resumo' | 'agenda' | 'cobertura' | 'visitas'
 
@@ -69,6 +70,24 @@ export default function GestaoAgendaVendedor() {
   }, [showDropdown])
 
   const { data, loading, error } = useKpisDetalhadosVendedor(vendedorId ?? '', periodo)
+  const [visitaSelecionada, setVisitaSelecionada] = useState<UltimaVisita | null>(null)
+  const [confirmando, setConfirmando] = useState(false)
+  const [visitasInativadas, setVisitasInativadas] = useState<Record<string, { inativado: boolean; inativadoEm: string }>>({})
+
+  const confirmarInativacao = useCallback(async (visitaId: string) => {
+    setConfirmando(true)
+    try {
+      const agora = new Date().toISOString()
+      await supabase
+        .from('visitas')
+        .update({ cliente_inativado: true, inativado_em: agora })
+        .eq('id', visitaId)
+      setVisitasInativadas((prev) => ({ ...prev, [visitaId]: { inativado: true, inativadoEm: agora } }))
+      setVisitaSelecionada((prev) => prev ? { ...prev, inativado: true, inativadoEm: agora } : null)
+    } finally {
+      setConfirmando(false)
+    }
+  }, [])
 
   useSetPage(data?.nomeVendedor ?? 'Vendedor', () => navigate('/gestao/agenda'))
 
@@ -230,13 +249,38 @@ export default function GestaoAgendaVendedor() {
                   <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-50 overflow-hidden">
                     {data.ultimasVisitas.map((v, i) => {
                       const badge = RESULTADO_LABELS[v.resultado] ?? { label: v.resultado, color: 'bg-gray-100 text-gray-600' }
+                      const isEncerrou = v.motivoCanonical === 'ENCERROU_ATIVIDADES'
+                      const estadoInativado = visitasInativadas[v.visitaId]
+                      const inativado = estadoInativado?.inativado ?? v.inativado
                       return (
-                        <div key={i} className="px-4 py-3">
-                          <div className="flex items-start justify-between gap-2">
+                        <div
+                          key={i}
+                          className={`px-4 py-3 ${isEncerrou ? 'cursor-pointer hover:bg-orange-50 active:bg-orange-100 transition-colors' : ''}`}
+                          onClick={() => isEncerrou ? setVisitaSelecionada({ ...v, inativado, inativadoEm: estadoInativado?.inativadoEm ?? v.inativadoEm }) : undefined}
+                        >
+                          <div className="flex items-start gap-2">
+                            {/* Col 1 — Nome + Data */}
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-gray-900 truncate">{v.nomeCliente}</p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-xs font-medium text-gray-900 truncate">{v.nomeCliente}</p>
+                                {inativado && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gray-200 text-gray-500 flex-shrink-0">
+                                    Inativado
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[11px] text-gray-400 mt-0.5">{v.data}</p>
                             </div>
+                            {/* Col 2 — Motivo + Observação */}
+                            {v.motivo && (
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] text-gray-500 font-medium truncate">{v.motivo}</p>
+                                {v.observacoes && (
+                                  <p className="text-[11px] text-gray-400 mt-0.5 truncate italic">"{v.observacoes}"</p>
+                                )}
+                              </div>
+                            )}
+                            {/* Col 3 — Badge resultado */}
                             <div className="flex flex-col items-end gap-1 flex-shrink-0">
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
                                 {badge.label}
@@ -258,6 +302,70 @@ export default function GestaoAgendaVendedor() {
           </>
         )}
       </div>
+
+      {/* Drawer: Encerrou Atividades */}
+      {visitaSelecionada && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            onClick={() => setVisitaSelecionada(null)}
+          />
+          <div className="fixed bottom-0 inset-x-0 z-50 bg-white rounded-t-2xl shadow-2xl max-w-lg mx-auto">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-4 pb-2">
+              <h2 className="text-base font-semibold text-gray-900">Encerrou atividades</h2>
+              <button
+                onClick={() => setVisitaSelecionada(null)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-full cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-4 pb-10 space-y-4">
+              <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 space-y-1">
+                <p className="text-sm font-semibold text-gray-900">{visitaSelecionada.nomeCliente}</p>
+                <p className="text-xs text-gray-500">{visitaSelecionada.data}</p>
+                {visitaSelecionada.motivo && (
+                  <p className="text-xs text-orange-700 font-medium">{visitaSelecionada.motivo}</p>
+                )}
+                {visitaSelecionada.observacoes && (
+                  <p className="text-xs text-gray-500 italic">"{visitaSelecionada.observacoes}"</p>
+                )}
+              </div>
+
+              {visitaSelecionada.inativado ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-xl border border-gray-200">
+                  <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <p className="text-sm text-gray-700 font-medium">
+                    Inativado em{' '}
+                    {visitaSelecionada.inativadoEm
+                      ? new Date(visitaSelecionada.inativadoEm).toLocaleDateString('pt-BR')
+                      : '—'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800">
+                      Realize a inativação manualmente no ERP e confirme aqui para registrar.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => confirmarInativacao(visitaSelecionada.visitaId)}
+                    disabled={confirmando}
+                    className="w-full py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  >
+                    {confirmando ? 'Registrando...' : 'Confirmar inativação no ERP'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

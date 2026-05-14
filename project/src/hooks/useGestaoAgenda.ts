@@ -25,11 +25,17 @@ export interface ClienteNaoVisitado {
 }
 
 export interface UltimaVisita {
+  visitaId: string
   data: string
   codigoCliente: number
   nomeCliente: string
   resultado: string
   valorRealizado: number | null
+  motivo: string | null
+  motivoCanonical: string | null
+  observacoes: string | null
+  inativado: boolean
+  inativadoEm: string | null
 }
 
 export interface KpisDetalhadosVendedor {
@@ -158,7 +164,7 @@ async function fetchKpisDetalhados(
   ] = await Promise.all([
     supabase
       .from('visitas')
-      .select('resultado, valor_realizado, observacoes, motivo_nao_venda_id, data_visita, codigo_cliente')
+      .select('id, resultado, valor_realizado, observacoes, motivo_nao_venda_id, data_visita, codigo_cliente, cliente_inativado, inativado_em')
       .eq('vendedor_id', vendedorId)
       .gte('data_visita', inicio)
       .lte('data_visita', fim)
@@ -182,31 +188,33 @@ async function fetchKpisDetalhados(
       .select('codigo_cliente, nome_fantasia, razao_social, cidade')
       .eq('cod_vendedor', codVendedor),
     supabase
+      .from('motivos_nao_venda')
+      .select('id, descricao, codigo_canonico')
+      .eq('ativo', true),
+    supabase
       .from('vendas_mes')
       .select('total_vendas')
-      .eq('vendedor_id', vendedorId)
-      .eq('ano', hoje.getFullYear())
-      .eq('mes', hoje.getMonth() + 1)
+      .eq('codigo_vendedor', codVendedor)
+      .eq('mes_referencia', `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-01`)
       .maybeSingle(),
-    supabase
-      .from('motivos_nao_venda')
-      .select('id, descricao')
-      .eq('ativo', true),
   ])
 
   const visitas = (visitasData ?? []) as {
+    id: string
     resultado: string | null
     valor_realizado: number | null
     observacoes: string | null
     motivo_nao_venda_id: number | null
     data_visita: string
     codigo_cliente: number
+    cliente_inativado: boolean
+    inativado_em: string | null
   }[]
   const agendamentos = (agendamentosData ?? []) as { id: string; codigo_cliente: number; valor_previsto: number | null; data_agendada: string }[]
   const metaMensal = (metasData ?? [])[0]?.meta_valor ?? 0
   const clientes = (clientesData ?? []) as { codigo_cliente: number; nome_fantasia: string | null; razao_social: string | null; cidade: string | null }[]
+  const motivos = (motivosData ?? []) as { id: number; descricao: string; codigo_canonico: string }[]
   const realizadoMes = (vendasMesData as { total_vendas: number } | null)?.total_vendas ?? 0
-  const motivos = (motivosData ?? []) as { id: number; descricao: string }[]
 
   const meta = periodo === 'semana'
     ? calcularMetaSemana(metaMensal, realizadoMes, hoje)
@@ -286,7 +294,11 @@ async function fetchKpisDetalhados(
 
   // AC5 — Qualidade
   const motivoDescMap = new Map<number, string>()
-  for (const m of motivos) motivoDescMap.set(m.id, m.descricao)
+  const motivoCanonicalMap = new Map<number, string>()
+  for (const m of motivos) {
+    motivoDescMap.set(m.id, m.descricao)
+    motivoCanonicalMap.set(m.id, m.codigo_canonico)
+  }
 
   const motivoCounts = new Map<number, number>()
   for (const v of visitas) {
@@ -332,11 +344,17 @@ async function fetchKpisDetalhados(
 
   // AC7 — Últimas 10 visitas
   const ultimasVisitas: UltimaVisita[] = visitas.slice(0, 10).map((v) => ({
+    visitaId: v.id,
     data: v.data_visita,
     codigoCliente: v.codigo_cliente,
     nomeCliente: clienteNomeMap.get(v.codigo_cliente) ?? `Cliente ${v.codigo_cliente}`,
     resultado: v.resultado ?? '',
     valorRealizado: v.valor_realizado,
+    motivo: v.motivo_nao_venda_id != null ? (motivoDescMap.get(v.motivo_nao_venda_id) ?? null) : null,
+    motivoCanonical: v.motivo_nao_venda_id != null ? (motivoCanonicalMap.get(v.motivo_nao_venda_id) ?? null) : null,
+    observacoes: v.observacoes ?? null,
+    inativado: v.cliente_inativado ?? false,
+    inativadoEm: v.inativado_em ?? null,
   }))
 
   return {
