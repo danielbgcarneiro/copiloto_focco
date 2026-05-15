@@ -81,7 +81,8 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
       bairro,
       codigo_ibge_cidade
     `)
-    .eq('cod_vendedor', profile.cod_vendedor);
+    .eq('cod_vendedor', profile.cod_vendedor)
+    .not('situacao', 'in', '("I","B")');
 
   // Adicionar filtro por cidade se especificado (case-insensitive)
   if (cidade) {
