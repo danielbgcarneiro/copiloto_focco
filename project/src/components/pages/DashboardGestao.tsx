@@ -184,11 +184,11 @@ const DashboardGestao: React.FC = () => {
 
     vendasSemanais.forEach((v: any) => {
       if (Number(v.codigo_vendedor) === 1) return; // Filtrar FOCCO BRASIL
+      const perfil = allVendedores.find(vd => Number(vd.cod_vendedor) === Number(v.codigo_vendedor));
+      if (!perfil) return; // Ignorar vendedores inativos ou desconhecidos
       const cod = String(v.codigo_vendedor);
       if (!porVendedor.has(cod)) {
-        // Usar apelido do perfil se disponível, senão nome_vendedor do ETL
-        const perfil = allVendedores.find(vd => Number(vd.cod_vendedor) === Number(v.codigo_vendedor));
-        const nome = perfil?.apelido || perfil?.nome_completo || v.nome_vendedor || cod;
+        const nome = perfil.apelido || perfil.nome_completo || v.nome_vendedor || cod;
         porVendedor.set(cod, { nome, semanas: {} });
       }
       const entry = porVendedor.get(cod)!;
