@@ -25,7 +25,8 @@ export async function getAllVendedores(): Promise<VendedorProfile[] | null> {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, cod_vendedor, nome_completo, apelido, cargo, status, vendedor_responsavel, created_at, updated_at')
-      .eq('cargo', 'vendedor');
+      .eq('cargo', 'vendedor')
+      .eq('status', 'ativo');
 
     if (error) {
       console.error('❌ Erro ao buscar todos os vendedores:', error);
