@@ -228,10 +228,12 @@ const DashboardGestao: React.FC = () => {
       return acc;
     }, { vendasTotais: 0, vendasFaturadas: 0, vendasAFaturar: 0, clientesAtendidos: 0, metaTotal: 0 });
 
-    // Card total inclui FOCCO BRASIL; ranking/grafico ja excluem (filtro no forEach)
-    const vendasTotalDasSemanais = vendasSemanais.reduce((sum: number, v: any) => sum + (Number(v.valor_total) || 0), 0);
-    if (vendasTotalDasSemanais > 0) {
-      totais.vendasTotais = vendasTotalDasSemanais;
+    // Soma apenas FOCCO BRASIL (cod=1) ao total da view — ele não aparece no scaffold de vendedores
+    const vendasFocco = vendasSemanais
+      .filter((v: any) => Number(v.codigo_vendedor) === 1)
+      .reduce((sum: number, v: any) => sum + (Number(v.valor_total) || 0), 0);
+    if (vendasFocco > 0) {
+      totais.vendasTotais += vendasFocco;
     }
 
     // Estas contagens específicas de clientes vêm do estado detailedClientCounts separado
