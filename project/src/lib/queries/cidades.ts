@@ -99,7 +99,8 @@ export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMa
           dias_sem_comprar
         )
       `)
-      .eq('cod_vendedor', profile.cod_vendedor);
+      .eq('cod_vendedor', profile.cod_vendedor)
+      .not('situacao', 'in', '("I","B")');
 
     if (clientesError) {
       console.error('❌ Erro ao buscar clientes:', clientesError);
