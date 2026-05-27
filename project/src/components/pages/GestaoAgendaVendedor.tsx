@@ -241,7 +241,7 @@ export default function GestaoAgendaVendedor() {
             {tab === 'visitas' && (
               <div className="px-4 py-4">
                 <p className="text-xs font-semibold text-gray-500 mb-3">
-                  Últimas {data.ultimasVisitas.length} visitas
+                  {data.ultimasVisitas.length} {data.ultimasVisitas.length === 1 ? 'visita' : 'visitas'} no período
                 </p>
                 {data.ultimasVisitas.length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-8">Nenhuma visita no período</p>

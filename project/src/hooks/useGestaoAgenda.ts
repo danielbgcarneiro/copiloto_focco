@@ -343,7 +343,7 @@ async function fetchKpisDetalhados(
     .sort((a, b) => b.diasSemComprar - a.diasSemComprar)
 
   // AC7 — Últimas 10 visitas
-  const ultimasVisitas: UltimaVisita[] = visitas.slice(0, 10).map((v) => ({
+  const ultimasVisitas: UltimaVisita[] = visitas.map((v) => ({
     visitaId: v.id,
     data: v.data_visita,
     codigoCliente: v.codigo_cliente,
