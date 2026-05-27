@@ -386,6 +386,7 @@ const DashboardRotas: React.FC = () => {
         `)
         .eq('cidade', cidadeNome)
         .eq('cod_vendedor', codVendedor)
+        .not('situacao', 'in', '("I","B")')
 
       if (clientesError) throw clientesError
 

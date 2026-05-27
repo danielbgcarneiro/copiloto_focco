@@ -186,7 +186,8 @@ async function fetchKpisDetalhados(
     supabase
       .from('tabela_clientes')
       .select('codigo_cliente, nome_fantasia, razao_social, cidade')
-      .eq('cod_vendedor', codVendedor),
+      .eq('cod_vendedor', codVendedor)
+      .not('situacao', 'in', '("I","B")'),
     supabase
       .from('motivos_nao_venda')
       .select('id, descricao, codigo_canonico')
@@ -432,6 +433,7 @@ async function fetchKpis(
     .from('tabela_clientes')
     .select('codigo_cliente, cod_vendedor')
     .in('cod_vendedor', codVendedores)
+    .not('situacao', 'in', '("I","B")')
 
   let semVisita60dPorCodVendedor = new Map<number, number>()
   if (clientesData && clientesData.length > 0) {

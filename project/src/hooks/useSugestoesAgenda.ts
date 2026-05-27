@@ -91,6 +91,7 @@ export function useSugestoesAgenda(vendedorId: string | undefined) {
             analise_rfm!left(perfil, previsao_pedido, dias_sem_comprar)
           `)
           .eq('cod_vendedor', codVendedor)
+          .not('situacao', 'in', '("I","B")')
 
         if (!clientesRaw || clientesRaw.length === 0) {
           setSugestoes([])
