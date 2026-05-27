@@ -263,6 +263,7 @@ export default function GestaoAgendaVendedor() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="text-xs font-medium text-gray-900 truncate">{v.nomeCliente}</p>
+                                <span className="text-[10px] text-gray-400 flex-shrink-0">#{v.codigoCliente}</span>
                                 {inativado && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gray-200 text-gray-500 flex-shrink-0">
                                     Inativado
