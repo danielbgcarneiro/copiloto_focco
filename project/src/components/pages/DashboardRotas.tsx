@@ -1119,8 +1119,9 @@ const DashboardRotas: React.FC = () => {
                                     {getCidadesOrdenadas(cidadesComMeta.get(rota.rota) || []).map((cidade) => {
                                       const mf = cidadesMetricasFiltradas.get(cidade.codigo_ibge_cidade)
                                       const temFiltro = cidadesMetricasFiltradas.size > 0
-                                      // Esconder cidade se filtros ativos e 0 clientes correspondem
-                                      if (temFiltro && mf && mf.qtdClientes === 0) return null
+                                      // Esconder cidade se filtros ativos e nenhum cliente rastreado corresponde.
+                                      // mf undefined = cidade sem clientes nos vendors rastreados (ex: só cod_vendedor=0)
+                                      if (temFiltro && (!mf || mf.qtdClientes === 0)) return null
                                       const meta = temFiltro && mf ? mf.meta : cidade.meta_cidade
                                       const vendas = temFiltro && mf ? mf.vendas : cidade.vendas_cidade
                                       const oportunidades = temFiltro && mf ? mf.oportunidades : (cidade.soma_oportunidades ?? 0)
