@@ -3,16 +3,15 @@
  * Molecule: PlanejarRotaSheet — Fluxo de planejamento de rota em lote (FEAT-AG-010)
  *
  * Step 0: RotaSelector     — selecionar rota + período
- * Step 1: CidadePaginator  — percorrer cidade por cidade
+ * Step 1: CidadePaginator  — percorrer cidade por cidade (suporta múltiplas visitas por cidade)
  * Step 2: OverflowScreen   — clientes sem data + sugestão de extensão
  * Step 3: ConfirmScreen    — resumo final antes de criar agendamentos
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import { X, ChevronLeft, Route, Calendar, CheckCircle2, Users } from 'lucide-react'
+import { X, ChevronLeft, Route, Calendar, CheckCircle2, Users, Plus } from 'lucide-react'
 import {
   usePlanejamentoRota,
-  CidadePlano,
   ClientePlano,
   SITUACAO_AUTO,
   SITUACAO_MANUAL,
@@ -33,6 +32,17 @@ interface DecisaoCidade {
   data: string | null
   clientesSelecionados: Set<number>
   pulada: boolean
+}
+
+// Representa um slot de visita a uma cidade (uma cidade pode ter múltiplos slots)
+interface SlotCidade {
+  cidade: string
+  slotIdx: number
+  clientes: ClientePlano[]
+}
+
+function slotKey(cidade: string, slotIdx: number): string {
+  return `${cidade}::${slotIdx}`
 }
 
 function badgeSituacao(situacao: string): string {
@@ -136,40 +146,56 @@ function RotaSelector({
 // ─── Step 1: Paginação por Cidade ────────────────────────────────────────────
 
 interface CidadePaginatorProps {
-  cidades: CidadePlano[]
+  slots: SlotCidade[]
   cidadeIdx: number
   diasPeriodo: string[]
   decisoes: Map<string, DecisaoCidade>
-  onDecisaoChange: (cidade: string, decisao: Partial<DecisaoCidade>) => void
+  alocadosOutrosSlots: Set<number>
+  podeAdicionarSlot: boolean
+  onDecisaoChange: (cidade: string, slotIdx: number, decisao: Partial<DecisaoCidade>) => void
   onProxima: () => void
   onPular: () => void
   onVoltar: () => void
+  onAdicionarSlot: () => void
 }
 
 function CidadePaginator({
-  cidades, cidadeIdx, diasPeriodo, decisoes,
-  onDecisaoChange, onProxima, onPular, onVoltar,
+  slots, cidadeIdx, diasPeriodo, decisoes,
+  alocadosOutrosSlots, podeAdicionarSlot,
+  onDecisaoChange, onProxima, onPular, onVoltar, onAdicionarSlot,
 }: CidadePaginatorProps) {
-  const cidadeAtual = cidades[cidadeIdx]
-  if (!cidadeAtual) return null
+  const slotAtual = slots[cidadeIdx]
+  if (!slotAtual) return null
 
-  const decisao = decisoes.get(cidadeAtual.cidade) ?? {
+  const decisao = decisoes.get(slotKey(slotAtual.cidade, slotAtual.slotIdx)) ?? {
     data: null, clientesSelecionados: new Set<number>(), pulada: false,
   }
 
-  const adimplentes = cidadeAtual.clientes.filter((c) => SITUACAO_AUTO.includes(c.situacao))
-  const manuais = cidadeAtual.clientes.filter((c) => SITUACAO_MANUAL.includes(c.situacao))
+  const slotsDestaCidade = slots.filter(s => s.cidade === slotAtual.cidade)
+  const totalSlotsDestaCidade = slotsDestaCidade.length
+  const numVisita = slotAtual.slotIdx + 1
+  const mostrarNumVisita = totalSlotsDestaCidade > 1
+
+  const adimplentes = slotAtual.clientes.filter((c) => SITUACAO_AUTO.includes(c.situacao))
+  const manuais = slotAtual.clientes.filter((c) => SITUACAO_MANUAL.includes(c.situacao))
   const selecionados = decisao.clientesSelecionados
+
+  const totalDisponiveis = slotAtual.clientes.filter(c => !c.jaAgendado).length
+  const jaEmOutrasVisitas = alocadosOutrosSlots.size
+
+  // Progresso único de cidades para a barra
+  const cidadesUnicas = Array.from(new Map(slots.map(s => [s.cidade, true])).keys())
+  const cidadeAtualUnicaIdx = cidadesUnicas.indexOf(slotAtual.cidade)
 
   function toggleCliente(codigo: number) {
     const novo = new Set(selecionados)
     if (novo.has(codigo)) novo.delete(codigo)
     else novo.add(codigo)
-    onDecisaoChange(cidadeAtual.cidade, { clientesSelecionados: novo })
+    onDecisaoChange(slotAtual.cidade, slotAtual.slotIdx, { clientesSelecionados: novo })
   }
 
   function selecionarDia(data: string) {
-    onDecisaoChange(cidadeAtual.cidade, { data })
+    onDecisaoChange(slotAtual.cidade, slotAtual.slotIdx, { data })
   }
 
   const podeProsseguir = !!decisao.data
@@ -183,36 +209,50 @@ function CidadePaginator({
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Progress */}
+      {/* Progress bar — baseado em cidades únicas */}
       <div className="flex items-center gap-1 px-4 py-2">
         <button onClick={onVoltar} className="p-1 mr-1">
           <ChevronLeft className="w-4 h-4 text-gray-500" />
         </button>
-        {cidades.map((_, i) => (
+        {cidadesUnicas.map((_, i) => (
           <div
             key={i}
             className={`flex-1 h-1.5 rounded-full ${
-              i < cidadeIdx ? 'bg-sky-500' : i === cidadeIdx ? 'bg-sky-300' : 'bg-gray-200'
+              i < cidadeAtualUnicaIdx ? 'bg-sky-500' : i === cidadeAtualUnicaIdx ? 'bg-sky-300' : 'bg-gray-200'
             }`}
           />
         ))}
         <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-          {cidadeIdx + 1}/{cidades.length}
+          {cidadeAtualUnicaIdx + 1}/{cidadesUnicas.length}
         </span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {/* Cidade header */}
-        <h3 className="text-base font-bold text-gray-800 mt-2">
-          {cidadeAtual.cidade}
-        </h3>
-        <p className="text-xs text-gray-500 mb-3">
-          {cidadeAtual.clientes.filter(c => !c.jaAgendado).length} clientes disponíveis
-        </p>
+        <div className="mt-2 mb-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-gray-800">
+              {slotAtual.cidade}
+            </h3>
+            {mostrarNumVisita && (
+              <span className="text-xs font-semibold bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full flex-shrink-0">
+                Visita {numVisita} de {totalSlotsDestaCidade}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {totalDisponiveis} clientes disponíveis
+            {jaEmOutrasVisitas > 0 && (
+              <span className="text-sky-500"> · {jaEmOutrasVisitas} em outras visitas</span>
+            )}
+          </p>
+        </div>
 
         {/* Seleção de dia */}
-        <p className="text-xs font-semibold text-gray-600 mb-2">Dia desta cidade</p>
-        <div className="flex flex-wrap gap-2 mb-4">
+        <p className="text-xs font-semibold text-gray-600 mb-2 mt-3">
+          {mostrarNumVisita ? `Dia da visita ${numVisita}` : 'Dia desta cidade'}
+        </p>
+        <div className="flex flex-wrap gap-2 mb-3">
           {diasPeriodo.map((d) => (
             <button
               key={d}
@@ -228,6 +268,17 @@ function CidadePaginator({
           ))}
         </div>
 
+        {/* Botão adicionar outra visita */}
+        {podeAdicionarSlot && (
+          <button
+            onClick={onAdicionarSlot}
+            className="flex items-center gap-1.5 text-xs text-sky-600 font-semibold mb-4 hover:text-sky-700 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Adicionar outra visita a {slotAtual.cidade}
+          </button>
+        )}
+
         {/* Clientes adimplentes */}
         {adimplentes.length > 0 && (
           <div className="space-y-1.5 mb-3">
@@ -236,6 +287,7 @@ function CidadePaginator({
                 key={c.codigo_cliente}
                 cliente={c}
                 selecionado={selecionados.has(c.codigo_cliente)}
+                outraVisita={alocadosOutrosSlots.has(c.codigo_cliente)}
                 onToggle={() => toggleCliente(c.codigo_cliente)}
               />
             ))}
@@ -256,6 +308,7 @@ function CidadePaginator({
                   key={c.codigo_cliente}
                   cliente={c}
                   selecionado={selecionados.has(c.codigo_cliente)}
+                  outraVisita={alocadosOutrosSlots.has(c.codigo_cliente)}
                   onToggle={() => toggleCliente(c.codigo_cliente)}
                   manual
                 />
@@ -278,7 +331,7 @@ function CidadePaginator({
           disabled={!podeProsseguir}
           className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold disabled:opacity-40 hover:bg-sky-700 transition-colors"
         >
-          {cidadeIdx < cidades.length - 1 ? 'Próxima →' : 'Finalizar →'}
+          {cidadeIdx < slots.length - 1 ? 'Próxima →' : 'Finalizar →'}
         </button>
       </div>
     </div>
@@ -286,12 +339,13 @@ function CidadePaginator({
 }
 
 function ClienteRow({
-  cliente, selecionado, onToggle, manual = false,
+  cliente, selecionado, onToggle, manual = false, outraVisita = false,
 }: {
   cliente: ClientePlano
   selecionado: boolean
   onToggle: () => void
   manual?: boolean
+  outraVisita?: boolean
 }) {
   return (
     <button
@@ -325,6 +379,11 @@ function ClienteRow({
               Já agendado
             </span>
           )}
+          {outraVisita && !cliente.jaAgendado && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-600 flex-shrink-0">
+              Outra visita
+            </span>
+          )}
         </div>
         {cliente.dsv != null && (
           <span className="text-xs text-gray-400">DSV {cliente.dsv}d</span>
@@ -342,7 +401,7 @@ function ClienteRow({
 // ─── Step 2: Overflow ────────────────────────────────────────────────────────
 
 interface OverflowScreenProps {
-  cidades: CidadePlano[]
+  slots: SlotCidade[]
   decisoes: Map<string, DecisaoCidade>
   dataFimAtual: string
   onAceitarSugestao: (novaDataInicio: string, novaDataFim: string) => void
@@ -351,16 +410,19 @@ interface OverflowScreenProps {
 }
 
 function OverflowScreen({
-  cidades, decisoes, dataFimAtual,
+  slots, decisoes, dataFimAtual,
   onAceitarSugestao, onSalvarFila, onConfirmar,
 }: OverflowScreenProps) {
-  const cidadesPendentes = cidades.filter((c) => {
-    const d = decisoes.get(c.cidade)
-    return !d?.data && !d?.pulada
+  // Cidades com pelo menos um slot sem data
+  const cidadesPendentesSet = new Set<string>()
+  slots.forEach((s) => {
+    const d = decisoes.get(slotKey(s.cidade, s.slotIdx))
+    if (!d?.data && !d?.pulada) cidadesPendentesSet.add(s.cidade)
   })
+  const cidadesPendentes = Array.from(cidadesPendentesSet)
 
-  const planejados = cidades.reduce((acc, c) => {
-    const d = decisoes.get(c.cidade)
+  const planejados = slots.reduce((acc, s) => {
+    const d = decisoes.get(slotKey(s.cidade, s.slotIdx))
     if (d?.data) acc += d.clientesSelecionados.size
     return acc
   }, 0)
@@ -402,15 +464,20 @@ function OverflowScreen({
           ⏳ {cidadesPendentes.length} {cidadesPendentes.length === 1 ? 'cidade' : 'cidades'} sem data
         </p>
         <div className="space-y-1.5">
-          {cidadesPendentes.map((c) => (
-            <div key={c.cidade} className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">📍</span>
-                <span className="text-sm text-gray-700">{c.cidade}</span>
+          {cidadesPendentes.map((cidade) => {
+            const clientesCount = slots
+              .filter(s => s.cidade === cidade)
+              .reduce((acc, s) => acc + s.clientes.length, 0)
+            return (
+              <div key={cidade} className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">📍</span>
+                  <span className="text-sm text-gray-700">{cidade}</span>
+                </div>
+                <span className="text-xs text-gray-500">{clientesCount} clientes</span>
               </div>
-              <span className="text-xs text-gray-500">{c.clientes.length} clientes</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -453,7 +520,7 @@ interface ConfirmScreenProps {
   rota: string
   dataInicio: string
   dataFim: string
-  cidades: CidadePlano[]
+  slots: SlotCidade[]
   decisoes: Map<string, DecisaoCidade>
   loading: boolean
   onVoltar: () => void
@@ -461,24 +528,24 @@ interface ConfirmScreenProps {
 }
 
 function ConfirmScreen({
-  rota, dataInicio, dataFim, cidades, decisoes, loading,
+  rota, dataInicio, dataFim, slots, decisoes, loading,
   onVoltar, onConfirmar,
 }: ConfirmScreenProps) {
   const porDia = useMemo(() => {
     const mapa = new Map<string, { clientes: number; valorTotal: number }>()
-    cidades.forEach((c) => {
-      const d = decisoes.get(c.cidade)
+    slots.forEach((s) => {
+      const d = decisoes.get(slotKey(s.cidade, s.slotIdx))
       if (!d?.data) return
       const atual = mapa.get(d.data) ?? { clientes: 0, valorTotal: 0 }
       d.clientesSelecionados.forEach((cod) => {
-        const cli = c.clientes.find((cl) => cl.codigo_cliente === cod)
+        const cli = s.clientes.find((cl) => cl.codigo_cliente === cod)
         atual.clientes++
         atual.valorTotal += cli?.previsao_pedido ?? 0
       })
       mapa.set(d.data, atual)
     })
     return Array.from(mapa.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [cidades, decisoes])
+  }, [slots, decisoes])
 
   const totalClientes = porDia.reduce((acc, [, d]) => acc + d.clientes, 0)
   const totalValor = porDia.reduce((acc, [, d]) => acc + d.valorTotal, 0)
@@ -565,6 +632,7 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [cidadeIdx, setCidadeIdx] = useState(0)
+  const [slotsPlano, setSlotsPlano] = useState<SlotCidade[]>([])
   const [decisoes, setDecisoes] = useState<Map<string, DecisaoCidade>>(new Map())
   const [planoId, setPlanoId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -605,12 +673,43 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
     return { adimplentes, cidades: hook.cidadesPlano.length }
   }, [hook.cidadesPlano])
 
+  // Clientes já alocados em outros slots da cidade atual
+  const alocadosOutrosSlots = useMemo(() => {
+    const slotAtual = slotsPlano[cidadeIdx]
+    if (!slotAtual) return new Set<number>()
+    const resultado = new Set<number>()
+    slotsPlano
+      .filter(s => s.cidade === slotAtual.cidade && s.slotIdx !== slotAtual.slotIdx)
+      .forEach(s => {
+        const d = decisoes.get(slotKey(s.cidade, s.slotIdx))
+        d?.clientesSelecionados.forEach(cod => resultado.add(cod))
+      })
+    return resultado
+  }, [slotsPlano, cidadeIdx, decisoes])
+
+  // Verifica se há clientes auto disponíveis para uma nova visita
+  const podeAdicionarSlot = useMemo(() => {
+    const slotAtual = slotsPlano[cidadeIdx]
+    if (!slotAtual) return false
+    const jaAlocados = new Set<number>()
+    slotsPlano
+      .filter(s => s.cidade === slotAtual.cidade)
+      .forEach(s => {
+        const d = decisoes.get(slotKey(s.cidade, s.slotIdx))
+        d?.clientesSelecionados.forEach(cod => jaAlocados.add(cod))
+      })
+    return slotAtual.clientes.some(
+      c => SITUACAO_AUTO.includes(c.situacao) && !c.jaAgendado && !jaAlocados.has(c.codigo_cliente)
+    )
+  }, [slotsPlano, cidadeIdx, decisoes])
+
   function resetSheet() {
     setStep(0)
     setRotaSelecionada('')
     setDataInicio('')
     setDataFim('')
     setCidadeIdx(0)
+    setSlotsPlano([])
     setDecisoes(new Map())
     setPlanoId(null)
   }
@@ -629,31 +728,87 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
     return { data: null, clientesSelecionados: autosDisponiveis, pulada: false }
   }
 
-  function updateDecisao(cidade: string, patch: Partial<DecisaoCidade>) {
+  function updateDecisaoSlot(cidade: string, idx: number, patch: Partial<DecisaoCidade>) {
     setDecisoes((prev) => {
       const novo = new Map(prev)
-      const atual = novo.get(cidade) ?? getDecisaoDefault(
-        cidade,
-        hook.cidadesPlano.find((c) => c.cidade === cidade)?.clientes ?? [],
-      )
-      novo.set(cidade, { ...atual, ...patch })
+      const key = slotKey(cidade, idx)
+      const slot = slotsPlano.find(s => s.cidade === cidade && s.slotIdx === idx)
+      const atual = novo.get(key) ?? getDecisaoDefault(cidade, slot?.clientes ?? [])
+      novo.set(key, { ...atual, ...patch })
       return novo
     })
   }
 
-  // Inicializa decisões ao entrar no step 1
+  // Inicializa slots e decisões ao entrar no step 1
   function handleIniciar() {
+    const slots: SlotCidade[] = hook.cidadesPlano.map(c => ({
+      cidade: c.cidade,
+      slotIdx: 0,
+      clientes: c.clientes,
+    }))
+    setSlotsPlano(slots)
+
     const iniciais = new Map<string, DecisaoCidade>()
     hook.cidadesPlano.forEach((c) => {
-      iniciais.set(c.cidade, getDecisaoDefault(c.cidade, c.clientes))
+      iniciais.set(slotKey(c.cidade, 0), getDecisaoDefault(c.cidade, c.clientes))
     })
     setDecisoes(iniciais)
     setCidadeIdx(0)
     setStep(1)
   }
 
+  // Adiciona um novo slot de visita para a cidade atual
+  function handleAdicionarSlot() {
+    const slotAtual = slotsPlano[cidadeIdx]
+    if (!slotAtual) return
+
+    // Calcula clientes já alocados em todos os slots desta cidade
+    const jaAlocados = new Set<number>()
+    slotsPlano
+      .filter(s => s.cidade === slotAtual.cidade)
+      .forEach(s => {
+        const d = decisoes.get(slotKey(s.cidade, s.slotIdx))
+        d?.clientesSelecionados.forEach(cod => jaAlocados.add(cod))
+      })
+
+    const proximoSlotIdx = slotsPlano.filter(s => s.cidade === slotAtual.cidade).length
+
+    const novoSlot: SlotCidade = {
+      cidade: slotAtual.cidade,
+      slotIdx: proximoSlotIdx,
+      clientes: slotAtual.clientes,
+    }
+
+    // Insere logo após o slot atual
+    const novosSlots = [
+      ...slotsPlano.slice(0, cidadeIdx + 1),
+      novoSlot,
+      ...slotsPlano.slice(cidadeIdx + 1),
+    ]
+    setSlotsPlano(novosSlots)
+
+    // Pré-seleciona apenas clientes ainda não alocados
+    const clientesRestantes = new Set(
+      slotAtual.clientes
+        .filter(c => SITUACAO_AUTO.includes(c.situacao) && !c.jaAgendado && !jaAlocados.has(c.codigo_cliente))
+        .map(c => c.codigo_cliente)
+    )
+    setDecisoes(prev => {
+      const novo = new Map(prev)
+      novo.set(slotKey(slotAtual.cidade, proximoSlotIdx), {
+        data: null,
+        clientesSelecionados: clientesRestantes,
+        pulada: false,
+      })
+      return novo
+    })
+
+    // Avança para o novo slot
+    setCidadeIdx(cidadeIdx + 1)
+  }
+
   function handleProxima() {
-    if (cidadeIdx < hook.cidadesPlano.length - 1) {
+    if (cidadeIdx < slotsPlano.length - 1) {
       setCidadeIdx((i) => i + 1)
     } else {
       setStep(2)
@@ -661,8 +816,11 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
   }
 
   function handlePular() {
-    updateDecisao(hook.cidadesPlano[cidadeIdx].cidade, { data: null, pulada: true })
-    if (cidadeIdx < hook.cidadesPlano.length - 1) {
+    const slotAtual = slotsPlano[cidadeIdx]
+    if (slotAtual) {
+      updateDecisaoSlot(slotAtual.cidade, slotAtual.slotIdx, { data: null, pulada: true })
+    }
+    if (cidadeIdx < slotsPlano.length - 1) {
       setCidadeIdx((i) => i + 1)
     } else {
       setStep(2)
@@ -676,13 +834,11 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
 
   function handleAceitarSugestao(_novaInicio: string, novaFim: string) {
     setDataFim(novaFim)
-    // Volta ao step 1 mostrando apenas cidades pendentes
-    const pendentes = hook.cidadesPlano.filter((c) => {
-      const d = decisoes.get(c.cidade)
+    const primeiroSlotPendente = slotsPlano.findIndex((s) => {
+      const d = decisoes.get(slotKey(s.cidade, s.slotIdx))
       return !d?.data && !d?.pulada
     })
-    const primeiraIdx = hook.cidadesPlano.findIndex((c) => c.cidade === pendentes[0]?.cidade)
-    setCidadeIdx(primeiraIdx >= 0 ? primeiraIdx : 0)
+    setCidadeIdx(primeiroSlotPendente >= 0 ? primeiroSlotPendente : 0)
     setStep(1)
   }
 
@@ -695,17 +851,12 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
     const plano = await hook.criarPlano(rotaSelecionada, dataInicio, fim)
     if (!plano) return
 
-    // Coletar todos os clientes das decisões
     const clientes: Array<{ codigoCliente: number; cidade: string; dataPrevista: string | null }> = []
-    hook.cidadesPlano.forEach((c) => {
-      const d = decisoes.get(c.cidade)
+    slotsPlano.forEach((s) => {
+      const d = decisoes.get(slotKey(s.cidade, s.slotIdx))
       if (!d || d.pulada) return
       d.clientesSelecionados.forEach((cod) => {
-        clientes.push({
-          codigoCliente: cod,
-          cidade: c.cidade,
-          dataPrevista: d.data,
-        })
+        clientes.push({ codigoCliente: cod, cidade: s.cidade, dataPrevista: d.data })
       })
     })
 
@@ -732,11 +883,11 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
       id = plano.id
 
       const clientes: Array<{ codigoCliente: number; cidade: string; dataPrevista: string | null }> = []
-      hook.cidadesPlano.forEach((c) => {
-        const d = decisoes.get(c.cidade)
+      slotsPlano.forEach((s) => {
+        const d = decisoes.get(slotKey(s.cidade, s.slotIdx))
         if (!d || d.pulada) return
         d.clientesSelecionados.forEach((cod) => {
-          clientes.push({ codigoCliente: cod, cidade: c.cidade, dataPrevista: d.data })
+          clientes.push({ codigoCliente: cod, cidade: s.cidade, dataPrevista: d.data })
         })
       })
       await hook.adicionarClientes(id, clientes)
@@ -813,21 +964,24 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
 
           {step === 1 && (
             <CidadePaginator
-              cidades={hook.cidadesPlano}
+              slots={slotsPlano}
               cidadeIdx={cidadeIdx}
               diasPeriodo={diasPeriodo}
               decisoes={decisoes}
-              onDecisaoChange={updateDecisao}
+              alocadosOutrosSlots={alocadosOutrosSlots}
+              podeAdicionarSlot={podeAdicionarSlot}
+              onDecisaoChange={updateDecisaoSlot}
               onProxima={handleProxima}
               onPular={handlePular}
               onVoltar={handleVoltarCidade}
+              onAdicionarSlot={handleAdicionarSlot}
             />
           )}
 
           {step === 2 && (
             <div className="overflow-y-auto flex-1">
               <OverflowScreen
-                cidades={hook.cidadesPlano}
+                slots={slotsPlano}
                 decisoes={decisoes}
                 dataFimAtual={dataFim || dataInicio}
                 onAceitarSugestao={handleAceitarSugestao}
@@ -842,7 +996,7 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
               rota={rotaSelecionada}
               dataInicio={dataInicio}
               dataFim={dataFim || dataInicio}
-              cidades={hook.cidadesPlano}
+              slots={slotsPlano}
               decisoes={decisoes}
               loading={hook.loading}
               onVoltar={() => setStep(2)}
