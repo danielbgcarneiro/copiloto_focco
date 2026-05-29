@@ -424,6 +424,25 @@ const DashboardRotas: React.FC = () => {
     })
   }, [rotasFiltradas, sortRotas])
 
+  // Pré-computa listas de clientes filtradas para todas as cidades já carregadas.
+  // useMemo garante re-execução sempre que filtros ou dados de clientes mudam.
+  const clientesFiltradosPorCidade = useMemo(() => {
+    const resultado = new Map<string, ClienteRotaData[]>()
+    for (const [key, clientes] of clientesPorCidade.entries()) {
+      resultado.set(key, clientes.filter(c => {
+        if (filtroDiasSemVenda !== '' && c.dias_sem_venda < (filtroDiasSemVenda as number)) return false
+        if (filtroBoletosAberto !== 'todos') {
+          const min = filtroBoletosAberto as number
+          if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos !== min) return false
+        }
+        if (filtroSituacao === 'inadimplente' && c.situacao !== 'P') return false
+        if (filtroSituacao === 'adimplente' && c.situacao === 'P') return false
+        return true
+      }))
+    }
+    return resultado
+  }, [clientesPorCidade, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao])
+
   const handleSortRotas = (field: RotaSortField) => {
     setSortRotas(prev => ({
       field,
@@ -748,19 +767,6 @@ const DashboardRotas: React.FC = () => {
     if (filtroSituacao !== 'todos') n++
     return n
   }, [vendedoresSelecionadosRotas, vendedores.length, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao])
-
-  function getClientesFiltrados(clientes: ClienteRotaData[]): ClienteRotaData[] {
-    return clientes.filter(c => {
-      if (filtroDiasSemVenda !== '' && c.dias_sem_venda < (filtroDiasSemVenda as number)) return false
-      if (filtroBoletosAberto !== 'todos') {
-        const min = filtroBoletosAberto as number
-        if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos !== min) return false
-      }
-      if (filtroSituacao === 'inadimplente' && c.situacao !== 'P') return false
-      if (filtroSituacao === 'adimplente' && c.situacao === 'P') return false
-      return true
-    })
-  }
 
   function limparFiltros() {
     setVendedoresSelecionadosRotas([])
@@ -1089,9 +1095,7 @@ const DashboardRotas: React.FC = () => {
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                                                     <span className="ml-2 text-xs text-gray-500">Carregando clientes...</span>
                                                   </div>
-                                                ) : (() => {
-                                                  const clientesFiltrados = getClientesFiltrados(clientesPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || [])
-                                                  return clientesFiltrados.length > 0 ? (
+                                                ) : (clientesFiltradosPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || []).length > 0 ? (
                                                   <table className="w-full text-xs">
                                                     <thead>
                                                       <tr className="bg-sky-700 text-white">
@@ -1105,7 +1109,7 @@ const DashboardRotas: React.FC = () => {
                                                       </tr>
                                                     </thead>
                                                     <tbody>
-                                                      {clientesFiltrados.map((cliente, idx) => (
+                                                      {(clientesFiltradosPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || []).map((cliente, idx) => (
                                                         <tr key={cliente.codigo_cliente} className={`border-b border-sky-100 ${idx % 2 === 0 ? 'bg-sky-50' : 'bg-white'}`}>
                                                           <td className="px-4 py-1.5 text-gray-800 font-medium truncate max-w-[200px]">
                                                             <div className="flex items-center gap-1.5">
@@ -1148,12 +1152,11 @@ const DashboardRotas: React.FC = () => {
                                                       ))}
                                                     </tbody>
                                                   </table>
-                                                  ) : (
-                                                    <p className="text-center text-gray-500 text-xs py-3">
-                                                      {filtrosAtivos > 0 ? 'Nenhum cliente corresponde aos filtros' : 'Nenhum cliente encontrado'}
-                                                    </p>
-                                                  )
-                                                })()}
+                                                ) : (
+                                                  <p className="text-center text-gray-500 text-xs py-3">
+                                                    {filtrosAtivos > 0 ? 'Nenhum cliente corresponde aos filtros' : 'Nenhum cliente encontrado'}
+                                                  </p>
+                                                )}
                                               </div>
                                             </td>
                                           </tr>
