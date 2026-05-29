@@ -9,9 +9,10 @@ Bem-vindo ao Copiloto, desenvolvido por **Daniel Carneiro**.
 
 Esta é uma aplicação web moderna de página única (SPA) para gestão de vendedores. O sistema oferece dashboards e ferramentas para gestão de representantes, rotas de vendas, clientes, metas e performance financeira.
 
-O projeto inclui dois módulos principais:
+O projeto inclui três módulos principais:
 1.  **Módulo Representante**: Ferramentas operacionais para o dia a dia dos vendedores.
 2.  **Módulo Gestão Executiva**: Dashboards e relatórios analíticos para a diretoria, com visões consolidadas e análises avançadas de performance.
+3.  **Módulo Agenda**: Sistema completo de planejamento, execução e gestão de visitas comerciais em campo, com sugestões inteligentes baseadas em score RFM + DSV.
 
 O objetivo é centralizar dados, otimizar a rotina de vendas e fornecer insights estratégicos para a tomada de decisão.
 
@@ -122,7 +123,27 @@ src/
 │       ├── PagAnalytics.tsx     # Análise RFM com matriz visual
 │       ├── DashboardRotas.tsx   # Dashboard rotas executivo
 │       ├── TopClientes.tsx      # Top clientes executivo
-│       └── MetasPorCliente.tsx  # Metas por cliente executivo
+│       ├── MetasPorCliente.tsx  # Metas por cliente executivo
+│       ├── Agenda.tsx           # Agenda pessoal do vendedor (dia/semana/mês)
+│       ├── GestaoAgenda.tsx     # Dashboard KPIs agenda da equipe
+│       └── GestaoAgendaVendedor.tsx  # Drilldown de agenda por vendedor
+├── components/molecules/       # Componentes reutilizáveis do módulo Agenda
+│   ├── AgendaTotalizacaoCard.tsx    # Tabela de agendamentos + totais financeiros
+│   ├── AgendamentoCard.tsx          # Card com alertas visuais (DSV, atraso)
+│   ├── AgendarVisitaSheet.tsx       # Bottom sheet para agendar visita
+│   ├── SugestoesAgendaSheet.tsx     # Sugestões hierárquicas rota→cidade→cliente
+│   ├── RegistrarVisitaSheet.tsx     # Wizard de registro de resultado
+│   └── VendedorAgendaCard.tsx       # Card de KPI do vendedor (visão gestor)
+├── hooks/                       # Hooks customizados do módulo Agenda
+│   ├── useAgenda.ts             # Cache semanal/mensal + prefetch inteligente
+│   ├── useGestaoAgenda.ts       # KPIs de equipe e drilldown por vendedor
+│   ├── useSugestoesAgenda.ts    # Score RFM+DSV e hierarquia de sugestões
+│   ├── useVisitas.ts            # CRUD visitas e agendamentos
+│   └── useConfiguracoes.ts      # Parâmetros DB-driven (thresholds, pesos)
+├── utils/                       # Utilitários do módulo Agenda
+│   ├── agendaUtils.ts           # Cálculo de meta dinâmica, sugestão de data
+│   ├── alertasAgenda.ts         # Funções de alerta DSV, forecast, cobertura
+│   └── scoreCliente.ts          # Algoritmo de score de prioridade
 ├── contexts/     # Provedores de Contexto para estado global
 │   ├── AuthContext.tsx          # Contexto de autenticação
 │   └── VendedorDataContext.tsx  # Contexto de dados do vendedor
@@ -190,7 +211,54 @@ O coração da lógica de negócio reside no banco de dados PostgreSQL do Supaba
   - Para lógicas que não podem ser expressas em um simples `SELECT`, como a busca de detalhes agregados de um cliente, são usadas funções em `pl/pgsql` que podem ser chamadas pelo frontend como se fossem uma API.
   - **get_pedidos_por_vendedor(mes_filtro, ano_filtro)**: Retorna pedidos filtrados por período para o vendedor logado. Usada na página "Meus Pedidos".
 
-## 9. Diretrizes e Boas Práticas
+## 9. Módulo Agenda — Referência Rápida
+
+O módulo Agenda é o sistema de planejamento e execução de visitas comerciais. Documentação completa em `docs/architecture/modulo-agenda.md` e `docs/architecture/schema-agenda.md`.
+
+### 9.1 Rotas
+
+| Rota | Componente | Cargo |
+|------|-----------|-------|
+| `/agenda` | `Agenda.tsx` | Todos |
+| `/gestao/agenda` | `GestaoAgenda.tsx` | Gestor, Diretor |
+| `/gestao/agenda/vendedor/:id` | `GestaoAgendaVendedor.tsx` | Gestor, Diretor |
+
+### 9.2 Tabelas Exclusivas do Módulo
+
+| Tabela | Propósito | Registros |
+|--------|-----------|-----------|
+| `agendamentos` | Visitas planejadas | 128 |
+| `visitas` | Resultados de visitas realizadas | 222 |
+| `motivos_nao_venda` | Catálogo de motivos (não vendeu) | 10 |
+| `configuracoes_agenda` | Thresholds e pesos configuráveis | 6 |
+| `vendedor_rotas` | Mapeamento vendedor → rotas | 65 |
+| `rotas_estado` | Catálogo geográfico de cidades por rota | 5.570 |
+
+### 9.3 Padrões Específicos do Módulo
+
+- **Cache offline-first**: `useAgenda` usa localStorage com TTL de 30 min + prefetch de 3 semanas
+- **Configurações DB-driven**: Thresholds de alerta e pesos de score são lidos de `configuracoes_agenda`, não hardcoded
+- **Snapshots de auditoria**: `visitas` salva o perfil RFM e DSV no momento da visita para rastreabilidade histórica
+- **Meta dinâmica**: `calcularMetaSemana()` distribui o saldo do mês pelos dias úteis restantes, excluindo feriados
+
+### 9.4 Bugs Conhecidos (pendentes de fix)
+
+| ID | Severidade | Descrição |
+|----|-----------|-----------|
+| BUG-AG-001 | 🔴 Crítico | Índice duplicado em `agendamentos (vendedor_id, data_agendada)` |
+| BUG-AG-002 | 🔴 Crítico | FK circular entre `agendamentos.visita_id` ↔ `visitas.agendamento_id` |
+| BUG-AG-003 | 🔴 Crítico | Sem políticas DELETE no RLS de `agendamentos` e `visitas` |
+| BUG-AG-004 | 🔴 Crítico | Sem CHECK constraint em `agendamentos.status` e `visitas.resultado` |
+| BUG-AG-005 | 🟠 Alto | `useEffect` da meta do mês sem deps completas (não atualiza na virada do mês) |
+| BUG-AG-006 | 🟠 Alto | Error handling silencioso em `getAgendamentosDia` (sem feedback ao usuário) |
+| BUG-AG-007 | 🟠 Alto | Colunas analíticas em `visitas` não populadas (falta trigger ou ETL) |
+| PERF-AG-001 | 🟡 Médio | Missing index em `visitas(codigo_cliente, data_visita)` |
+
+> Script de correção completo em `docs/architecture/schema-agenda.md` — seção "Script de Correções Prioritárias".
+
+---
+
+## 10. Diretrizes e Boas Práticas
 
 - **Performance**: A performance do frontend é uma prioridade. Utilize `React.memo` em componentes que não devem re-renderizar desnecessariamente. Para cálculos computacionalmente caros ou para memoizar objetos/arrays, use `useMemo`. Para funções passadas como props, use `useCallback`.
 - **Cache e Paginação**: Para grandes volumes de dados (como na página PagAnalytics), implemente:
@@ -201,12 +269,16 @@ O coração da lógica de negócio reside no banco de dados PostgreSQL do Supaba
 - **Estilo de Código**: O projeto é configurado com ESLint para garantir um padrão de código consistente. Rode `npm run lint` para verificar seu código antes de commitar.
 - **Tipagem**: Seja explícito com os tipos. Defina interfaces e tipos no diretório `src/types/` ou localmente quando apropriado.
 
-## 10. Deploy
+## 11. Deploy
 O deploy é automatizado via **GitHub Actions**. Qualquer push na branch `main` irá acionar um workflow que executa o `build` do projeto e o envia para as plataformas configuradas (ex: Vercel, Netlify, GitHub Pages).
 
-## 11. Documentação Adicional
+## 12. Documentação Adicional
 
-Esta documentação fornece uma visão geral completa para começar. Para um mergulho profundo em detalhes de implementação, schema do banco, políticas de RLS e decisões arquitetônicas, consulte o arquivo [ARQUITETURA.md](ARQUITETURA.md).
+| Documento | Conteúdo |
+|-----------|---------|
+| [ARQUITETURA.md](ARQUITETURA.md) | Visão geral da arquitetura técnica e estrutura do projeto |
+| [docs/architecture/modulo-agenda.md](docs/architecture/modulo-agenda.md) | Arquitetura completa do módulo Agenda: componentes, hooks, fluxos de dados, RLS, bugs |
+| [docs/architecture/schema-agenda.md](docs/architecture/schema-agenda.md) | Schema detalhado do banco (Agenda): tabelas, colunas, índices, FKs, RLS policies, queries de referência |
 
 ---
 

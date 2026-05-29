@@ -49,7 +49,6 @@ export interface Agendamento {
   valor_previsto: number | null
   status: 'pendente' | 'realizado' | 'cancelado' | 'reagendado'
   observacoes: string | null
-  visita_id: string | null
   created_at: string
   updated_at: string
 }
@@ -133,11 +132,11 @@ export function useVisitas(codigoCliente: number) {
 
     if (error) throw new Error(error.message)
 
-    // Vincular agendamento à visita e marcar como realizado
+    // Marcar agendamento como realizado (a relação inversa já existe via visitas.agendamento_id)
     if (params.agendamentoId) {
       await supabase
         .from('agendamentos')
-        .update({ status: 'realizado', visita_id: data.id })
+        .update({ status: 'realizado' })
         .eq('id', params.agendamentoId)
     }
 

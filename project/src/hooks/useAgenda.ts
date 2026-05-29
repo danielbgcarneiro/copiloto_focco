@@ -347,7 +347,6 @@ export interface AgendamentoDiaDetalhado {
   meta_ano_atual: number | null
   visita_resultado: 'vendeu' | 'nao_vendeu' | 'ausente' | 'reagendou' | null
   visita_valor_realizado: number | null
-  visita_id: string | null
 }
 
 export interface ForecastSemana {
@@ -363,7 +362,7 @@ export async function getAgendamentosDia(
 ): Promise<AgendamentoDiaDetalhado[]> {
   const { data: agendamentos, error: agErr } = await supabase
     .from('agendamentos')
-    .select('id, codigo_cliente, data_agendada, status, valor_previsto, visita_id')
+    .select('id, codigo_cliente, data_agendada, status, valor_previsto')
     .eq('vendedor_id', vendedorId)
     .eq('data_agendada', data)
     .neq('status', 'cancelado')
@@ -372,7 +371,7 @@ export async function getAgendamentosDia(
   if (!agendamentos?.length) return []
 
   const codigosCliente = [...new Set(agendamentos.map((a) => a.codigo_cliente))]
-  const visitaIds = agendamentos.map((a) => a.visita_id).filter(Boolean) as string[]
+  const agendamentoIds = agendamentos.map((a) => a.id)
 
   const [clientesRes, rfmRes, visitasRes] = await Promise.all([
     supabase
@@ -384,12 +383,11 @@ export async function getAgendamentosDia(
       .select('codigo_cliente, perfil, dias_sem_comprar, previsao_pedido, meta_ano_atual')
       .in('codigo_cliente', codigosCliente)
       .order('data_analise', { ascending: false }),
-    visitaIds.length > 0
-      ? supabase
-          .from('visitas')
-          .select('id, resultado, valor_realizado')
-          .in('id', visitaIds)
-      : Promise.resolve({ data: [] }),
+    supabase
+      .from('visitas')
+      .select('agendamento_id, resultado, valor_realizado')
+      .in('agendamento_id', agendamentoIds)
+      .eq('ativo', true),
   ])
 
   const clienteMap = new Map<number, { razao_social: string; nome_fantasia: string | null; cidade: string | null }>()
@@ -414,14 +412,14 @@ export async function getAgendamentosDia(
   }
 
   const visitaMap = new Map<string, { resultado: string; valor_realizado: number | null }>()
-  for (const v of (visitasRes.data ?? []) as Array<{ id: string; resultado: string; valor_realizado: number | null }>) {
-    visitaMap.set(v.id, { resultado: v.resultado, valor_realizado: v.valor_realizado })
+  for (const v of (visitasRes.data ?? []) as Array<{ agendamento_id: string; resultado: string; valor_realizado: number | null }>) {
+    if (v.agendamento_id) visitaMap.set(v.agendamento_id, { resultado: v.resultado, valor_realizado: v.valor_realizado })
   }
 
   return agendamentos.map((ag) => {
     const client = clienteMap.get(ag.codigo_cliente)
     const rfm = rfmMap.get(ag.codigo_cliente)
-    const visita = ag.visita_id ? visitaMap.get(ag.visita_id) : null
+    const visita = visitaMap.get(ag.id) ?? null
 
     return {
       id: ag.id,
@@ -438,7 +436,6 @@ export async function getAgendamentosDia(
       meta_ano_atual: rfm?.meta_ano_atual ?? null,
       visita_resultado: (visita?.resultado ?? null) as AgendamentoDiaDetalhado['visita_resultado'],
       visita_valor_realizado: visita?.valor_realizado ?? null,
-      visita_id: ag.visita_id ?? null,
     }
   })
 }

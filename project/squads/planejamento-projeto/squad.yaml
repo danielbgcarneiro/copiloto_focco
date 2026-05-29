@@ -1,0 +1,43 @@
+name: planejamento-projeto
+version: 1.0.0
+description: Squad para planejamento de projetos
+author: danielbgcarneiro
+license: MIT
+slashPrefix: planejamento-projeto
+
+aios:
+  minVersion: "2.1.0"
+  type: squad
+
+components:
+  tasks:
+    - extract-data-task.md
+    - transform-data-task.md
+    - load-data-task.md
+  agents:
+    - etl-coordinator.md
+    - data-processor.md
+  workflows: []
+  checklists: []
+  templates: []
+  tools: []
+  scripts:
+    - extract-helper.js
+    - transform-helper.js
+    - load-helper.js
+
+config:
+  extends: extend
+  coding-standards: config/coding-standards.md
+  tech-stack: config/tech-stack.md
+  source-tree: config/source-tree.md
+
+dependencies:
+  node: []
+  python: []
+  squads: []
+
+tags:
+  - etl
+  - data-processing
+  - automation

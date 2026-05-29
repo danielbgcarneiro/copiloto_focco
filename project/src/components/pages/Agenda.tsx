@@ -119,6 +119,7 @@ export default function Agenda() {
   // View dia: dados detalhados
   const [agsDia, setAgsDia] = useState<AgendamentoDiaDetalhado[]>([])
   const [loadingDia, setLoadingDia] = useState(false)
+  const [errorDia, setErrorDia] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   // Sheet de registro de visita
@@ -178,6 +179,7 @@ export default function Agenda() {
   useEffect(() => {
     if (!vendedorId) return
     setLoadingDia(true)
+    setErrorDia(null)
     getAgendamentosDia(formatDate(selectedDate), vendedorId)
       .then((ags) => {
         const pending = ags.filter((a) => !a.visita_resultado)
@@ -186,21 +188,23 @@ export default function Agenda() {
           [...list].sort((a, b) => (b.dsv ?? 0) - (a.dsv ?? 0))
         setAgsDia([...byDsv(pending), ...byDsv(done)])
       })
-      .catch(() => setAgsDia([]))
+      .catch((err) => {
+        console.error('[Agenda] Erro ao buscar agendamentos do dia:', err)
+        setErrorDia('Não foi possível carregar os agendamentos. Verifique sua conexão.')
+      })
       .finally(() => setLoadingDia(false))
   }, [vendedorId, selectedDate, refreshKey])
 
-  // Meta e realizado do mês corrente
+  // Meta e realizado do mês visualizado
   useEffect(() => {
     if (!vendedorId) return
-    const now = new Date()
-    getForecastMes(now.getFullYear(), now.getMonth() + 1, vendedorId)
+    getForecastMes(viewMonth.year, viewMonth.month + 1, vendedorId)
       .then(({ metaMes: m, realizadoMes: r }) => {
         setMetaMes(m)
         setRealizadoMes(r)
       })
       .catch(() => {})
-  }, [vendedorId])
+  }, [vendedorId, viewMonth.year, viewMonth.month])
 
   // Swipe entre dias (AC3)
   const touchStartX = useRef<number | null>(null)
@@ -240,7 +244,6 @@ export default function Agenda() {
               ...ag,
               visita_resultado: visita.resultado,
               visita_valor_realizado: visita.valor_realizado,
-              visita_id: visita.id,
             }
           : ag
       )
@@ -441,11 +444,17 @@ export default function Agenda() {
               </div>
             )}
 
+            {errorDia && (
+              <div className="mx-4 mt-2 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {errorDia}
+              </div>
+            )}
+
             {loadingDia ? (
               <div className="flex items-center justify-center h-20">
                 <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
-            ) : agsDia.length === 0 ? (
+            ) : !errorDia && agsDia.length === 0 ? (
               <div className="py-10 flex flex-col items-center gap-2 text-center px-4">
                 <CalendarDays className="w-10 h-10 text-gray-200" />
                 <p className="text-sm text-gray-400">Nenhuma visita agendada para este dia</p>
