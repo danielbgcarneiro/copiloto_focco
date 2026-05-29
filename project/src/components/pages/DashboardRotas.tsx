@@ -683,8 +683,9 @@ const DashboardRotas: React.FC = () => {
 
 
   const carregarClientesSemRota = async () => {
-    if (semRotaCarregado) return
     if (rotasData.length === 0) return
+    setSemRotaCarregado(false)
+    setClientesSemRota([])
     setLoadingClientesSemRota(true)
     try {
       const codVendedoresFiltrados = vendedoresSelecionadosRotas.length > 0
