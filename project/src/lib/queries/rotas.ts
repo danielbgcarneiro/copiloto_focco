@@ -107,7 +107,8 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
           dias_sem_comprar
         )
       `)
-      .eq('cod_vendedor', profile.cod_vendedor);
+      .eq('cod_vendedor', profile.cod_vendedor)
+      .not('situacao', 'in', '("I","B")');
 
     if (clientesError) {
       console.error('❌ Erro ao buscar clientes:', clientesError);

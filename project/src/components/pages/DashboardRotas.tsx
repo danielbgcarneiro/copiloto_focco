@@ -535,7 +535,7 @@ const DashboardRotas: React.FC = () => {
         .from('tabela_clientes')
         .select('codigo_cliente, nome_fantasia, cidade, estado, situacao, cod_vendedor, codigo_ibge_cidade')
         .in('cod_vendedor', codVendedoresFiltrados)
-        .not('situacao', 'in', '("I","C")')
+        .not('situacao', 'in', '("I","B")')
         .not('codigo_ibge_cidade', 'is', null)
 
       if (error) throw error

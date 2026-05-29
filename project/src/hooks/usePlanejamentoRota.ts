@@ -157,7 +157,7 @@ export function usePlanejamentoRota(vendedorId: string | undefined) {
         `)
         .eq('cod_vendedor', profile.cod_vendedor)
         .in('codigo_ibge_cidade', ibgeCodes)
-        .not('situacao', 'in', '("I","C")')
+        .not('situacao', 'in', '("I","B")')
 
       if (clientesErr) throw clientesErr
 

@@ -173,7 +173,8 @@ export async function getRankingRotas(): Promise<RankingRota[]> {
           meta_ano_atual
         )
       `)
-      .eq('cod_vendedor', profile.cod_vendedor);
+      .eq('cod_vendedor', profile.cod_vendedor)
+      .not('situacao', 'in', '("I","B")');
 
     if (clientesError) {
       console.error('❌ Erro ao buscar clientes:', clientesError);
@@ -339,7 +340,8 @@ export async function getTabelaPerfil(perfil: 'ouro' | 'prata' | 'bronze'): Prom
     const { data: clientesInfo, error: clientesInfoError } = await supabase
       .from('tabela_clientes')
       .select('codigo_cliente, nome_fantasia, cidade')
-      .eq('cod_vendedor', codigoVendedor);
+      .eq('cod_vendedor', codigoVendedor)
+      .not('situacao', 'in', '("I","B")');
 
     if (clientesInfoError) {
       console.error(`❌ Erro ao buscar tabela_clientes:`, {
@@ -529,7 +531,7 @@ export async function getTabelasPerfilParaGestao(): Promise<TabelaPerfil[]> {
     // 2) Buscar todos os clientes com paginação
     console.log('📋 Buscando tabela_clientes com paginação...');
     const clientesInfo = await fetchAll(
-      supabase.from('tabela_clientes').select('codigo_cliente, nome_fantasia, cidade, cod_vendedor')
+      supabase.from('tabela_clientes').select('codigo_cliente, nome_fantasia, cidade, cod_vendedor').not('situacao', 'in', '("I","B")')
     );
     console.log(`✅ ${clientesInfo.length} registros de clientes encontrados.`);
 
