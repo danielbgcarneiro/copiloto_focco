@@ -117,6 +117,7 @@ const DashboardRotas: React.FC = () => {
   const [dropdownRotasAberto, setDropdownRotasAberto] = useState(false)
   const [filtrosPainelAberto, setFiltrosPainelAberto] = useState(false)
   const [filtroDiasSemVenda, setFiltroDiasSemVenda] = useState<number | ''>('')
+  const [filtroMaxDiasSemVenda, setFiltroMaxDiasSemVenda] = useState<number | ''>('')
   const [filtroBoletosAberto, setFiltroBoletosAberto] = useState<FiltroBoletos>('todos')
   const [filtroSituacao, setFiltroSituacao] = useState<FiltroSituacao>('todos')
 
@@ -386,7 +387,7 @@ const DashboardRotas: React.FC = () => {
       : rotasData.filter(r => vendedoresSelecionadosRotas.includes(r.vendedor_uuid))
 
     // 2. Se não há filtros de cliente, retorna como está
-    const temFiltroCliente = filtroDiasSemVenda !== '' || filtroBoletosAberto !== 'todos' || filtroSituacao !== 'todos'
+    const temFiltroCliente = filtroDiasSemVenda !== '' || filtroMaxDiasSemVenda !== '' || filtroBoletosAberto !== 'todos' || filtroSituacao !== 'todos'
     if (!temFiltroCliente || clientesPorRota.size === 0) return porVendedor
 
     // 3. Re-agregar métricas por rota com base nos clientes filtrados
@@ -396,6 +397,7 @@ const DashboardRotas: React.FC = () => {
       const clientes = clientesPorRota.get(key) || []
       const filtrados = clientes.filter(c => {
         if (filtroDiasSemVenda !== '' && c.dias_sem_comprar < (filtroDiasSemVenda as number)) return false
+        if (filtroMaxDiasSemVenda !== '' && c.dias_sem_comprar > (filtroMaxDiasSemVenda as number)) return false
         if (filtroBoletosAberto !== 'todos') {
           const min = filtroBoletosAberto as number
           if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos > min) return false
@@ -420,7 +422,7 @@ const DashboardRotas: React.FC = () => {
       })
     }
     return resultado
-  }, [rotasData, vendedoresSelecionadosRotas, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao, clientesPorRota])
+  }, [rotasData, vendedoresSelecionadosRotas, filtroDiasSemVenda, filtroMaxDiasSemVenda, filtroBoletosAberto, filtroSituacao, clientesPorRota])
 
   const rotasOrdenadas = useMemo(() => {
     return [...rotasFiltradas].sort((a, b) => {
@@ -446,6 +448,7 @@ const DashboardRotas: React.FC = () => {
     for (const [key, clientes] of clientesPorCidade.entries()) {
       resultado.set(key, clientes.filter(c => {
         if (filtroDiasSemVenda !== '' && c.dias_sem_venda < (filtroDiasSemVenda as number)) return false
+        if (filtroMaxDiasSemVenda !== '' && c.dias_sem_venda > (filtroMaxDiasSemVenda as number)) return false
         if (filtroBoletosAberto !== 'todos') {
           const min = filtroBoletosAberto as number
           if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos > min) return false
@@ -456,16 +459,17 @@ const DashboardRotas: React.FC = () => {
       }))
     }
     return resultado
-  }, [clientesPorCidade, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao])
+  }, [clientesPorCidade, filtroDiasSemVenda, filtroMaxDiasSemVenda, filtroBoletosAberto, filtroSituacao])
 
   // Métricas por cidade re-agregadas com base nos clientes filtrados
   const cidadesMetricasFiltradas = useMemo(() => {
-    const temFiltroCliente = filtroDiasSemVenda !== '' || filtroBoletosAberto !== 'todos' || filtroSituacao !== 'todos'
+    const temFiltroCliente = filtroDiasSemVenda !== '' || filtroMaxDiasSemVenda !== '' || filtroBoletosAberto !== 'todos' || filtroSituacao !== 'todos'
     if (!temFiltroCliente || clientesPorCidadeBase.size === 0) return new Map<string, { meta: number; vendas: number; oportunidades: number; qtdClientes: number }>()
     const result = new Map<string, { meta: number; vendas: number; oportunidades: number; qtdClientes: number }>()
     for (const [ibge, clientes] of clientesPorCidadeBase.entries()) {
       const filtrados = clientes.filter(c => {
         if (filtroDiasSemVenda !== '' && c.dias_sem_comprar < (filtroDiasSemVenda as number)) return false
+        if (filtroMaxDiasSemVenda !== '' && c.dias_sem_comprar > (filtroMaxDiasSemVenda as number)) return false
         if (filtroBoletosAberto !== 'todos') {
           const min = filtroBoletosAberto as number
           if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos > min) return false
@@ -482,7 +486,7 @@ const DashboardRotas: React.FC = () => {
       })
     }
     return result
-  }, [clientesPorCidadeBase, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao])
+  }, [clientesPorCidadeBase, filtroDiasSemVenda, filtroMaxDiasSemVenda, filtroBoletosAberto, filtroSituacao])
 
   const handleSortRotas = (field: RotaSortField) => {
     setSortRotas(prev => ({
@@ -803,15 +807,16 @@ const DashboardRotas: React.FC = () => {
   const filtrosAtivos = useMemo(() => {
     let n = 0
     if (vendedoresSelecionadosRotas.length > 0 && vendedoresSelecionadosRotas.length < vendedores.length) n++
-    if (filtroDiasSemVenda !== '') n++
+    if (filtroDiasSemVenda !== '' || filtroMaxDiasSemVenda !== '') n++
     if (filtroBoletosAberto !== 'todos') n++
     if (filtroSituacao !== 'todos') n++
     return n
-  }, [vendedoresSelecionadosRotas, vendedores.length, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao])
+  }, [vendedoresSelecionadosRotas, vendedores.length, filtroDiasSemVenda, filtroMaxDiasSemVenda, filtroBoletosAberto, filtroSituacao])
 
   function limparFiltros() {
     setVendedoresSelecionadosRotas([])
     setFiltroDiasSemVenda('')
+    setFiltroMaxDiasSemVenda('')
     setFiltroBoletosAberto('todos')
     setFiltroSituacao('todos')
   }
@@ -865,7 +870,7 @@ const DashboardRotas: React.FC = () => {
 
           {/* Painel de filtros */}
           {filtrosPainelAberto && (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Vendedor */}
               <div className="relative" ref={dropdownRotasRef}>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">Vendedor</label>
@@ -905,9 +910,9 @@ const DashboardRotas: React.FC = () => {
                 )}
               </div>
 
-              {/* Dias Sem Venda */}
+              {/* Dias Sem Venda — mínimo */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Dias sem venda (mín.)</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">DSV mínimo</label>
                 <input
                   type="number"
                   min={0}
@@ -917,7 +922,23 @@ const DashboardRotas: React.FC = () => {
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 {filtroDiasSemVenda !== '' && (
-                  <p className="text-[10px] text-gray-400 mt-1">Clientes com ≥ {filtroDiasSemVenda} dias sem comprar</p>
+                  <p className="text-[10px] text-gray-400 mt-1">≥ {filtroDiasSemVenda} dias</p>
+                )}
+              </div>
+
+              {/* Dias Sem Venda — máximo */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">DSV máximo</label>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Ex: 720"
+                  value={filtroMaxDiasSemVenda}
+                  onChange={e => setFiltroMaxDiasSemVenda(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                {filtroMaxDiasSemVenda !== '' && (
+                  <p className="text-[10px] text-gray-400 mt-1">≤ {filtroMaxDiasSemVenda} dias</p>
                 )}
               </div>
 
