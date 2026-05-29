@@ -182,7 +182,7 @@ function CidadePaginator({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Progress */}
       <div className="flex items-center gap-1 px-4 py-2">
         <button onClick={onVoltar} className="p-1 mr-1">
@@ -490,7 +490,7 @@ function ConfirmScreen({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <p className="text-xs text-gray-500 mb-1">{rota}</p>
         <p className="text-sm font-semibold text-gray-700 mb-4">
@@ -770,7 +770,7 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
       <div
-        className="w-full max-w-lg bg-white rounded-t-2xl shadow-xl flex flex-col"
+        className="w-full max-w-lg bg-white rounded-t-2xl shadow-xl flex flex-col overflow-hidden"
         style={{ maxHeight: '90vh', animation: 'slideUp 0.25s ease-out' }}
       >
         {/* Header */}
@@ -792,7 +792,7 @@ export function PlanejarRotaSheet({ isOpen, vendedorId, onClose, onSuccess }: Pl
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           {step === 0 && (
             <div className="overflow-y-auto flex-1">
               <RotaSelector
