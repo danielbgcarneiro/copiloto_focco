@@ -185,9 +185,8 @@ async function fetchKpisDetalhados(
       .eq('marca', 'OB_PW'),
     supabase
       .from('tabela_clientes')
-      .select('codigo_cliente, nome_fantasia, razao_social, cidade')
-      .eq('cod_vendedor', codVendedor)
-      .not('situacao', 'in', '("I","B")'),
+      .select('codigo_cliente, nome_fantasia, razao_social, cidade, situacao')
+      .eq('cod_vendedor', codVendedor),
     supabase
       .from('motivos_nao_venda')
       .select('id, descricao, codigo_canonico')
@@ -213,7 +212,9 @@ async function fetchKpisDetalhados(
   }[]
   const agendamentos = (agendamentosData ?? []) as { id: string; codigo_cliente: number; valor_previsto: number | null; data_agendada: string }[]
   const metaMensal = (metasData ?? [])[0]?.meta_valor ?? 0
-  const clientes = (clientesData ?? []) as { codigo_cliente: number; nome_fantasia: string | null; razao_social: string | null; cidade: string | null }[]
+  const clientes = (clientesData ?? []) as { codigo_cliente: number; nome_fantasia: string | null; razao_social: string | null; cidade: string | null; situacao: string | null }[]
+  // Apenas clientes ativos para métricas de carteira (cobertura, dias sem comprar, não visitados)
+  const clientesAtivos = clientes.filter(c => c.situacao !== 'I' && c.situacao !== 'B')
   const motivos = (motivosData ?? []) as { id: number; descricao: string; codigo_canonico: string }[]
   const realizadoMes = (vendasMesData as { total_vendas: number } | null)?.total_vendas ?? 0
 
@@ -221,10 +222,10 @@ async function fetchKpisDetalhados(
     ? calcularMetaSemana(metaMensal, realizadoMes, hoje)
     : periodo === 'mes' ? metaMensal : metaMensal * 3
 
-  // 3. Analise RFM para a carteira
+  // 3. Analise RFM para a carteira (apenas clientes ativos)
   const rfmMap = new Map<number, { diasSemComprar: number; perfil: string; previsaoPedido: number; metaAnoAtual: number }>()
-  if (clientes.length > 0) {
-    const clienteCodes = clientes.map((c) => c.codigo_cliente)
+  if (clientesAtivos.length > 0) {
+    const clienteCodes = clientesAtivos.map((c) => c.codigo_cliente)
     const { data: rfmData } = await supabase
       .from('analise_rfm')
       .select('codigo_cliente, dias_sem_comprar, perfil, previsao_pedido, meta_ano_atual')
@@ -316,24 +317,25 @@ async function fetchKpisDetalhados(
   const pctComObservacao = totalVisitas > 0 ? (comObservacao / totalVisitas) * 100 : 0
 
   let clientes30d = 0, clientes60d = 0, clientes90d = 0
-  for (const c of clientes) {
+  for (const c of clientesAtivos) {
     const dsv = rfmMap.get(c.codigo_cliente)?.diasSemComprar ?? 0
     if (dsv > 30) clientes30d++
     if (dsv > 60) clientes60d++
     if (dsv > 90) clientes90d++
   }
 
-  // AC6 — Cobertura de carteira
+  // AC6 — Cobertura de carteira (apenas clientes ativos)
   const visitadosSet = new Set(visitas.map((v) => v.codigo_cliente))
-  const clientesVisitados = clientes.filter((c) => visitadosSet.has(c.codigo_cliente)).length
-  const pctCobertura = clientes.length > 0 ? (clientesVisitados / clientes.length) * 100 : 0
+  const clientesVisitados = clientesAtivos.filter((c) => visitadosSet.has(c.codigo_cliente)).length
+  const pctCobertura = clientesAtivos.length > 0 ? (clientesVisitados / clientesAtivos.length) * 100 : 0
 
+  // Mapa de nomes usando TODOS os clientes (inclusive I/B) para resolver nomes em visitas históricas
   const clienteNomeMap = new Map<number, string>()
   for (const c of clientes) {
     clienteNomeMap.set(c.codigo_cliente, c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`)
   }
 
-  const clientesNaoVisitados: ClienteNaoVisitado[] = clientes
+  const clientesNaoVisitados: ClienteNaoVisitado[] = clientesAtivos
     .filter((c) => !visitadosSet.has(c.codigo_cliente))
     .map((c) => ({
       codigoCliente: c.codigo_cliente,
@@ -375,7 +377,7 @@ async function fetchKpisDetalhados(
     clientes30d,
     clientes60d,
     clientes90d,
-    totalClientesCarteira: clientes.length,
+    totalClientesCarteira: clientesAtivos.length,
     clientesVisitados,
     pctCobertura,
     clientesNaoVisitados,
