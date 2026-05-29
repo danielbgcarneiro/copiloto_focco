@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, Clock, TriangleAlert } from 'lucide-react'
+import { ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, Clock, TriangleAlert, SlidersHorizontal, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { Card, LoadingSpinner } from '../atoms'
@@ -42,7 +42,12 @@ interface ClienteRotaData {
   dias_sem_venda: number
   dias_atraso: number
   perfil: string | null
+  situacao: string
+  qtd_boletos: number
 }
+
+type FiltroBoletos = 'todos' | 0 | 1 | 2 | 3 | 4 | 5 | 6
+type FiltroSituacao = 'todos' | 'adimplente' | 'inadimplente'
 
 interface ClienteSemRota {
   codigo_cliente: number
@@ -101,6 +106,10 @@ const DashboardRotas: React.FC = () => {
 
   const [vendedoresSelecionadosRotas, setVendedoresSelecionadosRotas] = useState<string[]>([])
   const [dropdownRotasAberto, setDropdownRotasAberto] = useState(false)
+  const [filtrosPainelAberto, setFiltrosPainelAberto] = useState(false)
+  const [filtroDiasSemVenda, setFiltroDiasSemVenda] = useState<number | ''>('')
+  const [filtroBoletosAberto, setFiltroBoletosAberto] = useState<FiltroBoletos>('todos')
+  const [filtroSituacao, setFiltroSituacao] = useState<FiltroSituacao>('todos')
 
   const dropdownRotasRef = useRef<HTMLDivElement>(null)
 
@@ -412,6 +421,7 @@ const DashboardRotas: React.FC = () => {
         .select(`
           codigo_cliente,
           nome_fantasia,
+          situacao,
           analise_rfm (
             previsao_pedido,
             meta_ano_atual,
@@ -429,7 +439,8 @@ const DashboardRotas: React.FC = () => {
       // 2. Buscar inadimplência em batch para os clientes da cidade
       const codigosClientes = (clientesData || []).map(c => c.codigo_cliente)
       const inadimplenciaMap = new Map<number, number>()
-      
+      const boletosMap = new Map<number, number>()
+
       if (codigosClientes.length > 0) {
         try {
           const { data: inadData } = await supabase
@@ -437,11 +448,14 @@ const DashboardRotas: React.FC = () => {
             .select('codigo_cliente, dias_atraso')
             .in('codigo_cliente', codigosClientes)
             .gt('dias_atraso', 0)
-          
+
           if (inadData) {
             inadData.forEach((r: any) => {
+              // Max dias_atraso
               const atual = inadimplenciaMap.get(r.codigo_cliente) ?? 0
               if (r.dias_atraso > atual) inadimplenciaMap.set(r.codigo_cliente, r.dias_atraso)
+              // Contagem de boletos em aberto
+              boletosMap.set(r.codigo_cliente, (boletosMap.get(r.codigo_cliente) ?? 0) + 1)
             })
           }
         } catch (err) {
@@ -463,6 +477,8 @@ const DashboardRotas: React.FC = () => {
           dias_sem_venda: rfm?.dias_sem_comprar || 0,
           dias_atraso: inadimplenciaMap.get(c.codigo_cliente) || 0,
           perfil: rfm?.perfil ?? null,
+          situacao: c.situacao || 'A',
+          qtd_boletos: boletosMap.get(c.codigo_cliente) ?? 0,
         }
       }).sort((a, b) => b.oportunidade - a.oportunidade)
 
@@ -626,6 +642,35 @@ const DashboardRotas: React.FC = () => {
     }
   }, [user, navigate])
 
+  const filtrosAtivos = useMemo(() => {
+    let n = 0
+    if (vendedoresSelecionadosRotas.length > 0 && vendedoresSelecionadosRotas.length < vendedores.length) n++
+    if (filtroDiasSemVenda !== '') n++
+    if (filtroBoletosAberto !== 'todos') n++
+    if (filtroSituacao !== 'todos') n++
+    return n
+  }, [vendedoresSelecionadosRotas, vendedores.length, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao])
+
+  function getClientesFiltrados(clientes: ClienteRotaData[]): ClienteRotaData[] {
+    return clientes.filter(c => {
+      if (filtroDiasSemVenda !== '' && c.dias_sem_venda < (filtroDiasSemVenda as number)) return false
+      if (filtroBoletosAberto !== 'todos') {
+        const min = filtroBoletosAberto as number
+        if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos !== min) return false
+      }
+      if (filtroSituacao === 'inadimplente' && c.situacao !== 'P') return false
+      if (filtroSituacao === 'adimplente' && c.situacao === 'P') return false
+      return true
+    })
+  }
+
+  function limparFiltros() {
+    setVendedoresSelecionadosRotas([])
+    setFiltroDiasSemVenda('')
+    setFiltroBoletosAberto('todos')
+    setFiltroSituacao('todos')
+  }
+
   if (loading) {
     return <LoadingSpinner size="md" fullPage />
   }
@@ -646,52 +691,125 @@ const DashboardRotas: React.FC = () => {
 
         {/* Top Rotas */}
         <Card variant="default" padding="none" className="p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Ranking de Rotas</h3>
-            
-            {/* Filtro Vendedores */}
-            <div className="relative" ref={dropdownRotasRef}>
-              <button
-                onClick={() => setDropdownRotasAberto(!dropdownRotasAberto)}
-                className="flex items-center justify-between w-full sm:w-64 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
-              >
-                <span className="text-gray-700">
-                  {vendedoresSelecionadosRotas.length === 0 
-                    ? 'Todos os vendedores'
-                    : vendedoresSelecionadosRotas.length === vendedores.length
-                    ? 'Todos selecionados'
-                    : `${vendedoresSelecionadosRotas.length} selecionados`
-                  }
-                </span>
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              </button>
-              
-              {dropdownRotasAberto && (
-                <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
-                  <div className="p-2">
-                    <button
-                      onClick={selecionarTodosRotas}
-                      className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded"
-                    >
-                      {vendedoresSelecionadosRotas.length === vendedores.length ? 'Desmarcar todos' : 'Selecionar todos'}
-                    </button>
-                    <div className="border-t border-gray-200 my-2"></div>
-                    {vendedores.map(vendedor => (
-                      <label key={vendedor.uuid} className="flex items-center px-3 py-2 text-sm hover:bg-gray-50 rounded cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={vendedoresSelecionadosRotas.includes(vendedor.uuid)}
-                          onChange={() => handleVendedorChangeRotas(vendedor.uuid)}
-                          className="mr-2 text-primary focus:ring-primary"
-                        />
-                        {vendedor.nome}
-                      </label>
-                    ))}
-                  </div>
-                </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3 sm:mb-0">Ranking de Rotas</h3>
+            <div className="flex items-center gap-2">
+              {filtrosAtivos > 0 && (
+                <button onClick={limparFiltros} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                  <X className="h-3 w-3" /> Limpar
+                </button>
               )}
+              <button
+                onClick={() => setFiltrosPainelAberto(v => !v)}
+                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                  filtrosPainelAberto || filtrosAtivos > 0
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                }`}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span>Filtros</span>
+                {filtrosAtivos > 0 && (
+                  <span className="bg-white text-primary text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {filtrosAtivos}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
+
+          {/* Painel de filtros */}
+          {filtrosPainelAberto && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Vendedor */}
+              <div className="relative" ref={dropdownRotasRef}>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Vendedor</label>
+                <button
+                  onClick={() => setDropdownRotasAberto(!dropdownRotasAberto)}
+                  className="flex items-center justify-between w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <span className="text-gray-700 truncate">
+                    {vendedoresSelecionadosRotas.length === 0
+                      ? 'Todos'
+                      : vendedoresSelecionadosRotas.length === vendedores.length
+                      ? 'Todos'
+                      : `${vendedoresSelecionadosRotas.length} selecionados`}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                </button>
+                {dropdownRotasAberto && (
+                  <div className="absolute left-0 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-20">
+                    <div className="p-2">
+                      <button onClick={selecionarTodosRotas} className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded">
+                        {vendedoresSelecionadosRotas.length === vendedores.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                      </button>
+                      <div className="border-t border-gray-200 my-1" />
+                      {vendedores.map(vendedor => (
+                        <label key={vendedor.uuid} className="flex items-center px-3 py-2 text-sm hover:bg-gray-50 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={vendedoresSelecionadosRotas.includes(vendedor.uuid)}
+                            onChange={() => handleVendedorChangeRotas(vendedor.uuid)}
+                            className="mr-2 text-primary focus:ring-primary"
+                          />
+                          {vendedor.nome}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Dias Sem Venda */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Dias sem venda (mín.)</label>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Ex: 90"
+                  value={filtroDiasSemVenda}
+                  onChange={e => setFiltroDiasSemVenda(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                {filtroDiasSemVenda !== '' && (
+                  <p className="text-[10px] text-gray-400 mt-1">Clientes com ≥ {filtroDiasSemVenda} dias sem comprar</p>
+                )}
+              </div>
+
+              {/* Boletos em Aberto */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Boletos em aberto</label>
+                <select
+                  value={filtroBoletosAberto}
+                  onChange={e => setFiltroBoletosAberto(e.target.value === 'todos' ? 'todos' : Number(e.target.value) as FiltroBoletos)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="todos">Todos</option>
+                  <option value={0}>0 (sem boleto)</option>
+                  <option value={1}>1 boleto</option>
+                  <option value={2}>2 boletos</option>
+                  <option value={3}>3 boletos</option>
+                  <option value={4}>4 boletos</option>
+                  <option value={5}>5 boletos</option>
+                  <option value={6}>6+ boletos</option>
+                </select>
+              </div>
+
+              {/* Situação */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Situação</label>
+                <select
+                  value={filtroSituacao}
+                  onChange={e => setFiltroSituacao(e.target.value as FiltroSituacao)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="adimplente">Adimplente</option>
+                  <option value="inadimplente">Inadimplente (P)</option>
+                </select>
+              </div>
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-full">
@@ -873,12 +991,15 @@ const DashboardRotas: React.FC = () => {
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                                                     <span className="ml-2 text-xs text-gray-500">Carregando clientes...</span>
                                                   </div>
-                                                ) : (clientesPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || []).length > 0 ? (
+                                                ) : (() => {
+                                                  const clientesFiltrados = getClientesFiltrados(clientesPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || [])
+                                                  return clientesFiltrados.length > 0 ? (
                                                   <table className="w-full text-xs">
                                                     <thead>
                                                       <tr className="bg-sky-700 text-white">
                                                         <th className="text-left px-4 py-1.5 font-semibold">Cliente</th>
                                                         <th className="text-left px-4 py-1.5 font-semibold">DSV</th>
+                                                        <th className="text-right px-4 py-1.5 font-semibold">Boletos</th>
                                                         <th className="text-right px-4 py-1.5 font-semibold">Meta</th>
                                                         <th className="text-right px-4 py-1.5 font-semibold text-orange-300">Oportunidade</th>
                                                         <th className="text-right px-4 py-1.5 font-semibold">Vendas</th>
@@ -886,10 +1007,13 @@ const DashboardRotas: React.FC = () => {
                                                       </tr>
                                                     </thead>
                                                     <tbody>
-                                                      {(clientesPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || []).map((cliente, idx) => (
+                                                      {clientesFiltrados.map((cliente, idx) => (
                                                         <tr key={cliente.codigo_cliente} className={`border-b border-sky-100 ${idx % 2 === 0 ? 'bg-sky-50' : 'bg-white'}`}>
                                                           <td className="px-4 py-1.5 text-gray-800 font-medium truncate max-w-[200px]">
                                                             <div className="flex items-center gap-1.5">
+                                                              {cliente.situacao === 'P' && (
+                                                                <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-red-100 text-red-600 flex-shrink-0">Inad.</span>
+                                                              )}
                                                               {cliente.dias_atraso > 0 && (
                                                                 <TriangleAlert className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
                                                               )}
@@ -902,6 +1026,13 @@ const DashboardRotas: React.FC = () => {
                                                               <Clock className="w-3 h-3 text-gray-400" />
                                                               <span className="font-bold text-[10px] sm:text-[11px]">DSV-{cliente.dias_sem_venda}</span>
                                                             </div>
+                                                          </td>
+                                                          <td className="text-right px-4 py-1.5">
+                                                            {cliente.qtd_boletos > 0 ? (
+                                                              <span className="font-bold text-red-500">{cliente.qtd_boletos}</span>
+                                                            ) : (
+                                                              <span className="text-gray-300">—</span>
+                                                            )}
                                                           </td>
                                                           <td className="text-right px-4 py-1.5 text-gray-600">{formatCurrency(cliente.meta, true)}</td>
                                                           <td className="text-right px-4 py-1.5 font-semibold text-orange-600">{formatCurrency(cliente.oportunidade, true)}</td>
@@ -919,9 +1050,12 @@ const DashboardRotas: React.FC = () => {
                                                       ))}
                                                     </tbody>
                                                   </table>
-                                                ) : (
-                                                  <p className="text-center text-gray-500 text-xs py-3">Nenhum cliente encontrado</p>
-                                                )}
+                                                  ) : (
+                                                    <p className="text-center text-gray-500 text-xs py-3">
+                                                      {filtrosAtivos > 0 ? 'Nenhum cliente corresponde aos filtros' : 'Nenhum cliente encontrado'}
+                                                    </p>
+                                                  )
+                                                })()}
                                               </div>
                                             </td>
                                           </tr>
