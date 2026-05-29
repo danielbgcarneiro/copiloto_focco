@@ -1,7 +1,7 @@
 # Story FEAT-AG-010 — Frontend: Fluxo de Planejamento de Rota em Lote (H7+H6)
 
 ## Status
-Draft
+Done
 
 ## Executor Assignment
 ```
@@ -409,10 +409,19 @@ import { diasUteisRestantesMes } from '../utils/agendaUtils'
 *(Preenchido por @dev durante implementação)*
 
 ### Agent Model Used
-*—*
+claude-sonnet-4-6 (@dev / Dex)
 
 ### Completion Notes List
-*—*
+- Hook `usePlanejamentoRota.ts` criado com todas as funções especificadas
+- `PlanejarRotaSheet.tsx` criado com 4 steps (RotaSelector, CidadePaginator, OverflowScreen, ConfirmScreen)
+- FAB da Agenda expandido para 2 opções: "Agendar Cliente" e "Planejar Rota"
+- `SemanaGrid` atualizado com prop `planosAtivos` opcional — sem breaking change
+- `buscarPlanosAtivos` chamado após cada confirmação de plano para sincronizar indicadores
+- `Promise.allSettled` no batch de agendamentos — tolerante a falhas parciais
+- `npx tsc --noEmit` ✅ zero erros | lint nos arquivos modificados ✅ zero erros
 
 ### File List
-*—*
+- `src/hooks/usePlanejamentoRota.ts` (criado)
+- `src/components/molecules/PlanejarRotaSheet.tsx` (criado)
+- `src/components/pages/Agenda.tsx` (modificado — FAB + PlanejarRotaSheet + planosAtivos)
+- `src/components/molecules/SemanaGrid.tsx` (modificado — prop planosAtivos opcional)

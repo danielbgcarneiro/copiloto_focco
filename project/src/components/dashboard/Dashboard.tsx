@@ -7,12 +7,13 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Target, Map as MapIcon, Building, AlertTriangle, ClipboardList, Search } from 'lucide-react'
+import { TrendingUp, Target, Map as MapIcon, Building, AlertTriangle, ClipboardList, Search, X as XIcon } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getDashboardCompleto, type DashboardData, getPercentualMetaAnual, getMetaCorePecasMes } from '../../lib/queries/dashboard'
 import { getVendedorRanking, type VendedorRanking, getOticasSemVendas180d } from '../../lib/queries/vendedores'
 import TabelaPerfil from './TabelaPerfil'
 import { Card } from '../atoms'
+import { supabase } from '../../lib/supabase'
 import { formatCurrency } from '../../utils'
 import { useSetPage } from '../../contexts'
 
@@ -31,7 +32,45 @@ const Dashboard: React.FC = () => {
   const [filtroCidade, setFiltroCidade] = useState('');
   const [objAnualData, setObjAnualData] = useState<{ total_vendas_ano?: number; total_metas_ano?: number; percentual_anual?: number; clientes_atendidos_ano: number; } | null>(null);
   const [metaCorePecas, setMetaCorePecas] = useState<number>(0)
-  
+
+  // Popup lembrete do dia
+  interface AgendamentoLembrete {
+    id: string
+    codigo_cliente: number
+    nome_fantasia: string
+    valor_previsto: number | null
+  }
+  const [lembreteOpen, setLembreteOpen] = useState(false)
+  const [agendamentosHoje, setAgendamentosHoje] = useState<AgendamentoLembrete[]>([])
+
+  useEffect(() => {
+    if (!user?.id) return
+    const hoje = new Date().toISOString().split('T')[0]
+    const fetchLembrete = async () => {
+      try {
+        const { data } = await supabase
+          .from('agendamentos')
+          .select('id, codigo_cliente, valor_previsto, tabela_clientes!agendamentos_codigo_cliente_fkey(nome_fantasia)')
+          .eq('vendedor_id', user.id)
+          .eq('status', 'pendente')
+          .eq('data_agendada', hoje)
+        const lista: AgendamentoLembrete[] = (data || []).map((a: any) => ({
+          id: a.id,
+          codigo_cliente: a.codigo_cliente,
+          nome_fantasia: Array.isArray(a.tabela_clientes)
+            ? a.tabela_clientes[0]?.nome_fantasia ?? `Cliente ${a.codigo_cliente}`
+            : a.tabela_clientes?.nome_fantasia ?? `Cliente ${a.codigo_cliente}`,
+          valor_previsto: a.valor_previsto,
+        }))
+        setAgendamentosHoje(lista)
+        if (lista.length > 0) setLembreteOpen(true)
+      } catch {
+        // popup não é crítico — falha silenciosa
+      }
+    }
+    fetchLembrete()
+  }, [user?.id])
+
   // Carregar dados reais de clientes e dashboard do usuário logado
   useEffect(() => {
     async function carregarDados() {
@@ -89,6 +128,57 @@ const Dashboard: React.FC = () => {
   
   return (
     <div className="min-h-screen bg-gray-50">
+
+      {/* Popup Lembrete do Dia */}
+      {lembreteOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
+          <div
+            className="w-full max-w-lg bg-white rounded-t-2xl shadow-xl p-4 pb-6"
+            style={{ animation: 'slideUp 0.25s ease-out' }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-base font-bold text-gray-800">Agenda de Hoje</h3>
+                <p className="text-xs text-gray-500">
+                  {agendamentosHoje.length} agendamento{agendamentosHoje.length !== 1 ? 's' : ''} pendente{agendamentosHoje.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <button onClick={() => setLembreteOpen(false)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500">
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+            <ul className="space-y-2 max-h-56 overflow-y-auto">
+              {agendamentosHoje.map(ag => (
+                <li key={ag.id} className="flex items-center justify-between rounded-lg bg-sky-50 border border-sky-100 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800 truncate max-w-[220px]">{ag.nome_fantasia}</p>
+                    <p className="text-xs text-gray-500">Cód. {ag.codigo_cliente}</p>
+                  </div>
+                  {ag.valor_previsto != null && ag.valor_previsto > 0 && (
+                    <span className="text-xs font-semibold text-sky-700 ml-2 flex-shrink-0">
+                      {formatCurrency(ag.valor_previsto, true)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => { setLembreteOpen(false); navigate('/agenda') }}
+                className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 transition-colors"
+              >
+                Ver Agenda
+              </button>
+              <button
+                onClick={() => setLembreteOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">

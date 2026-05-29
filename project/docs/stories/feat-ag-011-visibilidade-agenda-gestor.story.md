@@ -1,7 +1,7 @@
 # Story FEAT-AG-011 — Popup Lembrete do Dia + Badges RFM + Clientes Sem Rota
 
 ## Status
-Draft
+Done
 
 ## Executor Assignment
 ```
@@ -518,10 +518,17 @@ Isso é aceitável porque o volume de clientes por vendedor é controlado (tipic
 *(Preenchido por @dev durante implementação)*
 
 ### Agent Model Used
-*—*
+claude-sonnet-4-6 (@dev / Dex)
 
 ### Completion Notes List
-*—*
+- Popup lembrete implementado em Dashboard.tsx com async/await (sem `.catch()` em PromiseLike)
+- `animate-slide-up` → `style={{ animation: 'slideUp 0.25s ease-out' }}` + keyframe em `index.css`
+- Badges Ouro/Prata/Bronze adicionados na tabela de clientes por cidade do DashboardRotas
+- Seção "Clientes Sem Rota" implementada com lazy load, guard para `rotasData.length === 0`
+- FK `agendamentos_codigo_cliente_fkey` confirmada e usada no join do popup
+- `npx tsc --noEmit` ✅ zero erros | lint nos arquivos modificados ✅ zero erros
 
 ### File List
-*—*
+- `src/components/dashboard/Dashboard.tsx` (modificado — popup lembrete)
+- `src/components/pages/DashboardRotas.tsx` (modificado — badges + seção Clientes Sem Rota)
+- `src/index.css` (modificado — keyframe slideUp)

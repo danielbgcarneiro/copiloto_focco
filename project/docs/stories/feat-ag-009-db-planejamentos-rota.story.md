@@ -1,7 +1,7 @@
 # Story FEAT-AG-009 — DB: Tabelas e RLS para Planejamento de Rota em Lote
 
 ## Status
-Draft
+Done
 
 ## Executor Assignment
 ```
@@ -58,21 +58,12 @@ quality_gate_tools: [supabase-cli, rls-audit, sql-review]
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Investigação** (AC: 1, 2)
-  - [ ] 1.1 Confirmar que tabelas não existem:
-    ```sql
-    SELECT table_name FROM information_schema.tables
-    WHERE table_name IN ('planejamentos_rota', 'planejamento_clientes');
-    ```
-    **Resultado esperado:** Zero linhas.
+- [x] **Task 1 — Investigação** (AC: 1, 2)
+  - [x] 1.1 Confirmar que tabelas não existem: ✅ zero linhas
+  - [x] 1.2 Confirmar existência da função `get_user_cargo()`: ✅ existe
 
-  - [ ] 1.2 Confirmar existência da função `get_user_cargo()` para usar nas policies:
-    ```sql
-    SELECT proname FROM pg_proc WHERE proname = 'get_user_cargo';
-    ```
-
-- [ ] **Task 2 — Criar Migration** (AC: 1–7)
-  - [ ] 2.1 Criar `supabase/migrations/YYYYMMDD_create_planejamentos_rota.sql`:
+- [x] **Task 2 — Criar Migration** (AC: 1–7)
+  - [x] 2.1 Criar `supabase/migrations/YYYYMMDD_create_planejamentos_rota.sql`:
 
     ```sql
     -- FEAT-AG-009: Tabelas para planejamento de rota em lote
@@ -206,38 +197,15 @@ quality_gate_tools: [supabase-cli, rls-audit, sql-review]
       FOR EACH ROW EXECUTE FUNCTION fn_update_planejamento_updated_at();
     ```
 
-- [ ] **Task 3 — Aplicar Migration** (AC: 7)
-  - [ ] 3.1 Aplicar via Supabase MCP `apply_migration`
-  - [ ] 3.2 Confirmar sucesso no log
+- [x] **Task 3 — Aplicar Migration** (AC: 7)
+  - [x] 3.1 Aplicar via Supabase MCP `apply_migration`: ✅ success
+  - [x] 3.2 Confirmar sucesso no log: ✅
 
-- [ ] **Task 4 — Validar Pós-Aplicação** (AC: 1–6)
-  - [ ] 4.1 Confirmar tabelas criadas:
-    ```sql
-    SELECT table_name FROM information_schema.tables
-    WHERE table_name IN ('planejamentos_rota', 'planejamento_clientes');
-    ```
-
-  - [ ] 4.2 Confirmar CHECK constraints:
-    ```sql
-    SELECT conname, conrelid::regclass, pg_get_constraintdef(oid)
-    FROM pg_constraint
-    WHERE conrelid IN ('planejamentos_rota'::regclass, 'planejamento_clientes'::regclass)
-      AND contype = 'c';
-    ```
-
-  - [ ] 4.3 Confirmar RLS ativo:
-    ```sql
-    SELECT relname, relrowsecurity
-    FROM pg_class
-    WHERE relname IN ('planejamentos_rota', 'planejamento_clientes');
-    ```
-
-  - [ ] 4.4 Confirmar índices:
-    ```sql
-    SELECT indexname FROM pg_indexes
-    WHERE tablename IN ('planejamentos_rota', 'planejamento_clientes')
-    ORDER BY tablename, indexname;
-    ```
+- [x] **Task 4 — Validar Pós-Aplicação** (AC: 1–6)
+  - [x] 4.1 Tabelas criadas: ✅ `planejamentos_rota`, `planejamento_clientes`
+  - [x] 4.2 CHECK constraints: ✅ `chk_planejamento_status`, `chk_planejamento_datas`, `chk_planejamento_cliente_status`
+  - [x] 4.3 RLS ativo: ✅ ambas com `relrowsecurity = true`
+  - [x] 4.4 Índices: ✅ `idx_planejamentos_vendedor_status`, `idx_planejamentos_rota_periodo`, `idx_planejamento_clientes_plano`, `idx_planejamento_clientes_pendentes`
 
 ---
 
@@ -295,10 +263,13 @@ Excluídos:            I (inativo), C (cancelado)
 *(Preenchido por @data-engineer durante implementação)*
 
 ### Agent Model Used
-*—*
+claude-sonnet-4-6 (@data-engineer / Dara)
 
 ### Completion Notes List
-*—*
+- Todas as 4 tasks concluídas sem erros
+- Migration aplicada via Supabase MCP em 2026-05-28
+- 3 CHECK constraints, 4 índices, 8 RLS policies, 1 trigger `updated_at` criados
+- Pré-requisito FEAT-AG-010 desbloqueado
 
 ### File List
-*—*
+- `supabase/migrations/[timestamp]_create_planejamentos_rota` (aplicado via MCP)

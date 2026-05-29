@@ -41,6 +41,31 @@ interface ClienteRotaData {
   percentual: number
   dias_sem_venda: number
   dias_atraso: number
+  perfil: string | null
+}
+
+interface ClienteSemRota {
+  codigo_cliente: number
+  nome_fantasia: string
+  cidade: string
+  estado: string
+  situacao: string
+  cod_vendedor: number
+  vendedor_apelido: string
+}
+
+interface CoberturaRotaData {
+  vendedor_id: string
+  vendedor_apelido: string
+  cod_vendedor: number
+  rota: string
+  qtd_cidades: number
+  qtd_clientes: number
+  meta_total: number
+  vendas_total: number
+  percentual_atingimento: number
+  clientes_visitados_180d: number
+  percentual_cobertura_180d: number
 }
 
 // Interface CidadeData removida - Top Cidades não existe mais
@@ -87,6 +112,16 @@ const DashboardRotas: React.FC = () => {
   const [expandedCidade, setExpandedCidade] = useState<string | null>(null)
   const [clientesPorCidade, setClientesPorCidade] = useState<Map<string, ClienteRotaData[]>>(new Map())
   const [loadingClientesCidade, setLoadingClientesCidade] = useState(false)
+
+  const [clientesSemRota, setClientesSemRota] = useState<ClienteSemRota[]>([])
+  const [loadingClientesSemRota, setLoadingClientesSemRota] = useState(false)
+  const [semRotaExpanded, setSemRotaExpanded] = useState(false)
+  const [semRotaCarregado, setSemRotaCarregado] = useState(false)
+
+  const [coberturaData, setCoberturaData] = useState<CoberturaRotaData[]>([])
+  const [loadingCobertura, setLoadingCobertura] = useState(false)
+  const [coberturaExpanded, setCoberturaExpanded] = useState(false)
+  const [coberturaCarregada, setCoberturaCarregada] = useState(false)
 
   const [sortRotas, setSortRotas] = useState<{ field: RotaSortField; direction: SortDirection }>({ field: 'vendido_2025', direction: 'desc' })
 
@@ -381,7 +416,8 @@ const DashboardRotas: React.FC = () => {
             previsao_pedido,
             meta_ano_atual,
             valor_ano_atual,
-            dias_sem_comprar
+            dias_sem_comprar,
+            perfil
           )
         `)
         .eq('cidade', cidadeNome)
@@ -425,7 +461,8 @@ const DashboardRotas: React.FC = () => {
           vendas,
           percentual: meta > 0 ? (vendas / meta) * 100 : 0,
           dias_sem_venda: rfm?.dias_sem_comprar || 0,
-          dias_atraso: inadimplenciaMap.get(c.codigo_cliente) || 0
+          dias_atraso: inadimplenciaMap.get(c.codigo_cliente) || 0,
+          perfil: rfm?.perfil ?? null,
         }
       }).sort((a, b) => b.oportunidade - a.oportunidade)
 
@@ -466,6 +503,116 @@ const DashboardRotas: React.FC = () => {
     })
   }
 
+
+  const carregarClientesSemRota = async () => {
+    if (semRotaCarregado) return
+    if (rotasData.length === 0) return
+    setLoadingClientesSemRota(true)
+    try {
+      const codVendedoresFiltrados = vendedoresSelecionadosRotas.length > 0
+        ? rotasData
+            .filter(r => vendedoresSelecionadosRotas.includes(r.vendedor_uuid))
+            .map(r => r.cod_vendedor)
+            .filter((v, i, a) => a.indexOf(v) === i)
+        : rotasData
+            .map(r => r.cod_vendedor)
+            .filter((v, i, a) => a.indexOf(v) === i)
+
+      if (codVendedoresFiltrados.length === 0) { setClientesSemRota([]); return }
+
+      const { data: rotasCidades } = await supabase
+        .from('rotas_estado')
+        .select('cod_vendedor, codigo_ibge_cidade')
+        .in('cod_vendedor', codVendedoresFiltrados)
+
+      const cidadesPorVendedor = new Map<number, Set<string>>()
+      ;(rotasCidades || []).forEach((rc: any) => {
+        if (!cidadesPorVendedor.has(rc.cod_vendedor)) cidadesPorVendedor.set(rc.cod_vendedor, new Set())
+        cidadesPorVendedor.get(rc.cod_vendedor)!.add(rc.codigo_ibge_cidade)
+      })
+
+      const { data: clientesData, error } = await supabase
+        .from('tabela_clientes')
+        .select('codigo_cliente, nome_fantasia, cidade, estado, situacao, cod_vendedor, codigo_ibge_cidade')
+        .in('cod_vendedor', codVendedoresFiltrados)
+        .not('situacao', 'in', '("I","C")')
+        .not('codigo_ibge_cidade', 'is', null)
+
+      if (error) throw error
+
+      const vendedorApelidoMap = new Map(rotasData.map(r => [r.cod_vendedor, r.vendedor_apelido]))
+
+      const semRota = (clientesData || [])
+        .filter((c: any) => {
+          const cidades = cidadesPorVendedor.get(c.cod_vendedor)
+          return !cidades || !cidades.has(c.codigo_ibge_cidade ?? '')
+        })
+        .map((c: any): ClienteSemRota => ({
+          codigo_cliente: c.codigo_cliente,
+          nome_fantasia: c.nome_fantasia || `Cliente ${c.codigo_cliente}`,
+          cidade: c.cidade || '—',
+          estado: c.estado || '—',
+          situacao: c.situacao || '—',
+          cod_vendedor: c.cod_vendedor,
+          vendedor_apelido: vendedorApelidoMap.get(c.cod_vendedor) || `Vendedor ${c.cod_vendedor}`,
+        }))
+        .sort((a: ClienteSemRota, b: ClienteSemRota) => a.cidade.localeCompare(b.cidade))
+
+      setClientesSemRota(semRota)
+      setSemRotaCarregado(true)
+    } catch (err) {
+      console.error('Erro ao carregar clientes sem rota:', err)
+    } finally {
+      setLoadingClientesSemRota(false)
+    }
+  }
+
+  const carregarCobertura = async () => {
+    if (coberturaCarregada) return
+    setLoadingCobertura(true)
+    try {
+      const { data, error } = await supabase
+        .from('vw_cobertura_rota_vendedor')
+        .select('*')
+        .order('rota', { ascending: true })
+
+      if (error) throw error
+      setCoberturaData((data ?? []) as CoberturaRotaData[])
+      setCoberturaCarregada(true)
+    } catch (err) {
+      console.error('Erro ao carregar cobertura de rotas:', err)
+    } finally {
+      setLoadingCobertura(false)
+    }
+  }
+
+  const corCobertura = (pct: number): string => {
+    if (pct >= 80) return 'text-green-600 font-bold'
+    if (pct >= 50) return 'text-yellow-600 font-bold'
+    return 'text-red-500 font-bold'
+  }
+
+  const corAtingimento = (pct: number): string => {
+    if (pct >= 100) return 'text-green-600 font-bold'
+    if (pct >= 80)  return 'text-yellow-600 font-bold'
+    return 'text-red-500 font-bold'
+  }
+
+  const perfilBadge = (perfil: string | null): React.ReactNode => {
+    if (!perfil || perfil === 'Sem Perfil') return null
+    const styles: Record<string, string> = {
+      Ouro:   'bg-yellow-50 text-yellow-700 border border-yellow-300',
+      Prata:  'bg-gray-100 text-gray-600 border border-gray-300',
+      Bronze: 'bg-orange-50 text-orange-700 border border-orange-300',
+    }
+    const style = styles[perfil]
+    if (!style) return null
+    return (
+      <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${style}`}>
+        {perfil}
+      </span>
+    )
+  }
 
   useEffect(() => {
     if (!user) {
@@ -746,6 +893,7 @@ const DashboardRotas: React.FC = () => {
                                                               {cliente.dias_atraso > 0 && (
                                                                 <TriangleAlert className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
                                                               )}
+                                                              {perfilBadge(cliente.perfil)}
                                                               <span className="truncate">{cliente.nome_fantasia}</span>
                                                             </div>
                                                           </td>
@@ -797,7 +945,142 @@ const DashboardRotas: React.FC = () => {
           </div>
         </Card>
 
-        {/* Seção Top Cidades removida - view não existe mais no backend */}
+        {/* ─── Seção: Clientes Sem Rota ─────────────────────────────────── */}
+        <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <button
+            className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+            onClick={() => {
+              setSemRotaExpanded(prev => !prev)
+              if (!semRotaExpanded) carregarClientesSemRota()
+            }}
+          >
+            <div>
+              <h3 className="text-sm font-bold text-gray-800">Clientes Sem Rota</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Clientes ativos cuja cidade não está mapeada em nenhuma rota do vendedor</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {semRotaCarregado && (
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${clientesSemRota.length > 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                  {clientesSemRota.length}
+                </span>
+              )}
+              {semRotaExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+            </div>
+          </button>
+          {semRotaExpanded && (
+            <div className="border-t border-gray-100">
+              {loadingClientesSemRota ? (
+                <div className="flex justify-center py-6">
+                  <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : clientesSemRota.length === 0 ? (
+                <p className="text-center text-gray-500 text-sm py-6">Nenhum cliente sem rota encontrado</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-600 border-b border-gray-100">
+                        <th className="text-left px-4 py-2 font-semibold">Cliente</th>
+                        <th className="text-left px-4 py-2 font-semibold">Cidade / UF</th>
+                        <th className="text-left px-4 py-2 font-semibold">Vendedor</th>
+                        <th className="text-center px-4 py-2 font-semibold">Situação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clientesSemRota.map((c, idx) => (
+                        <tr key={c.codigo_cliente} className={`border-b border-gray-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                          <td className="px-4 py-2 text-gray-800 font-medium">
+                            <span className="truncate block max-w-[180px]">{c.nome_fantasia}</span>
+                            <span className="text-gray-400 text-[10px]">Cód. {c.codigo_cliente}</span>
+                          </td>
+                          <td className="px-4 py-2 text-gray-600">{c.cidade} — {c.estado}</td>
+                          <td className="px-4 py-2 text-gray-600">{c.vendedor_apelido}</td>
+                          <td className="px-4 py-2 text-center">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.situacao === 'P' ? 'bg-red-100 text-red-600' : c.situacao === 'B' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-500'}`}>
+                              {c.situacao}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ─── Seção: Cobertura de Rotas (180 dias) ───────────────────────── */}
+        {(() => {
+          const coberturaFiltrada = vendedoresSelecionadosRotas.length === 0
+            ? coberturaData
+            : coberturaData.filter(row => vendedoresSelecionadosRotas.includes(row.vendedor_id))
+          return (
+            <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <button
+                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+                onClick={() => {
+                  setCoberturaExpanded(prev => !prev)
+                  if (!coberturaExpanded) carregarCobertura()
+                }}
+              >
+                <div>
+                  <h3 className="text-sm font-bold text-gray-800">Cobertura de Rotas</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Visitas realizadas nos últimos 180 dias por rota e vendedor</p>
+                </div>
+                {coberturaExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+              </button>
+              {coberturaExpanded && (
+                <div className="border-t border-gray-100">
+                  {loadingCobertura ? (
+                    <div className="flex justify-center py-6">
+                      <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : coberturaFiltrada.length === 0 ? (
+                    <p className="text-center text-gray-500 text-sm py-6">Nenhuma rota encontrada</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-sky-700 text-white">
+                            <th className="text-left px-4 py-2 font-semibold">Vendedor</th>
+                            <th className="text-left px-4 py-2 font-semibold">Rota</th>
+                            <th className="text-right px-4 py-2 font-semibold">Cid.</th>
+                            <th className="text-right px-4 py-2 font-semibold">Cli.</th>
+                            <th className="text-right px-4 py-2 font-semibold">Meta</th>
+                            <th className="text-right px-4 py-2 font-semibold">Vendas</th>
+                            <th className="text-right px-4 py-2 font-semibold">Ating.%</th>
+                            <th className="text-right px-4 py-2 font-semibold">Visit.180d</th>
+                            <th className="text-right px-4 py-2 font-semibold">Cobert.%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {coberturaFiltrada.map((row, idx) => (
+                            <tr key={`${row.vendedor_id}-${row.rota}`} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-sky-50'}`}>
+                              <td className="px-4 py-2 text-gray-700 font-medium">{row.vendedor_apelido}</td>
+                              <td className="px-4 py-2 text-gray-700 max-w-[140px] truncate">{row.rota}</td>
+                              <td className="px-4 py-2 text-right text-gray-600">{row.qtd_cidades}</td>
+                              <td className="px-4 py-2 text-right text-gray-600">{row.qtd_clientes}</td>
+                              <td className="px-4 py-2 text-right text-gray-600">{formatCurrency(row.meta_total, true)}</td>
+                              <td className="px-4 py-2 text-right text-gray-800">{formatCurrency(row.vendas_total, true)}</td>
+                              <td className={`px-4 py-2 text-right ${corAtingimento(Number(row.percentual_atingimento))}`}>
+                                {Number(row.percentual_atingimento).toFixed(1)}%
+                              </td>
+                              <td className="px-4 py-2 text-right text-gray-600">{row.clientes_visitados_180d}/{row.qtd_clientes}</td>
+                              <td className={`px-4 py-2 text-right ${corCobertura(Number(row.percentual_cobertura_180d))}`}>
+                                {Number(row.percentual_cobertura_180d).toFixed(1)}%
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </main>
     </div>
   )

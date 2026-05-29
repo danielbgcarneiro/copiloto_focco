@@ -11,6 +11,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { AgendaCache, formatDate, getWeekStart } from '../../hooks/useAgenda'
+import type { PlanoIndicador } from '../../hooks/usePlanejamentoRota'
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -35,6 +36,7 @@ interface SemanaGridProps {
   today: Date
   onSelectDay: (date: Date) => void
   onWeekChange: (newWeekStart: Date) => void
+  planosAtivos?: PlanoIndicador[]
 }
 
 export function SemanaGrid({
@@ -44,6 +46,7 @@ export function SemanaGrid({
   today,
   onSelectDay,
   onWeekChange,
+  planosAtivos = [],
 }: SemanaGridProps) {
   const [touchStart, setTouchStart] = useState<number | null>(null)
 
@@ -134,6 +137,10 @@ export function SemanaGrid({
           const hasPendente = agendamentos.some((ag) => ag.status === 'pendente')
           const showAlerta = isPast && hasPendente
 
+          const planosDoDia = planosAtivos.filter((p) => p.data === dateStr)
+          const temPlano = planosDoDia.length > 0
+          const pendentesPlano = planosDoDia.reduce((acc, p) => acc + p.pendentes, 0)
+
           return (
             <button
               key={idx}
@@ -181,6 +188,20 @@ export function SemanaGrid({
                   <span className="text-[10px] text-gray-400 leading-none">+{extraCount}</span>
                 )}
               </div>
+
+              {/* Indicador de plano de rota */}
+              {temPlano && (
+                <div className="relative flex items-center justify-center">
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 leading-none truncate max-w-[36px]">
+                    {planosDoDia[0].rota.replace('Rota ', '')}
+                  </span>
+                  {pendentesPlano > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-orange-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {pendentesPlano}
+                    </span>
+                  )}
+                </div>
+              )}
             </button>
           )
         })}

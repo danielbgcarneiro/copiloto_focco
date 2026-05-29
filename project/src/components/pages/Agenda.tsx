@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarDays, LayoutGrid, CalendarRange, Wifi, WifiOff, Plus, Star, AlertTriangle } from 'lucide-react'
+import { CalendarDays, LayoutGrid, CalendarRange, Wifi, WifiOff, Plus, Star, AlertTriangle, Route, X as XIcon } from 'lucide-react'
 import { useSetPage } from '../../contexts'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -29,7 +29,9 @@ import { SemanaGrid } from '../molecules/SemanaGrid'
 import { MesGrid } from '../molecules/MesGrid'
 import { BuscarClienteSheet } from '../molecules/BuscarClienteSheet'
 import { SugestoesAgendaSheet } from '../molecules/SugestoesAgendaSheet'
+import { PlanejarRotaSheet } from '../molecules/PlanejarRotaSheet'
 import { hasAgendamentosSemResultado } from '../../utils/alertasAgenda'
+import { usePlanejamentoRota } from '../../hooks/usePlanejamentoRota'
 
 const DIAS_SEMANA_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -134,6 +136,15 @@ export default function Agenda() {
 
   const [showBusca, setShowBusca] = useState(false)
   const [showSugestoes, setShowSugestoes] = useState(false)
+  const [showPlanejarRota, setShowPlanejarRota] = useState(false)
+  const [fabExpanded, setFabExpanded] = useState(false)
+
+  const hookPlano = usePlanejamentoRota(vendedorId)
+
+  // Carregar planos ativos para o indicador no SemanaGrid
+  useEffect(() => {
+    if (vendedorId) hookPlano.buscarPlanosAtivos()
+  }, [vendedorId, refreshKey])
 
   const { sugestoes, rotasSugestoes, loading: loadingSugestoes, carregar: carregarSugestoes } = useSugestoesAgenda(vendedorId)
 
@@ -491,6 +502,7 @@ export default function Agenda() {
             today={today}
             onSelectDay={handleSelectDay}
             onWeekChange={handleWeekChange}
+            planosAtivos={hookPlano.planosAtivos}
           />
 
           <div className="px-4 pt-2 pb-4 border-t border-gray-100">
@@ -544,14 +556,34 @@ export default function Agenda() {
         </div>
       )}
 
-      {/* FAB único para adicionar agendamento */}
-      <button
-        onClick={() => setShowBusca(true)}
-        className="fixed bottom-6 right-4 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center z-30 active:opacity-80 transition-opacity cursor-pointer"
-        aria-label="Adicionar agendamento"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
+      {/* FAB expandido — Agendar Cliente | Planejar Rota */}
+      <div className="fixed bottom-6 right-4 flex flex-col items-end gap-2 z-30">
+        {fabExpanded && (
+          <>
+            <button
+              onClick={() => { setFabExpanded(false); setShowPlanejarRota(true) }}
+              className="flex items-center gap-2 bg-white text-sky-700 border border-sky-200 rounded-full px-4 py-2.5 shadow-lg text-sm font-semibold hover:bg-sky-50 transition-colors"
+            >
+              <Route className="w-4 h-4" />
+              Planejar Rota
+            </button>
+            <button
+              onClick={() => { setFabExpanded(false); setShowBusca(true) }}
+              className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 rounded-full px-4 py-2.5 shadow-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Agendar Cliente
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setFabExpanded((v) => !v)}
+          className="w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center active:opacity-80 transition-all cursor-pointer"
+          aria-label={fabExpanded ? 'Fechar menu' : 'Adicionar'}
+        >
+          {fabExpanded ? <XIcon className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+        </button>
+      </div>
 
       {vendedorId && (
         <BuscarClienteSheet
@@ -598,6 +630,20 @@ export default function Agenda() {
           loadingMotivos={loadingMotivos}
           carregarMotivos={carregarMotivos}
           registrarVisita={registrarVisita}
+        />
+      )}
+
+      {vendedorId && (
+        <PlanejarRotaSheet
+          isOpen={showPlanejarRota}
+          vendedorId={vendedorId}
+          onClose={() => setShowPlanejarRota(false)}
+          onSuccess={(datasAgendadas) => {
+            setShowPlanejarRota(false)
+            datasAgendadas.forEach((d) => invalidateWeek(new Date(d + 'T00:00:00')))
+            hookPlano.buscarPlanosAtivos()
+            setRefreshKey((k) => k + 1)
+          }}
         />
       )}
     </div>
