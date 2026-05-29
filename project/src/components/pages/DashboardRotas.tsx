@@ -49,6 +49,15 @@ interface ClienteRotaData {
 type FiltroBoletos = 'todos' | 0 | 1 | 2 | 3 | 4 | 5 | 6
 type FiltroSituacao = 'todos' | 'adimplente' | 'inadimplente'
 
+interface ClienteResumo {
+  situacao: string
+  dias_sem_comprar: number
+  previsao_pedido: number
+  meta_ano_atual: number
+  valor_ano_atual: number
+  qtd_boletos: number
+}
+
 interface ClienteSemRota {
   codigo_cliente: number
   nome_fantasia: string
@@ -133,6 +142,7 @@ const DashboardRotas: React.FC = () => {
   const [coberturaCarregada, setCoberturaCarregada] = useState(false)
 
   const [sortRotas, setSortRotas] = useState<{ field: RotaSortField; direction: SortDirection }>({ field: 'vendido_2025', direction: 'desc' })
+  const [clientesPorRota, setClientesPorRota] = useState<Map<string, ClienteResumo[]>>(new Map())
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -281,6 +291,58 @@ const DashboardRotas: React.FC = () => {
 
         setVendedores(vendedoresList)
 
+        // 8. Carregar resumo de clientes por rota para filtros dinâmicos
+        // Mapa ibge_cidade -> { rota, vendedorUuid } a partir de vw_cidades_com_meta
+        const ibgeRotaMap = new Map<string, { rota: string; vendedorUuid: string }>()
+        cidadesComMeta?.forEach(cidade => {
+          if (cidade.codigo_ibge_cidade && cidade.rota && cidade.vendedor_uuid) {
+            ibgeRotaMap.set(cidade.codigo_ibge_cidade, { rota: cidade.rota, vendedorUuid: cidade.vendedor_uuid })
+          }
+        })
+
+        const todosCodsVendedor = Array.from(vendedoresUnicos.values()).map(v => v.cod_vendedor)
+        const { data: clientesResumoData } = await supabase
+          .from('tabela_clientes')
+          .select(`codigo_cliente, cod_vendedor, situacao, codigo_ibge_cidade, analise_rfm (dias_sem_comprar, previsao_pedido, meta_ano_atual, valor_ano_atual)`)
+          .not('situacao', 'in', '("I","B")')
+          .in('cod_vendedor', todosCodsVendedor)
+          .limit(5000)
+
+        if (clientesResumoData && clientesResumoData.length > 0) {
+          const codigosAll = clientesResumoData.map((c: any) => c.codigo_cliente)
+          const boletosRotaMap = new Map<number, number>()
+          try {
+            const { data: boletoData } = await supabase
+              .from('vw_titulos_vencidos_detalhado')
+              .select('codigo_cliente')
+              .in('codigo_cliente', codigosAll)
+              .gt('dias_atraso', 0)
+            boletoData?.forEach((r: any) => {
+              boletosRotaMap.set(r.codigo_cliente, (boletosRotaMap.get(r.codigo_cliente) || 0) + 1)
+            })
+          } catch { /* boletos opcionais */ }
+
+          const mapa = new Map<string, ClienteResumo[]>()
+          clientesResumoData.forEach((c: any) => {
+            const ibge = c.codigo_ibge_cidade
+            if (!ibge) return
+            const rotaInfo = ibgeRotaMap.get(ibge)
+            if (!rotaInfo) return
+            const key = `${rotaInfo.vendedorUuid}-${rotaInfo.rota}`
+            const rfm = Array.isArray(c.analise_rfm) ? c.analise_rfm[0] : c.analise_rfm
+            if (!mapa.has(key)) mapa.set(key, [])
+            mapa.get(key)!.push({
+              situacao: c.situacao || 'A',
+              dias_sem_comprar: rfm?.dias_sem_comprar || 0,
+              previsao_pedido: rfm?.previsao_pedido || 0,
+              meta_ano_atual: rfm?.meta_ano_atual || 0,
+              valor_ano_atual: rfm?.valor_ano_atual || 0,
+              qtd_boletos: boletosRotaMap.get(c.codigo_cliente) || 0,
+            })
+          })
+          setClientesPorRota(mapa)
+        }
+
       } catch (error) {
         console.error('Erro ao carregar dados:', error)
       } finally {
@@ -303,11 +365,47 @@ const DashboardRotas: React.FC = () => {
   }, [])
 
   const rotasFiltradas = useMemo(() => {
-    if (vendedoresSelecionadosRotas.length === 0) return rotasData
-    return rotasData.filter(rota => 
-      vendedoresSelecionadosRotas.includes(rota.vendedor_uuid)
-    )
-  }, [rotasData, vendedoresSelecionadosRotas])
+    // 1. Filtro por vendedor
+    const porVendedor = vendedoresSelecionadosRotas.length === 0
+      ? rotasData
+      : rotasData.filter(r => vendedoresSelecionadosRotas.includes(r.vendedor_uuid))
+
+    // 2. Se não há filtros de cliente, retorna como está
+    const temFiltroCliente = filtroDiasSemVenda !== '' || filtroBoletosAberto !== 'todos' || filtroSituacao !== 'todos'
+    if (!temFiltroCliente || clientesPorRota.size === 0) return porVendedor
+
+    // 3. Re-agregar métricas por rota com base nos clientes filtrados
+    const resultado: RotaData[] = []
+    for (const rota of porVendedor) {
+      const key = `${rota.vendedor_uuid}-${rota.rota}`
+      const clientes = clientesPorRota.get(key) || []
+      const filtrados = clientes.filter(c => {
+        if (filtroDiasSemVenda !== '' && c.dias_sem_comprar < (filtroDiasSemVenda as number)) return false
+        if (filtroBoletosAberto !== 'todos') {
+          const min = filtroBoletosAberto as number
+          if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos !== min) return false
+        }
+        if (filtroSituacao === 'inadimplente' && c.situacao !== 'P') return false
+        if (filtroSituacao === 'adimplente' && c.situacao === 'P') return false
+        return true
+      })
+      if (filtrados.length === 0) continue
+      const meta = filtrados.reduce((s, c) => s + c.meta_ano_atual, 0)
+      const vendas = filtrados.reduce((s, c) => s + c.valor_ano_atual, 0)
+      const oportunidades = filtrados.reduce((s, c) => s + c.previsao_pedido, 0)
+      resultado.push({
+        ...rota,
+        qtd_oticas: filtrados.length,
+        total_oticas: filtrados.length,
+        meta_2025: meta,
+        vendido_2025: vendas,
+        soma_oportunidades: oportunidades,
+        percentual_meta: meta > 0 ? (vendas / meta) * 100 : 0,
+        clientes_sem_venda_90d: filtrados.filter(c => c.dias_sem_comprar >= 90).length,
+      })
+    }
+    return resultado
+  }, [rotasData, vendedoresSelecionadosRotas, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao, clientesPorRota])
 
   const rotasOrdenadas = useMemo(() => {
     return [...rotasFiltradas].sort((a, b) => {
