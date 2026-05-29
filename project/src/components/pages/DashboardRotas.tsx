@@ -383,7 +383,7 @@ const DashboardRotas: React.FC = () => {
         if (filtroDiasSemVenda !== '' && c.dias_sem_comprar < (filtroDiasSemVenda as number)) return false
         if (filtroBoletosAberto !== 'todos') {
           const min = filtroBoletosAberto as number
-          if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos !== min) return false
+          if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos > min) return false
         }
         if (filtroSituacao === 'inadimplente' && c.situacao !== 'P') return false
         if (filtroSituacao === 'adimplente' && c.situacao === 'P') return false
@@ -433,7 +433,7 @@ const DashboardRotas: React.FC = () => {
         if (filtroDiasSemVenda !== '' && c.dias_sem_venda < (filtroDiasSemVenda as number)) return false
         if (filtroBoletosAberto !== 'todos') {
           const min = filtroBoletosAberto as number
-          if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos !== min) return false
+          if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos > min) return false
         }
         if (filtroSituacao === 'inadimplente' && c.situacao !== 'P') return false
         if (filtroSituacao === 'adimplente' && c.situacao === 'P') return false
@@ -889,12 +889,12 @@ const DashboardRotas: React.FC = () => {
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="todos">Todos</option>
-                  <option value={0}>0 (sem boleto)</option>
-                  <option value={1}>1 boleto</option>
-                  <option value={2}>2 boletos</option>
-                  <option value={3}>3 boletos</option>
-                  <option value={4}>4 boletos</option>
-                  <option value={5}>5 boletos</option>
+                  <option value={0}>Sem boletos</option>
+                  <option value={1}>Até 1 boleto</option>
+                  <option value={2}>Até 2 boletos</option>
+                  <option value={3}>Até 3 boletos</option>
+                  <option value={4}>Até 4 boletos</option>
+                  <option value={5}>Até 5 boletos</option>
                   <option value={6}>6+ boletos</option>
                 </select>
               </div>
@@ -1151,6 +1151,29 @@ const DashboardRotas: React.FC = () => {
                                                         </tr>
                                                       ))}
                                                     </tbody>
+                                                    {(() => {
+                                                      const clis = clientesFiltradosPorCidade.get(cidadeKey(rota.rota, cidade.cidade)) || []
+                                                      if (clis.length === 0) return null
+                                                      const tMeta = clis.reduce((s, c) => s + c.meta, 0)
+                                                      const tVendas = clis.reduce((s, c) => s + c.vendas, 0)
+                                                      const tOp = clis.reduce((s, c) => s + c.oportunidade, 0)
+                                                      const tAt = tMeta > 0 ? (tVendas / tMeta) * 100 : 0
+                                                      return (
+                                                        <tfoot>
+                                                          <tr className="border-t-2 border-sky-300 bg-sky-800 text-white text-xs">
+                                                            <td className="px-4 py-1.5 font-bold" colSpan={3}>Total ({clis.length} clientes)</td>
+                                                            <td className="text-right px-4 py-1.5 font-bold">{formatCurrency(tMeta, true)}</td>
+                                                            <td className="text-right px-4 py-1.5 font-bold text-orange-300">{formatCurrency(tOp, true)}</td>
+                                                            <td className="text-right px-4 py-1.5 font-bold">{formatCurrency(tVendas, true)}</td>
+                                                            <td className="text-right px-4 py-1.5">
+                                                              <span className={`font-bold ${tAt >= 100 ? 'text-green-400' : tAt >= 80 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                                {tAt.toFixed(1)}%
+                                                              </span>
+                                                            </td>
+                                                          </tr>
+                                                        </tfoot>
+                                                      )
+                                                    })()}
                                                   </table>
                                                 ) : (
                                                   <p className="text-center text-gray-500 text-xs py-3">
@@ -1164,6 +1187,31 @@ const DashboardRotas: React.FC = () => {
                                       </React.Fragment>
                                     ))}
                                   </tbody>
+                                  {(() => {
+                                    const cids = cidadesComMeta.get(rota.rota) || []
+                                    if (cids.length === 0) return null
+                                    const tMeta = cids.reduce((s, c) => s + (c.meta_cidade || 0), 0)
+                                    const tVendas = cids.reduce((s, c) => s + (c.vendas_cidade || 0), 0)
+                                    const tOp = cids.reduce((s, c) => s + (c.soma_oportunidades || 0), 0)
+                                    const tAt = tMeta > 0 ? (tVendas / tMeta) * 100 : 0
+                                    const tCli = cids.reduce((s, c) => s + (c.qtd_clientes || 0), 0)
+                                    return (
+                                      <tfoot>
+                                        <tr className="border-t-2 border-gray-500 bg-gray-800 text-white text-xs">
+                                          <td className="px-4 py-2 font-bold">Total ({cids.length} cidades)</td>
+                                          <td className="text-right px-4 py-2 font-bold">{formatCurrency(tMeta, true)}</td>
+                                          <td className="text-right px-4 py-2 font-bold text-orange-300">{formatCurrency(tOp, true)}</td>
+                                          <td className="text-right px-4 py-2 font-bold">{formatCurrency(tVendas, true)}</td>
+                                          <td className="text-right px-4 py-2">
+                                            <span className={`font-bold ${tAt >= 100 ? 'text-green-400' : tAt >= 80 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                              {tAt.toFixed(1)}%
+                                            </span>
+                                          </td>
+                                          <td className="text-right px-4 py-2 font-bold">{tCli}</td>
+                                        </tr>
+                                      </tfoot>
+                                    )
+                                  })()}
                                 </table>
                               </div>
                             ) : (
@@ -1176,6 +1224,30 @@ const DashboardRotas: React.FC = () => {
                   </React.Fragment>
                 ))}
               </tbody>
+              {rotasOrdenadas.length > 0 && (() => {
+                const totalMeta = rotasOrdenadas.reduce((s, r) => s + r.meta_2025, 0)
+                const totalVendas = rotasOrdenadas.reduce((s, r) => s + r.vendido_2025, 0)
+                const totalOportunidade = rotasOrdenadas.reduce((s, r) => s + r.soma_oportunidades, 0)
+                const totalAtingimento = totalMeta > 0 ? (totalVendas / totalMeta) * 100 : 0
+                return (
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-300 bg-gray-50">
+                      <td className="py-3 px-4 font-bold text-gray-900 text-sm">
+                        Total ({rotasOrdenadas.length} rotas)
+                      </td>
+                      <td className="py-3 px-4 text-gray-500 text-sm" />
+                      <td className="py-3 px-4 text-right font-bold text-gray-900 text-sm">{formatCurrency(totalMeta, true)}</td>
+                      <td className="py-3 px-4 text-right font-bold text-orange-600 text-sm">{formatCurrency(totalOportunidade, true)}</td>
+                      <td className="py-3 px-4 text-right font-bold text-gray-900 text-sm">{formatCurrency(totalVendas, true)}</td>
+                      <td className="py-3 px-4 text-right">
+                        <span className={`font-bold text-sm ${totalAtingimento >= 100 ? 'text-green-600' : totalAtingimento >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                          {totalAtingimento.toFixed(1)}%
+                        </span>
+                      </td>
+                    </tr>
+                  </tfoot>
+                )
+              })()}
             </table>
           </div>
         </Card>
