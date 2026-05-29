@@ -197,8 +197,9 @@ const DashboardGestao: React.FC = () => {
       entry.semanas[sem] = (entry.semanas[sem] || 0) + valor;
     });
 
-    // Incluir vendedores ativos sem vendas no periodo
+    // Incluir vendedores ativos sem vendas no periodo (excluindo Focco Brasil cod=1)
     allVendedores.forEach(vd => {
+      if (Number(vd.cod_vendedor) === 1) return;
       const cod = String(vd.cod_vendedor);
       if (!porVendedor.has(cod)) {
         const nome = vd.apelido || vd.nome_completo || cod;
@@ -291,13 +292,17 @@ const DashboardGestao: React.FC = () => {
   }, [resumoMarcas]);
 
   const rankingVendedores = useMemo<VendedorRankingGestao[]>(() => {
-    const lista = (dashboardData || []).map((vendedor: any) => ({
-      nome: vendedor.vendedor_apelido,
-      meta: vendedor.meta_mensal || 0,
-      vendas: vendedor.total_vendas || 0,
-      atingimento: vendedor.percentual_atingimento || 0,
-      numeroClientes: vendedor.clientes_atendidos || 0
-    }));
+    // Excluir Focco Brasil da view — perfil tem vendedor=null, retorna total_vendas=0
+    // Dados reais do Focco Brasil (cod=1) vêm de vendasSemanais abaixo
+    const lista = (dashboardData || [])
+      .filter((vendedor: any) => vendedor.vendedor_apelido !== 'Focco Brasil')
+      .map((vendedor: any) => ({
+        nome: vendedor.vendedor_apelido,
+        meta: vendedor.meta_mensal || 0,
+        vendas: vendedor.total_vendas || 0,
+        atingimento: vendedor.percentual_atingimento || 0,
+        numeroClientes: vendedor.clientes_atendidos || 0
+      }));
 
     // Adicionar FOCCO BRASIL (cod=1) a partir de vendas_semanais
     const vendasFocco = (vendasSemanais || [])
