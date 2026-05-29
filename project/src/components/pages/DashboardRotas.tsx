@@ -143,6 +143,7 @@ const DashboardRotas: React.FC = () => {
 
   const [sortRotas, setSortRotas] = useState<{ field: RotaSortField; direction: SortDirection }>({ field: 'vendido_2025', direction: 'desc' })
   const [clientesPorRota, setClientesPorRota] = useState<Map<string, ClienteResumo[]>>(new Map())
+  const [clientesPorCidadeBase, setClientesPorCidadeBase] = useState<Map<string, ClienteResumo[]>>(new Map())
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -323,24 +324,32 @@ const DashboardRotas: React.FC = () => {
           } catch { /* boletos opcionais */ }
 
           const mapa = new Map<string, ClienteResumo[]>()
+          const cidadeMap = new Map<string, ClienteResumo[]>()
           clientesResumoData.forEach((c: any) => {
             const ibge = c.codigo_ibge_cidade
             if (!ibge) return
-            const rotaInfo = ibgeRotaMap.get(ibge)
-            if (!rotaInfo) return
-            const key = `${rotaInfo.vendedorUuid}-${rotaInfo.rota}`
             const rfm = Array.isArray(c.analise_rfm) ? c.analise_rfm[0] : c.analise_rfm
-            if (!mapa.has(key)) mapa.set(key, [])
-            mapa.get(key)!.push({
+            const resumo: ClienteResumo = {
               situacao: c.situacao || 'A',
               dias_sem_comprar: rfm?.dias_sem_comprar || 0,
               previsao_pedido: rfm?.previsao_pedido || 0,
               meta_ano_atual: rfm?.meta_ano_atual || 0,
               valor_ano_atual: rfm?.valor_ano_atual || 0,
               qtd_boletos: boletosRotaMap.get(c.codigo_cliente) || 0,
-            })
+            }
+            // por rota
+            const rotaInfo = ibgeRotaMap.get(ibge)
+            if (rotaInfo) {
+              const key = `${rotaInfo.vendedorUuid}-${rotaInfo.rota}`
+              if (!mapa.has(key)) mapa.set(key, [])
+              mapa.get(key)!.push(resumo)
+            }
+            // por ibge (cidade)
+            if (!cidadeMap.has(ibge)) cidadeMap.set(ibge, [])
+            cidadeMap.get(ibge)!.push(resumo)
           })
           setClientesPorRota(mapa)
+          setClientesPorCidadeBase(cidadeMap)
         }
 
       } catch (error) {
@@ -442,6 +451,32 @@ const DashboardRotas: React.FC = () => {
     }
     return resultado
   }, [clientesPorCidade, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao])
+
+  // Métricas por cidade re-agregadas com base nos clientes filtrados
+  const cidadesMetricasFiltradas = useMemo(() => {
+    const temFiltroCliente = filtroDiasSemVenda !== '' || filtroBoletosAberto !== 'todos' || filtroSituacao !== 'todos'
+    if (!temFiltroCliente || clientesPorCidadeBase.size === 0) return new Map<string, { meta: number; vendas: number; oportunidades: number; qtdClientes: number }>()
+    const result = new Map<string, { meta: number; vendas: number; oportunidades: number; qtdClientes: number }>()
+    for (const [ibge, clientes] of clientesPorCidadeBase.entries()) {
+      const filtrados = clientes.filter(c => {
+        if (filtroDiasSemVenda !== '' && c.dias_sem_comprar < (filtroDiasSemVenda as number)) return false
+        if (filtroBoletosAberto !== 'todos') {
+          const min = filtroBoletosAberto as number
+          if (min === 6 ? c.qtd_boletos < 6 : c.qtd_boletos > min) return false
+        }
+        if (filtroSituacao === 'inadimplente' && c.situacao !== 'P') return false
+        if (filtroSituacao === 'adimplente' && c.situacao === 'P') return false
+        return true
+      })
+      result.set(ibge, {
+        meta: filtrados.reduce((s, c) => s + c.meta_ano_atual, 0),
+        vendas: filtrados.reduce((s, c) => s + c.valor_ano_atual, 0),
+        oportunidades: filtrados.reduce((s, c) => s + c.previsao_pedido, 0),
+        qtdClientes: filtrados.length,
+      })
+    }
+    return result
+  }, [clientesPorCidadeBase, filtroDiasSemVenda, filtroBoletosAberto, filtroSituacao])
 
   const handleSortRotas = (field: RotaSortField) => {
     setSortRotas(prev => ({
@@ -1054,7 +1089,17 @@ const DashboardRotas: React.FC = () => {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {getCidadesOrdenadas(cidadesComMeta.get(rota.rota) || []).map((cidade) => (
+                                    {getCidadesOrdenadas(cidadesComMeta.get(rota.rota) || []).map((cidade) => {
+                                      const mf = cidadesMetricasFiltradas.get(cidade.codigo_ibge_cidade)
+                                      const temFiltro = cidadesMetricasFiltradas.size > 0
+                                      // Esconder cidade se filtros ativos e 0 clientes correspondem
+                                      if (temFiltro && mf && mf.qtdClientes === 0) return null
+                                      const meta = temFiltro && mf ? mf.meta : cidade.meta_cidade
+                                      const vendas = temFiltro && mf ? mf.vendas : cidade.vendas_cidade
+                                      const oportunidades = temFiltro && mf ? mf.oportunidades : (cidade.soma_oportunidades ?? 0)
+                                      const qtd = temFiltro && mf ? mf.qtdClientes : cidade.qtd_clientes
+                                      const at = meta > 0 ? (vendas / meta) * 100 : 0
+                                      return (
                                       <React.Fragment key={cidade.codigo_ibge_cidade}>
                                         {/* Linha da cidade — expansível para nível 3 */}
                                         <tr
@@ -1070,19 +1115,17 @@ const DashboardRotas: React.FC = () => {
                                               <span>{cidade.cidade}</span>
                                             </div>
                                           </td>
-                                          <td className="text-right px-4 py-2 text-gray-700">{formatCurrency(cidade.meta_cidade, true)}</td>
-                                          <td className="text-right px-4 py-2 font-semibold text-orange-600">{formatCurrency(cidade.soma_oportunidades ?? 0, true)}</td>
-                                          <td className="text-right px-4 py-2 font-semibold text-gray-900">{formatCurrency(cidade.vendas_cidade, true)}</td>
+                                          <td className="text-right px-4 py-2 text-gray-700">{formatCurrency(meta, true)}</td>
+                                          <td className="text-right px-4 py-2 font-semibold text-orange-600">{formatCurrency(oportunidades, true)}</td>
+                                          <td className="text-right px-4 py-2 font-semibold text-gray-900">{formatCurrency(vendas, true)}</td>
                                           <td className="text-right px-4 py-2">
                                             <span className={`font-bold ${
-                                              cidade.percentual_atingimento >= 100 ? 'text-green-600' :
-                                              cidade.percentual_atingimento >= 80 ? 'text-yellow-600' :
-                                              'text-red-600'
+                                              at >= 100 ? 'text-green-600' : at >= 80 ? 'text-yellow-600' : 'text-red-600'
                                             }`}>
-                                              {cidade.percentual_atingimento.toFixed(1)}%
+                                              {at.toFixed(1)}%
                                             </span>
                                           </td>
-                                          <td className="text-right px-4 py-2 text-gray-700">{cidade.qtd_clientes}</td>
+                                          <td className="text-right px-4 py-2 text-gray-700">{qtd}</td>
                                         </tr>
 
                                         {/* Nível 3 — fundo sky para contraste com nível 2 (slate) */}
@@ -1185,16 +1228,21 @@ const DashboardRotas: React.FC = () => {
                                           </tr>
                                         )}
                                       </React.Fragment>
-                                    ))}
+                                      )
+                                    })}
                                   </tbody>
                                   {(() => {
-                                    const cids = cidadesComMeta.get(rota.rota) || []
+                                    const cids = (cidadesComMeta.get(rota.rota) || []).filter(c => {
+                                      const mf = cidadesMetricasFiltradas.get(c.codigo_ibge_cidade)
+                                      return !(cidadesMetricasFiltradas.size > 0 && mf && mf.qtdClientes === 0)
+                                    })
                                     if (cids.length === 0) return null
-                                    const tMeta = cids.reduce((s, c) => s + (c.meta_cidade || 0), 0)
-                                    const tVendas = cids.reduce((s, c) => s + (c.vendas_cidade || 0), 0)
-                                    const tOp = cids.reduce((s, c) => s + (c.soma_oportunidades || 0), 0)
+                                    const temFiltro = cidadesMetricasFiltradas.size > 0
+                                    const tMeta = cids.reduce((s, c) => { const mf = cidadesMetricasFiltradas.get(c.codigo_ibge_cidade); return s + (temFiltro && mf ? mf.meta : (c.meta_cidade || 0)) }, 0)
+                                    const tVendas = cids.reduce((s, c) => { const mf = cidadesMetricasFiltradas.get(c.codigo_ibge_cidade); return s + (temFiltro && mf ? mf.vendas : (c.vendas_cidade || 0)) }, 0)
+                                    const tOp = cids.reduce((s, c) => { const mf = cidadesMetricasFiltradas.get(c.codigo_ibge_cidade); return s + (temFiltro && mf ? mf.oportunidades : (c.soma_oportunidades || 0)) }, 0)
                                     const tAt = tMeta > 0 ? (tVendas / tMeta) * 100 : 0
-                                    const tCli = cids.reduce((s, c) => s + (c.qtd_clientes || 0), 0)
+                                    const tCli = cids.reduce((s, c) => { const mf = cidadesMetricasFiltradas.get(c.codigo_ibge_cidade); return s + (temFiltro && mf ? mf.qtdClientes : (c.qtd_clientes || 0)) }, 0)
                                     return (
                                       <tfoot>
                                         <tr className="border-t-2 border-gray-500 bg-gray-800 text-white text-xs">
