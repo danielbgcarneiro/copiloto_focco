@@ -301,7 +301,12 @@ const DashboardRotas: React.FC = () => {
           }
         })
 
-        const todosCodsVendedor = Array.from(vendedoresUnicos.values()).map(v => v.cod_vendedor)
+        const todosCodsVendedor = Array.from(vendedoresUnicos.values())
+          .map(v => v.cod_vendedor)
+          .filter((cod): cod is number => cod !== null && cod !== undefined)
+
+        if (todosCodsVendedor.length === 0) return
+
         const { data: clientesResumoData } = await supabase
           .from('tabela_clientes')
           .select(`codigo_cliente, cod_vendedor, situacao, codigo_ibge_cidade, analise_rfm (dias_sem_comprar, previsao_pedido, meta_ano_atual, valor_ano_atual)`)
@@ -318,6 +323,7 @@ const DashboardRotas: React.FC = () => {
               .select('codigo_cliente')
               .in('codigo_cliente', codigosAll)
               .gt('dias_atraso', 0)
+              .limit(10000)
             boletoData?.forEach((r: any) => {
               boletosRotaMap.set(r.codigo_cliente, (boletosRotaMap.get(r.codigo_cliente) || 0) + 1)
             })
