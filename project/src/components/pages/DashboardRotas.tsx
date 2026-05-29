@@ -698,10 +698,12 @@ const DashboardRotas: React.FC = () => {
 
       if (codVendedoresFiltrados.length === 0) { setClientesSemRota([]); return }
 
+      // rotas_estado tem 1938 linhas para os 6 vendors rastreados — limite explícito evita truncamento do Supabase (padrão 1000)
       const { data: rotasCidades } = await supabase
         .from('rotas_estado')
         .select('cod_vendedor, codigo_ibge_cidade')
         .in('cod_vendedor', codVendedoresFiltrados)
+        .limit(3000)
 
       const cidadesPorVendedor = new Map<number, Set<string>>()
       ;(rotasCidades || []).forEach((rc: any) => {
@@ -715,6 +717,7 @@ const DashboardRotas: React.FC = () => {
         .in('cod_vendedor', codVendedoresFiltrados)
         .not('situacao', 'in', '("I","B")')
         .not('codigo_ibge_cidade', 'is', null)
+        .limit(5000)
 
       if (error) throw error
 
