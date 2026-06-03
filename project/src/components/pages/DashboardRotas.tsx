@@ -320,10 +320,9 @@ const DashboardRotas: React.FC = () => {
           const boletosRotaMap = new Map<number, number>()
           try {
             const { data: boletoData } = await supabase
-              .from('vw_titulos_vencidos_detalhado')
+              .from('titulos_aberto_clientes')
               .select('codigo_cliente')
               .in('codigo_cliente', codigosAll)
-              .gt('dias_atraso', 0)
               .limit(10000)
             boletoData?.forEach((r: any) => {
               boletosRotaMap.set(r.codigo_cliente, (boletosRotaMap.get(r.codigo_cliente) || 0) + 1)
@@ -606,10 +605,9 @@ const DashboardRotas: React.FC = () => {
       if (codigosClientes.length > 0) {
         try {
           const { data: inadData } = await supabase
-            .from('vw_titulos_vencidos_detalhado')
+            .from('titulos_aberto_clientes')
             .select('codigo_cliente, dias_atraso')
             .in('codigo_cliente', codigosClientes)
-            .gt('dias_atraso', 0)
 
           if (inadData) {
             inadData.forEach((r: any) => {
