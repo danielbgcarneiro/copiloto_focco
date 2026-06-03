@@ -320,7 +320,7 @@ const DashboardRotas: React.FC = () => {
           const boletosRotaMap = new Map<number, number>()
           try {
             const { data: boletoData } = await supabase
-              .from('vw_titulos_vencidos_detalhado')
+              .from('titulos_aberto_clientes')
               .select('codigo_cliente')
               .in('codigo_cliente', codigosAll)
               .limit(10000)
@@ -611,15 +611,27 @@ const DashboardRotas: React.FC = () => {
 
           if (inadData) {
             inadData.forEach((r: any) => {
-              // Max dias_atraso
               const atual = inadimplenciaMap.get(r.codigo_cliente) ?? 0
               if (r.dias_atraso > atual) inadimplenciaMap.set(r.codigo_cliente, r.dias_atraso)
-              // Contagem de boletos em aberto
-              boletosMap.set(r.codigo_cliente, (boletosMap.get(r.codigo_cliente) ?? 0) + 1)
             })
           }
         } catch (err) {
           console.warn('Erro ao buscar inadimplência:', err)
+        }
+
+        try {
+          const { data: boletosData } = await supabase
+            .from('titulos_aberto_clientes')
+            .select('codigo_cliente')
+            .in('codigo_cliente', codigosClientes)
+
+          if (boletosData) {
+            boletosData.forEach((r: any) => {
+              boletosMap.set(r.codigo_cliente, (boletosMap.get(r.codigo_cliente) ?? 0) + 1)
+            })
+          }
+        } catch (err) {
+          console.warn('Erro ao buscar boletos em aberto:', err)
         }
       }
 
