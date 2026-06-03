@@ -219,7 +219,7 @@ export async function getRankingRotas(): Promise<RankingRota[]> {
         meta_2025: stats.meta_2025,
         percentual_meta: stats.meta_2025 > 0 ? (stats.vendido_2025 / stats.meta_2025) * 100 : 0,
         ranking: 0, // Será calculado após ordenação
-        saldo_restante: stats.meta_2025 - stats.vendido_2025
+        saldo_restante: stats.meta_2025 > 0 ? stats.meta_2025 - stats.vendido_2025 : 0
       }))
       .sort((a, b) => b.percentual_meta - a.percentual_meta)
       .map((rota, index) => ({

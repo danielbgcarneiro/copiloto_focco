@@ -170,7 +170,7 @@ export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMa
         totalClientes: stats.totalClientes,
         somaMetas: stats.somaMetas,
         vendido2025: stats.vendido2025,
-        saldoMetas: stats.somaMetas - stats.vendido2025,
+        saldoMetas: stats.somaMetas > 0 ? stats.somaMetas - stats.vendido2025 : 0,
         atingimento: stats.somaMetas > 0 ? (stats.vendido2025 / stats.somaMetas) * 100 : 0
       }))
       .filter(cidade => cidade.totalClientes > 0)

@@ -180,7 +180,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
         semVendas120d: stats.semVendas120d,
         status: 'Ativo' as 'Ativo' | 'Inativo',
         metaAnoAtual: stats.metaAnoAtual,
-        saldoMeta: stats.metaAnoAtual - stats.valorAnoAtual,
+        saldoMeta: stats.metaAnoAtual > 0 ? stats.metaAnoAtual - stats.valorAnoAtual : 0,
         percentualMeta: stats.metaAnoAtual > 0 ? (stats.valorAnoAtual / stats.metaAnoAtual) * 100 : 0
       }))
       // Ordenar por percentual de meta (maior primeiro)

@@ -137,7 +137,7 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
         meta_ano_atual: metaAnoAtual,
         dias_sem_comprar: rfmObject?.dias_sem_comprar || 0,
         previsao_pedido: rfmObject?.previsao_pedido || 0,
-        saldo_meta: metaAnoAtual - valorAnoAtual,
+        saldo_meta: metaAnoAtual > 0 ? metaAnoAtual - valorAnoAtual : 0,
         percentual_atingimento: metaAnoAtual > 0 ? (valorAnoAtual / metaAnoAtual) * 100 : 0,
         perfil: rfmObject?.perfil,
       }
