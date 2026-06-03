@@ -27,8 +27,8 @@ interface RotaData {
   ranking: number
   total_cidades: number
   qtd_cidades: number
-  clientes_sem_venda_90d: number
-  oticas_sem_vendas_90d: number
+  clientes_sem_venda_120d: number
+  oticas_sem_vendas_120d: number
   soma_oportunidades: number
 }
 
@@ -213,7 +213,7 @@ const DashboardRotas: React.FC = () => {
           oticas: number
           meta: number
           vendas: number
-          semVendas90d: number
+          semVendas120d: number
           oportunidades: number
         }>()
 
@@ -230,7 +230,7 @@ const DashboardRotas: React.FC = () => {
               oticas: 0,
               meta: 0,
               vendas: 0,
-              semVendas90d: 0,
+              semVendas120d: 0,
               oportunidades: 0
             })
           }
@@ -249,7 +249,7 @@ const DashboardRotas: React.FC = () => {
             stats.meta += cidade.meta_cidade || 0
             stats.vendas += cidade.vendas_cidade || 0
             stats.oportunidades += cidade.soma_oportunidades || 0
-            // semVendas90d seria calculado pela view se necessário
+            // semVendas120d seria calculado pela view se necessário
           }
         })
 
@@ -269,8 +269,8 @@ const DashboardRotas: React.FC = () => {
             ranking: 0,
             total_cidades: stats.cidades.size,
             qtd_cidades: stats.cidades.size,
-            clientes_sem_venda_90d: stats.semVendas90d,
-            oticas_sem_vendas_90d: stats.semVendas90d,
+            clientes_sem_venda_120d: stats.semVendas120d,
+            oticas_sem_vendas_120d: stats.semVendas120d,
             soma_oportunidades: stats.oportunidades
           }))
           .sort((a, b) => b.percentual_meta - a.percentual_meta)
@@ -417,7 +417,7 @@ const DashboardRotas: React.FC = () => {
         vendido_2025: vendas,
         soma_oportunidades: oportunidades,
         percentual_meta: meta > 0 ? (vendas / meta) * 100 : 0,
-        clientes_sem_venda_90d: filtrados.filter(c => c.dias_sem_comprar >= 90).length,
+        clientes_sem_venda_120d: filtrados.filter(c => c.dias_sem_comprar >= 120).length,
       })
     }
     return resultado

@@ -12,7 +12,7 @@ export interface RotaMapeada {
   totalCidades: number;
   totalOticas: number;
   somaOportunidades: number;
-  semVendas90d: number;
+  semVendas120d: number;
   status: 'Ativo' | 'Inativo';
   metaAnoAtual: number;
   saldoMeta: number;
@@ -123,7 +123,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
       totalCidades: Set<string>;
       totalOticas: number;
       somaOportunidades: number;
-      semVendas90d: number;
+      semVendas120d: number;
       metaAnoAtual: number;
       valorAnoAtual: number;
     }
@@ -137,7 +137,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
         totalCidades: new Set<string>(),
         totalOticas: 0,
         somaOportunidades: 0,
-        semVendas90d: 0,
+        semVendas120d: 0,
         metaAnoAtual: 0,
         valorAnoAtual: 0
       });
@@ -162,9 +162,9 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
           stats.metaAnoAtual += cliente.analise_rfm.meta_ano_atual || 0;
           stats.somaOportunidades += cliente.analise_rfm.previsao_pedido || 0;
 
-          // Considerar sem vendas se dias_sem_comprar >= 90
-          if ((cliente.analise_rfm.dias_sem_comprar || 0) >= 90) {
-            stats.semVendas90d += 1;
+          // Considerar sem vendas se dias_sem_comprar >= 120
+          if ((cliente.analise_rfm.dias_sem_comprar || 0) >= 120) {
+            stats.semVendas120d += 1;
           }
         }
       }
@@ -177,7 +177,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
         totalCidades: stats.totalCidades.size,
         totalOticas: stats.totalOticas,
         somaOportunidades: stats.somaOportunidades,
-        semVendas90d: stats.semVendas90d,
+        semVendas120d: stats.semVendas120d,
         status: 'Ativo' as 'Ativo' | 'Inativo',
         metaAnoAtual: stats.metaAnoAtual,
         saldoMeta: stats.metaAnoAtual - stats.valorAnoAtual,
@@ -232,7 +232,7 @@ export async function getMetricasDetalhadasPorRota(): Promise<RotaMapeada[]> {
           totalCidades: 0,
           totalOticas: 0,
           somaOportunidades: 0,
-          semVendas90d: 0,
+          semVendas120d: 0,
           status: 'Ativo' as 'Ativo' | 'Inativo',
           metaAnoAtual: 0,
           saldoMeta: 0,
@@ -243,7 +243,7 @@ export async function getMetricasDetalhadasPorRota(): Promise<RotaMapeada[]> {
       acc[rotaName].totalCidades += 1;
       acc[rotaName].totalOticas += cidade.total_clientes || 0;
       acc[rotaName].somaOportunidades += cidade.soma_oportunidades || 0;
-      acc[rotaName].semVendas90d += cidade.clientes_sem_venda_90d || 0;
+      acc[rotaName].semVendas120d += cidade.clientes_sem_venda_90d || 0;
       
       return acc;
     }, {});

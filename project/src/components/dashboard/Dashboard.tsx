@@ -268,7 +268,7 @@ const Dashboard: React.FC = () => {
             <Card variant="default" padding="none" className="p-3">
               <div className="flex items-center gap-1 mb-1">
                 <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />
-                <p className="text-[10px] font-medium text-gray-600 leading-tight">+180d</p>
+                <p className="text-[10px] font-medium text-gray-600 leading-tight">+180-DSV</p>
               </div>
               <p className="text-lg font-bold text-red-600">
                 {oticasSemVendas180d || 0}

@@ -11,7 +11,7 @@ export interface CidadeMapeada {
   nome: string;
   rota: string;
   somaOportunidades: number;
-  clientesSemVenda90d: number;
+  clientesSemVenda120d: number;
   totalClientes: number;
   somaMetas: number;
   vendido2025: number;
@@ -117,7 +117,7 @@ export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMa
       somaOportunidades: number;
       somaMetas: number;
       vendido2025: number;
-      clientesSemVenda90d: number;
+      clientesSemVenda120d: number;
     }
 
     const cidadesMap = new Map<string, CidadeStats>();
@@ -140,7 +140,7 @@ export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMa
           somaOportunidades: 0,
           somaMetas: 0,
           vendido2025: 0,
-          clientesSemVenda90d: 0
+          clientesSemVenda120d: 0
         });
       }
 
@@ -153,9 +153,9 @@ export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMa
         stats.somaMetas += cliente.analise_rfm.meta_ano_atual || 0;
         stats.somaOportunidades += cliente.analise_rfm.previsao_pedido || 0;
 
-        // Clientes sem venda há +90 dias
-        if ((cliente.analise_rfm.dias_sem_comprar || 0) >= 90) {
-          stats.clientesSemVenda90d += 1;
+        // Clientes sem venda há +120 dias
+        if ((cliente.analise_rfm.dias_sem_comprar || 0) >= 120) {
+          stats.clientesSemVenda120d += 1;
         }
       }
     });
@@ -166,7 +166,7 @@ export async function getCidadesCompleto(rota?: string | null): Promise<CidadeMa
         nome: stats.nome,
         rota: stats.rota,
         somaOportunidades: stats.somaOportunidades,
-        clientesSemVenda90d: stats.clientesSemVenda90d,
+        clientesSemVenda120d: stats.clientesSemVenda120d,
         totalClientes: stats.totalClientes,
         somaMetas: stats.somaMetas,
         vendido2025: stats.vendido2025,

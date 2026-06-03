@@ -161,9 +161,9 @@ const Rotas: React.FC = () => {
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-0.5">
                     <AlertTriangle className="w-3 h-3 text-red-500" />
-                    <span className="font-bold text-xs sm:text-sm text-red-500">{rota.semVendas90d}</span>
+                    <span className="font-bold text-xs sm:text-sm text-red-500">{rota.semVendas120d}</span>
                   </div>
-                  <span className="text-[9px] sm:text-[10px] text-gray-500">Lojas s/ venda</span>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">120-DSV</span>
                 </div>
               </div>
             </div>
