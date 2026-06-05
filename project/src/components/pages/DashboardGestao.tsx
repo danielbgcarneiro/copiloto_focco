@@ -11,7 +11,7 @@ import { BarChart3, Users, DollarSign, Target, Calendar, RefreshCw, Menu, X, Hom
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores'
+import { VendedorProfile } from '../../lib/queries/vendedores'
 import { Card, LoadingSpinner } from '../atoms'
 import { TabelaMarcas } from '../molecules/TabelaMarcas'
 import { formatCurrency } from '../../utils'
@@ -108,19 +108,36 @@ const DashboardGestao: React.FC = () => {
         .eq('mes', mes);
       setResumoMarcas(marcasData || []);
 
-      // 4. Buscar metas (apenas OB_PW — meta em R$)
+      // 4. Buscar metas (apenas OB_PW — meta em R$) incluindo cod_vendedor para union com vendas
       const { data: metas, error: metasError } = await supabase
         .from('metas_vendedores')
-        .select('meta_valor').eq('ano', ano).eq('mes', mes).eq('marca', 'OB_PW');
+        .select('cod_vendedor, meta_valor').eq('ano', ano).eq('mes', mes).eq('marca', 'OB_PW');
       setMetasData(metasError ? [] : (metas || []));
       if(metasError) console.error('Erro ao buscar metas_vendedores:', metasError);
       else console.log(`✅ metas_vendedores: ${metas?.length || 0} registros`);
 
-      // 5. Buscar TODOS os vendedores (IMPORTANTE: isso atualiza allVendedores)
-      console.log(`📍 Buscando vendedores ANTES de atualizar estado...`);
-      const vendedores = await getAllVendedores();
-      console.log(`👥 getAllVendedores retornou:`, { count: vendedores?.length || 0, primeiro: vendedores?.[0] });
-      setAllVendedores(vendedores || []);
+      // 5. Buscar perfis de vendedores que têm histórico de vendas OU meta no período,
+      //    independente do status (ativo/inativo). Vendedor cod=1 (Focco Brasil) é excluído.
+      const codigosDeVendas = new Set(
+        (vendasSemData || []).map((v: any) => Number(v.codigo_vendedor)).filter(c => c !== 1)
+      );
+      const codigosDeMetas = new Set(
+        (metas || []).map((m: any) => Number(m.cod_vendedor)).filter(c => !!c && c !== 1)
+      );
+      const todosCodigos = [...new Set([...codigosDeVendas, ...codigosDeMetas])];
+
+      let vendedoresComHistorico: VendedorProfile[] = [];
+      if (todosCodigos.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, cod_vendedor, nome_completo, apelido, cargo, status, vendedor_responsavel, created_at, updated_at')
+          .eq('cargo', 'vendedor')
+          .in('cod_vendedor', todosCodigos);
+        if (profilesError) console.error('Erro ao buscar profiles para gestão:', profilesError);
+        else vendedoresComHistorico = (profilesData || []) as VendedorProfile[];
+      }
+      console.log(`👥 Vendedores com histórico no período: ${vendedoresComHistorico.length}`);
+      setAllVendedores(vendedoresComHistorico);
 
       // 6. Contagens detalhadas de clientes via vendas_mes
       const startDate = new Date(ano, mes - 1, 1).toISOString();
@@ -197,7 +214,7 @@ const DashboardGestao: React.FC = () => {
       entry.semanas[sem] = (entry.semanas[sem] || 0) + valor;
     });
 
-    // Incluir vendedores ativos sem vendas no periodo (excluindo Focco Brasil cod=1)
+    // Incluir vendedores com histórico (vendas ou meta) mas sem registro semanal no período
     allVendedores.forEach(vd => {
       if (Number(vd.cod_vendedor) === 1) return;
       const cod = String(vd.cod_vendedor);
