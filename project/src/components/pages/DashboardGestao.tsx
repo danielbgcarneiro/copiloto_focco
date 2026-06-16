@@ -54,6 +54,43 @@ interface VendedorRankingSemanal {
 }
 
 
+/** Perfis de vendedores com vendas OU meta no período (exclui FOCCO cod=1). */
+async function fetchVendedoresComHistorico(vendasSemData: any[] | null, metas: any[] | null): Promise<VendedorProfile[]> {
+  const codigosDeVendas = new Set((vendasSemData || []).map((v: any) => Number(v.codigo_vendedor)).filter(c => c !== 1))
+  const codigosDeMetas = new Set((metas || []).map((m: any) => Number(m.cod_vendedor)).filter(c => !!c && c !== 1))
+  const todosCodigos = [...new Set([...codigosDeVendas, ...codigosDeMetas])]
+  if (todosCodigos.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, cod_vendedor, nome_completo, apelido, cargo, status, vendedor_responsavel, created_at, updated_at')
+    .eq('cargo', 'vendedor')
+    .in('cod_vendedor', todosCodigos)
+  if (error) {
+    console.error('Erro ao buscar profiles para gestão:', error)
+    return []
+  }
+  return (data || []) as VendedorProfile[]
+}
+
+/** Contagens de clientes faturados/aberto via vendas_mes. */
+async function fetchDetailedClientCounts(ano: number, mes: number): Promise<{ faturados: number; aberto: number }> {
+  const startDate = new Date(ano, mes - 1, 1).toISOString()
+  const endDate = new Date(ano, mes, 0).toISOString()
+  const { data, error } = await supabase
+    .from('vendas_mes')
+    .select('qtd_clientes_faturados, qtd_clientes_aberto')
+    .gte('mes_referencia', startDate)
+    .lte('mes_referencia', endDate)
+  if (error || !data) {
+    console.error('Erro ao buscar detailedClientCounts de vendas_mes:', error)
+    return { faturados: 0, aberto: 0 }
+  }
+  const faturados = data.reduce((sum, item) => sum + (item.qtd_clientes_faturados || 0), 0)
+  const aberto = data.reduce((sum, item) => sum + (item.qtd_clientes_aberto || 0), 0)
+  return { faturados, aberto }
+}
+
 const DashboardGestao: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -118,44 +155,12 @@ const DashboardGestao: React.FC = () => {
 
       // 5. Buscar perfis de vendedores que têm histórico de vendas OU meta no período,
       //    independente do status (ativo/inativo). Vendedor cod=1 (Focco Brasil) é excluído.
-      const codigosDeVendas = new Set(
-        (vendasSemData || []).map((v: any) => Number(v.codigo_vendedor)).filter(c => c !== 1)
-      );
-      const codigosDeMetas = new Set(
-        (metas || []).map((m: any) => Number(m.cod_vendedor)).filter(c => !!c && c !== 1)
-      );
-      const todosCodigos = [...new Set([...codigosDeVendas, ...codigosDeMetas])];
-
-      let vendedoresComHistorico: VendedorProfile[] = [];
-      if (todosCodigos.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, cod_vendedor, nome_completo, apelido, cargo, status, vendedor_responsavel, created_at, updated_at')
-          .eq('cargo', 'vendedor')
-          .in('cod_vendedor', todosCodigos);
-        if (profilesError) console.error('Erro ao buscar profiles para gestão:', profilesError);
-        else vendedoresComHistorico = (profilesData || []) as VendedorProfile[];
-      }
+      const vendedoresComHistorico = await fetchVendedoresComHistorico(vendasSemData, metas);
       console.log(`👥 Vendedores com histórico no período: ${vendedoresComHistorico.length}`);
       setAllVendedores(vendedoresComHistorico);
 
       // 6. Contagens detalhadas de clientes via vendas_mes
-      const startDate = new Date(ano, mes - 1, 1).toISOString();
-      const endDate = new Date(ano, mes, 0).toISOString();
-      const { data: vendasMesData, error: vendasMesError } = await supabase
-        .from('vendas_mes')
-        .select('qtd_clientes_faturados, qtd_clientes_aberto')
-        .gte('mes_referencia', startDate)
-        .lte('mes_referencia', endDate);
-
-      if(vendasMesError) {
-        console.error('Erro ao buscar detailedClientCounts de vendas_mes:', vendasMesError);
-        setDetailedClientCounts({ faturados: 0, aberto: 0 });
-      } else {
-        const totalFaturados = vendasMesData.reduce((sum, item) => sum + (item.qtd_clientes_faturados || 0), 0);
-        const totalAberto = vendasMesData.reduce((sum, item) => sum + (item.qtd_clientes_aberto || 0), 0);
-        setDetailedClientCounts({ faturados: totalFaturados, aberto: totalAberto });
-      }
+      setDetailedClientCounts(await fetchDetailedClientCounts(ano, mes));
 
     } catch (error) {
       console.error('Erro geral ao buscar dados do dashboard:', error);
