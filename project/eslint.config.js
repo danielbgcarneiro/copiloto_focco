@@ -12,6 +12,14 @@ export default [
       "*.config.js",
       "*.config.cjs",
       "*.config.mjs",
+      // Framework AIOS (L1/L2) e dirs não-app — não fazem parte do código do projeto
+      ".aios-core/**",
+      "squads/**",
+      "supabase/**",
+      "database/**",
+      "sql/**",
+      "*.cjs",
+      "debug-schema.ts",
     ]
   },
   {files: ["src/**/*.{ts,tsx}"]},
@@ -50,6 +58,10 @@ export default [
 
       // JS
       "no-unused-vars": "off",
+
+      // Complexidade ciclomática — ratchet: teto no nível atual do projeto.
+      // À medida que hotspots são refatorados, baixar este número (meta: 10).
+      "complexity": ["error", 32],
     }
   }
 ];

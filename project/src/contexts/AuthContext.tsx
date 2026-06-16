@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(authUser)
       setLoading(false)
       return { success: true }
-    } catch (error) {
+    } catch {
       setLoading(false)
       return { success: false, error: 'Erro na conexão' }
     }

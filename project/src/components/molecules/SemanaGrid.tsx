@@ -73,7 +73,7 @@ export function SemanaGrid({
     if (touchStart === null) return
     const diff = touchStart - e.changedTouches[0].clientX
     if (Math.abs(diff) > 50) {
-      diff > 0 ? nextWeek() : prevWeek()
+      if (diff > 0) nextWeek(); else prevWeek()
     }
     setTouchStart(null)
   }

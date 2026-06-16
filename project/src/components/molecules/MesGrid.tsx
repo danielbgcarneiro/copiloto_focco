@@ -76,7 +76,7 @@ export function MesGrid({ year, month, agendaCache, today, onSelectDay, onMonthC
     if (touchStart === null) return
     const diff = touchStart - e.changedTouches[0].clientX
     if (Math.abs(diff) > 50) {
-      diff > 0 ? nextMonth() : prevMonth()
+      if (diff > 0) nextMonth(); else prevMonth()
     }
     setTouchStart(null)
   }

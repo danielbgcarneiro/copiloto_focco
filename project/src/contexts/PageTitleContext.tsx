@@ -38,6 +38,5 @@ export function useSetPage(title: string, onBack?: () => void) {
   useEffect(() => {
     setPage(title, onBack)
     return () => setPage('')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title])
 }

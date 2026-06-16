@@ -277,7 +277,7 @@ export default function GestaoAgendaVendedor() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-[11px] text-gray-500 font-medium truncate">{v.motivo}</p>
                                 {v.observacoes && (
-                                  <p className="text-[11px] text-gray-400 mt-0.5 truncate italic">"{v.observacoes}"</p>
+                                  <p className="text-[11px] text-gray-400 mt-0.5 truncate italic">&quot;{v.observacoes}&quot;</p>
                                 )}
                               </div>
                             )}
@@ -332,7 +332,7 @@ export default function GestaoAgendaVendedor() {
                   <p className="text-xs text-orange-700 font-medium">{visitaSelecionada.motivo}</p>
                 )}
                 {visitaSelecionada.observacoes && (
-                  <p className="text-xs text-gray-500 italic">"{visitaSelecionada.observacoes}"</p>
+                  <p className="text-xs text-gray-500 italic">&quot;{visitaSelecionada.observacoes}&quot;</p>
                 )}
               </div>
 

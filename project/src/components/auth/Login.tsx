@@ -42,7 +42,7 @@ const Login: React.FC = () => {
       if (!result.success) {
         setError(result.error || 'Erro desconhecido');
       }
-    } catch (error) {
+    } catch {
       setError('Erro na conexão com o servidor');
     } finally {
       setIsLoading(false);

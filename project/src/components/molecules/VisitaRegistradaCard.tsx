@@ -73,7 +73,7 @@ export const VisitaRegistradaCard: React.FC<VisitaRegistradaCardProps> = ({ visi
       )}
 
       {visita.observacoes && (
-        <p className="text-xs text-gray-600 mt-1 italic">"{visita.observacoes}"</p>
+        <p className="text-xs text-gray-600 mt-1 italic">&quot;{visita.observacoes}&quot;</p>
       )}
     </div>
   )
