@@ -238,6 +238,111 @@ const GapSegment: React.FC<{ label: string; h: number | null; targetH: number }>
   );
 };
 
+// ─── Segmentos da timeline do drawer ─────────────────────────────────────────
+
+function EtapaSeparacao({ row, separado, cancelado, faturado }: { row: PipelineRow; separado: boolean; cancelado: boolean; faturado: boolean }) {
+  if (separado) {
+    return (
+      <>
+        <GapSegment label="Entrada → Separação" h={row.gap_entrada_separacao_h} targetH={12} />
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center">
+            <div className="h-3 w-3 rounded-full bg-emerald-500 flex-shrink-0 mt-0.5" />
+            {(faturado || !cancelado) && <div className="w-0.5 bg-gray-200 flex-1 mt-1" />}
+          </div>
+          <div className="pb-0">
+            <p className="text-xs font-semibold text-gray-800">Separação</p>
+            <p className="text-xs text-gray-500">{formatDataHora(row.data_separacao)}</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+  if (!cancelado) {
+    return (
+      <div className="pl-4 border-l-2 border-dashed border-gray-200 ml-1.5 py-2">
+        <p className="text-[10px] text-amber-600 font-medium">Aguardando separação…</p>
+      </div>
+    );
+  }
+  return null;
+}
+
+function EtapaFaturamento({ row, faturado, cancelado, separado }: { row: PipelineRow; faturado: boolean; cancelado: boolean; separado: boolean }) {
+  if (faturado) {
+    return (
+      <>
+        <GapSegment label="Separação → Faturamento" h={row.gap_separacao_faturamento_h} targetH={36} />
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center">
+            <div className="h-3 w-3 rounded-full bg-green-600 flex-shrink-0 mt-0.5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-800">Faturado</p>
+            {row.num_nf
+              ? <p className="text-xs text-gray-500">NF {row.num_nf} · {formatDataHora(row.data_nf)}</p>
+              : <p className="text-xs text-gray-400">NF não capturada</p>
+            }
+          </div>
+        </div>
+      </>
+    );
+  }
+  if (cancelado) {
+    return (
+      <div className="pl-4 border-l-2 border-dashed border-gray-200 ml-1.5 py-2">
+        <div className="flex gap-2 items-center">
+          <div className="h-3 w-3 rounded-full bg-red-400 flex-shrink-0" />
+          <p className="text-xs text-red-600 font-medium">Cancelado</p>
+        </div>
+      </div>
+    );
+  }
+  if (separado) {
+    return (
+      <div className="pl-4 border-l-2 border-dashed border-gray-200 ml-1.5 py-2">
+        <p className="text-[10px] text-amber-600 font-medium">Aguardando faturamento…</p>
+      </div>
+    );
+  }
+  return null;
+}
+
+function TempoTotal({ row, gapElapsed, slaEfetivo }: { row: PipelineRow; gapElapsed: number | null; slaEfetivo: string }) {
+  return (
+    <div className="mt-5 pt-4 border-t border-gray-100">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-gray-500">Tempo total</span>
+        {row.gap_total_h !== null ? (
+          <div className="text-right">
+            <span className={`text-sm font-bold tabular-nums ${row.gap_total_h > 48 ? 'text-red-600' : 'text-gray-900'}`}>
+              {formatH(row.gap_total_h)}
+            </span>
+            <span className="text-xs text-gray-400 ml-1">/ meta 48h</span>
+          </div>
+        ) : gapElapsed !== null ? (
+          <div className="text-right">
+            <span className={`text-sm font-bold tabular-nums ${slaEfetivo === 'ATRASADO' ? 'text-red-600' : 'text-amber-600'}`}>
+              {formatH(gapElapsed)}
+            </span>
+            <span className="text-xs text-gray-400 ml-1">em andamento</span>
+          </div>
+        ) : (
+          <span className="text-sm text-gray-400">—</span>
+        )}
+      </div>
+      {row.gap_total_h !== null && (
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full ${row.gap_total_h > 48 ? 'bg-red-500' : row.gap_total_h / 48 > 0.75 ? 'bg-yellow-400' : 'bg-green-500'}`}
+            style={{ width: `${Math.min((row.gap_total_h / 48) * 100, 100)}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Drawer de detalhe do pedido ─────────────────────────────────────────────
 
 interface DrawerProps {
@@ -308,87 +413,13 @@ const DrawerDetalhePedido: React.FC<DrawerProps> = ({ row, vendedor, slaEfetivo,
           </div>
 
           {/* Gap entrada→separação + nó de Separação */}
-          {separado ? (
-            <>
-              <GapSegment label="Entrada → Separação" h={row.gap_entrada_separacao_h} targetH={12} />
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="h-3 w-3 rounded-full bg-emerald-500 flex-shrink-0 mt-0.5" />
-                  {(faturado || !cancelado) && <div className="w-0.5 bg-gray-200 flex-1 mt-1" />}
-                </div>
-                <div className="pb-0">
-                  <p className="text-xs font-semibold text-gray-800">Separação</p>
-                  <p className="text-xs text-gray-500">{formatDataHora(row.data_separacao)}</p>
-                </div>
-              </div>
-            </>
-          ) : !cancelado ? (
-            <div className="pl-4 border-l-2 border-dashed border-gray-200 ml-1.5 py-2">
-              <p className="text-[10px] text-amber-600 font-medium">Aguardando separação…</p>
-            </div>
-          ) : null}
+          <EtapaSeparacao row={row} separado={separado} cancelado={cancelado} faturado={faturado} />
 
           {/* Gap separação→faturamento + nó de Faturamento */}
-          {faturado ? (
-            <>
-              <GapSegment label="Separação → Faturamento" h={row.gap_separacao_faturamento_h} targetH={36} />
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="h-3 w-3 rounded-full bg-green-600 flex-shrink-0 mt-0.5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-800">Faturado</p>
-                  {row.num_nf
-                    ? <p className="text-xs text-gray-500">NF {row.num_nf} · {formatDataHora(row.data_nf)}</p>
-                    : <p className="text-xs text-gray-400">NF não capturada</p>
-                  }
-                </div>
-              </div>
-            </>
-          ) : cancelado ? (
-            <div className="pl-4 border-l-2 border-dashed border-gray-200 ml-1.5 py-2">
-              <div className="flex gap-2 items-center">
-                <div className="h-3 w-3 rounded-full bg-red-400 flex-shrink-0" />
-                <p className="text-xs text-red-600 font-medium">Cancelado</p>
-              </div>
-            </div>
-          ) : separado ? (
-            <div className="pl-4 border-l-2 border-dashed border-gray-200 ml-1.5 py-2">
-              <p className="text-[10px] text-amber-600 font-medium">Aguardando faturamento…</p>
-            </div>
-          ) : null}
+          <EtapaFaturamento row={row} faturado={faturado} cancelado={cancelado} separado={separado} />
 
           {/* Tempo total */}
-          <div className="mt-5 pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-500">Tempo total</span>
-              {row.gap_total_h !== null ? (
-                <div className="text-right">
-                  <span className={`text-sm font-bold tabular-nums ${row.gap_total_h > 48 ? 'text-red-600' : 'text-gray-900'}`}>
-                    {formatH(row.gap_total_h)}
-                  </span>
-                  <span className="text-xs text-gray-400 ml-1">/ meta 48h</span>
-                </div>
-              ) : gapElapsed !== null ? (
-                <div className="text-right">
-                  <span className={`text-sm font-bold tabular-nums ${slaEfetivo === 'ATRASADO' ? 'text-red-600' : 'text-amber-600'}`}>
-                    {formatH(gapElapsed)}
-                  </span>
-                  <span className="text-xs text-gray-400 ml-1">em andamento</span>
-                </div>
-              ) : (
-                <span className="text-sm text-gray-400">—</span>
-              )}
-            </div>
-            {row.gap_total_h !== null && (
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${row.gap_total_h > 48 ? 'bg-red-500' : row.gap_total_h / 48 > 0.75 ? 'bg-yellow-400' : 'bg-green-500'}`}
-                  style={{ width: `${Math.min((row.gap_total_h / 48) * 100, 100)}%` }}
-                />
-              </div>
-            )}
-          </div>
+          <TempoTotal row={row} gapElapsed={gapElapsed} slaEfetivo={slaEfetivo} />
         </div>
       </div>
     </>
@@ -396,6 +427,47 @@ const DrawerDetalhePedido: React.FC<DrawerProps> = ({ row, vendedor, slaEfetivo,
 };
 
 // ─── Página principal ─────────────────────────────────────────────────────────
+
+function FiltrosAtivos({
+  tipos, slas, onRemoveTipo, onRemoveSla, onClear,
+}: {
+  tipos: string[]
+  slas: string[]
+  onRemoveTipo: (t: string) => void
+  onRemoveSla: (s: string) => void
+  onClear: () => void
+}) {
+  if (tipos.length === 0 && slas.length === 0) return null
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
+      <span className="text-[10px] text-gray-400 uppercase tracking-wide">Filtros ativos:</span>
+      {tipos.map(t => (
+        <button
+          key={t}
+          onClick={() => onRemoveTipo(t)}
+          className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-[11px] rounded-full hover:bg-primary/20"
+        >
+          {t} <X className="h-3 w-3" />
+        </button>
+      ))}
+      {slas.map(s => (
+        <button
+          key={s}
+          onClick={() => onRemoveSla(s)}
+          className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-[11px] rounded-full hover:bg-primary/20"
+        >
+          {SLA_LABEL[s] ?? s} <X className="h-3 w-3" />
+        </button>
+      ))}
+      <button
+        onClick={onClear}
+        className="text-[10px] text-gray-400 hover:text-gray-700 ml-auto underline"
+      >
+        Limpar tudo
+      </button>
+    </div>
+  )
+}
 
 const PipelineOperacional: React.FC = () => {
   const [dados, setDados] = useState<PipelineRow[]>([]);
@@ -638,35 +710,13 @@ const PipelineOperacional: React.FC = () => {
         </div>
 
         {/* Chips de filtros ativos */}
-        {(tiposSelecionados.length > 0 || slasSelecionados.length > 0) && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-            <span className="text-[10px] text-gray-400 uppercase tracking-wide">Filtros ativos:</span>
-            {tiposSelecionados.map(t => (
-              <button
-                key={t}
-                onClick={() => setTiposSelecionados(prev => prev.filter(x => x !== t))}
-                className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-[11px] rounded-full hover:bg-primary/20"
-              >
-                {t} <X className="h-3 w-3" />
-              </button>
-            ))}
-            {slasSelecionados.map(s => (
-              <button
-                key={s}
-                onClick={() => setSlasSelecionados(prev => prev.filter(x => x !== s))}
-                className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-[11px] rounded-full hover:bg-primary/20"
-              >
-                {SLA_LABEL[s] ?? s} <X className="h-3 w-3" />
-              </button>
-            ))}
-            <button
-              onClick={() => { setTiposSelecionados([]); setSlasSelecionados([]); }}
-              className="text-[10px] text-gray-400 hover:text-gray-700 ml-auto underline"
-            >
-              Limpar tudo
-            </button>
-          </div>
-        )}
+        <FiltrosAtivos
+          tipos={tiposSelecionados}
+          slas={slasSelecionados}
+          onRemoveTipo={(t) => setTiposSelecionados(prev => prev.filter(x => x !== t))}
+          onRemoveSla={(s) => setSlasSelecionados(prev => prev.filter(x => x !== s))}
+          onClear={() => { setTiposSelecionados([]); setSlasSelecionados([]); }}
+        />
       </Card>
 
       {loading ? (
