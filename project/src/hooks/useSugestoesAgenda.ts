@@ -38,6 +38,169 @@ export interface RotaSugestao {
   cidades: CidadeSugestao[]
 }
 
+type RfmData = { perfil: string | null; previsao_pedido: number | null; dias_sem_comprar: number | null }
+
+type ClienteRaw = {
+  codigo_cliente: number
+  nome_fantasia: string | null
+  razao_social: string
+  cidade: string | null
+  codigo_ibge_cidade: string | null
+  analise_rfm: RfmData | RfmData[] | null
+}
+
+// ─── helpers puros (extraídos de carregar) ────────────────────────────────────
+
+/** analise_rfm pode vir como objeto ou array (join) — normaliza para 1 registro. */
+function extractRfm(c: ClienteRaw): RfmData | null {
+  return Array.isArray(c.analise_rfm) ? c.analise_rfm[0] : c.analise_rfm
+}
+
+/** Pesos de score + prazo a partir das linhas de configuracoes_agenda. */
+function parseConfig(configRows: { chave: string; valor: unknown }[] | null): { pesos: ScorePesos; prazo: number } {
+  const configMap = (configRows ?? []).reduce<Record<string, number>>(
+    (acc, row) => ({ ...acc, [row.chave]: Number(row.valor) }),
+    {}
+  )
+  const pesos: ScorePesos = {
+    oportunidade: configMap['score_peso_oportunidade'] ?? PESOS_DEFAULT.oportunidade,
+    dsv: configMap['score_peso_dsv'] ?? PESOS_DEFAULT.dsv,
+    historico: configMap['score_peso_historico'] ?? PESOS_DEFAULT.historico,
+  }
+  const prazo: number = configMap['prazo_alerta_amarelo_dias'] ?? 60
+  return { pesos, prazo }
+}
+
+/** Mapa codigo_cliente → resultado da última visita (lista já vem ordenada desc). */
+function buildUltimaVisitaMap(visitas: { codigo_cliente: number; resultado: string }[] | null): Map<number, string> {
+  const map = new Map<number, string>()
+  for (const v of visitas ?? []) {
+    if (!map.has(v.codigo_cliente)) map.set(v.codigo_cliente, v.resultado)
+  }
+  return map
+}
+
+/** Mapa codigo_ibge_cidade → rota, para as rotas ativas do vendedor. */
+async function buildCidadeRotaMap(rotasAtivas: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  if (rotasAtivas.length === 0) return map
+  const { data: rotasEstado } = await supabase
+    .from('rotas_estado')
+    .select('codigo_ibge_cidade, rota')
+    .in('rota', rotasAtivas)
+  for (const re of rotasEstado ?? []) {
+    if (re.codigo_ibge_cidade) map.set(re.codigo_ibge_cidade, re.rota)
+  }
+  return map
+}
+
+/** Maior previsão de pedido da carteira (normaliza o score). */
+function maxOportunidadeDe(clientes: ClienteRaw[]): number {
+  return clientes.reduce((max, c) => {
+    const rfm = extractRfm(c)
+    return Math.max(max, rfm?.previsao_pedido ?? 0)
+  }, 0)
+}
+
+function toClienteRFM(c: ClienteRaw, rfm: RfmData, ultimaVisitaMap: Map<number, string>): ClienteRFM {
+  return {
+    codigo_cliente: c.codigo_cliente,
+    nome_fantasia: c.nome_fantasia,
+    razao_social: c.razao_social,
+    cidade: c.cidade,
+    perfil_rfm: rfm.perfil ?? null,
+    previsao_pedido: rfm.previsao_pedido ?? 0,
+    dias_sem_comprar: rfm.dias_sem_comprar ?? 0,
+    resultado_ultima_visita: ultimaVisitaMap.get(c.codigo_cliente) ?? null,
+  }
+}
+
+/** 7a — lista plana: DSV > prazo, excluindo agendados, top 20 por score. */
+function buildFlatSuggestions(
+  clientes: ClienteRaw[], agendados: Set<number>, ultimaVisitaMap: Map<number, string>,
+  maxOportunidade: number, pesos: ScorePesos, prazo: number,
+): ClienteSugerido[] {
+  const clientesFiltradosDSV = clientes.filter((c) => {
+    const rfm = extractRfm(c)
+    return rfm != null && (rfm.dias_sem_comprar ?? 0) > prazo
+  })
+
+  const clientesRFM: ClienteRFM[] = []
+  for (const c of clientesFiltradosDSV) {
+    if (agendados.has(c.codigo_cliente)) continue
+    const rfm = extractRfm(c)
+    if (!rfm) continue
+    clientesRFM.push(toClienteRFM(c, rfm, ultimaVisitaMap))
+  }
+
+  const comScore: ClienteSugerido[] = clientesRFM.map((c) => ({
+    ...c,
+    score: calcularScoreCliente(c, maxOportunidade, pesos),
+  }))
+
+  return ordenarPorScore(comScore).slice(0, 20)
+}
+
+/** 7b — hierarquia rota → cidade → clientes (oportunidade > 0); top 2/10/20. */
+function buildHierarchy(
+  clientes: ClienteRaw[], cidadeRotaMap: Map<string, string>, agendados: Set<number>,
+  ultimaVisitaMap: Map<number, string>, maxOportunidade: number, pesos: ScorePesos,
+): RotaSugestao[] {
+  const rotaMap = new Map<string, {
+    somaOportunidade: number
+    cidades: Map<string, { somaOportunidade: number; clientes: ClienteSugeridoHierarquia[] }>
+  }>()
+
+  for (const c of clientes) {
+    const rfm = extractRfm(c)
+    if (!rfm || !rfm.previsao_pedido || rfm.previsao_pedido <= 0) continue
+    if (!c.codigo_ibge_cidade) continue
+
+    const rota = cidadeRotaMap.get(c.codigo_ibge_cidade)
+    if (!rota) continue
+
+    const cidade = c.cidade ?? 'Sem cidade'
+
+    if (!rotaMap.has(rota)) {
+      rotaMap.set(rota, { somaOportunidade: 0, cidades: new Map() })
+    }
+    const rotaData = rotaMap.get(rota)!
+
+    if (!rotaData.cidades.has(cidade)) {
+      rotaData.cidades.set(cidade, { somaOportunidade: 0, clientes: [] })
+    }
+    const cidadeData = rotaData.cidades.get(cidade)!
+
+    const clienteRFM = toClienteRFM(c, rfm, ultimaVisitaMap)
+    cidadeData.somaOportunidade += rfm.previsao_pedido
+    rotaData.somaOportunidade += rfm.previsao_pedido
+
+    cidadeData.clientes.push({
+      ...clienteRFM,
+      score: calcularScoreCliente(clienteRFM, maxOportunidade, pesos),
+      agendado: agendados.has(c.codigo_cliente),
+    })
+  }
+
+  return Array.from(rotaMap.entries())
+    .map(([rota, data]) => ({
+      rota,
+      somaOportunidade: data.somaOportunidade,
+      cidades: Array.from(data.cidades.entries())
+        .map(([cidade, cData]) => ({
+          cidade,
+          somaOportunidade: cData.somaOportunidade,
+          clientes: [...cData.clientes]
+            .sort((a, b) => b.previsao_pedido - a.previsao_pedido)
+            .slice(0, 20),
+        }))
+        .sort((a, b) => b.somaOportunidade - a.somaOportunidade)
+        .slice(0, 10),
+    }))
+    .sort((a, b) => b.somaOportunidade - a.somaOportunidade)
+    .slice(0, 2)
+}
+
 export function useSugestoesAgenda(vendedorId: string | undefined) {
   const [sugestoes, setSugestoes] = useState<ClienteSugerido[]>([])
   const [rotasSugestoes, setRotasSugestoes] = useState<RotaSugestao[]>([])
@@ -70,18 +233,7 @@ export function useSugestoesAgenda(vendedorId: string | undefined) {
           .from('configuracoes_agenda')
           .select('chave, valor')
           .in('chave', ['score_peso_oportunidade', 'score_peso_dsv', 'score_peso_historico', 'prazo_alerta_amarelo_dias'])
-
-        const configMap = (configRows ?? []).reduce<Record<string, number>>(
-          (acc, row) => ({ ...acc, [row.chave]: Number(row.valor) }),
-          {}
-        )
-
-        const pesos: ScorePesos = {
-          oportunidade: configMap['score_peso_oportunidade'] ?? PESOS_DEFAULT.oportunidade,
-          dsv: configMap['score_peso_dsv'] ?? PESOS_DEFAULT.dsv,
-          historico: configMap['score_peso_historico'] ?? PESOS_DEFAULT.historico,
-        }
-        const prazo: number = configMap['prazo_alerta_amarelo_dias'] ?? 60
+        const { pesos, prazo } = parseConfig(configRows)
 
         // 3. Clientes da carteira com analise_rfm + codigo_ibge_cidade para mapping de rota
         const { data: clientesRaw } = await supabase
@@ -98,24 +250,13 @@ export function useSugestoesAgenda(vendedorId: string | undefined) {
           setRotasSugestoes([])
           return
         }
-
-        type ClienteRaw = {
-          codigo_cliente: number
-          nome_fantasia: string | null
-          razao_social: string
-          cidade: string | null
-          codigo_ibge_cidade: string | null
-          analise_rfm:
-            | { perfil: string | null; previsao_pedido: number | null; dias_sem_comprar: number | null }
-            | { perfil: string | null; previsao_pedido: number | null; dias_sem_comprar: number | null }[]
-            | null
-        }
+        const clientes = clientesRaw as ClienteRaw[]
 
         // 4. Agendamentos pendentes desta semana (para excluir dos sugestoes e marcar badge)
         const weekEnd = new Date(weekStart)
         weekEnd.setDate(weekEnd.getDate() + 6)
 
-        const allCodes = (clientesRaw as ClienteRaw[])
+        const allCodes = clientes
           .map((c) => c.codigo_cliente)
           .filter((id): id is number => id != null)
 
@@ -140,141 +281,24 @@ export function useSugestoesAgenda(vendedorId: string | undefined) {
           .in('codigo_cliente', allCodes)
           .order('data_visita', { ascending: false })
 
-        const ultimaVisitaMap = new Map<number, string>()
-        for (const v of (visitas ?? []) as { codigo_cliente: number; resultado: string }[]) {
-          if (!ultimaVisitaMap.has(v.codigo_cliente)) {
-            ultimaVisitaMap.set(v.codigo_cliente, v.resultado)
-          }
-        }
+        const ultimaVisitaMap = buildUltimaVisitaMap(
+          visitas as { codigo_cliente: number; resultado: string }[] | null
+        )
 
         // 6. Rotas ativas do vendedor + mapeamento cidade → rota
-        const [{ data: rotasVendedor }, ] = await Promise.all([
-          supabase
-            .from('vendedor_rotas')
-            .select('rota')
-            .eq('vendedor_id', vendedorId)
-            .eq('ativo', true),
-        ])
+        const { data: rotasVendedor } = await supabase
+          .from('vendedor_rotas')
+          .select('rota')
+          .eq('vendedor_id', vendedorId)
+          .eq('ativo', true)
 
         const rotasAtivas = (rotasVendedor ?? []).map((r: { rota: string }) => r.rota)
+        const cidadeRotaMap = await buildCidadeRotaMap(rotasAtivas)
 
-        const cidadeRotaMap = new Map<string, string>()
-        if (rotasAtivas.length > 0) {
-          const { data: rotasEstado } = await supabase
-            .from('rotas_estado')
-            .select('codigo_ibge_cidade, rota')
-            .in('rota', rotasAtivas)
-
-          for (const re of rotasEstado ?? []) {
-            if (re.codigo_ibge_cidade) cidadeRotaMap.set(re.codigo_ibge_cidade, re.rota)
-          }
-        }
-
-        // ──────────────────────────────────────────────────────────────
-        // 7a. Lista plana (comportamento original — DSV > prazo, excluindo agendados)
-        // ──────────────────────────────────────────────────────────────
-        const clientesFiltradosDSV = (clientesRaw as ClienteRaw[]).filter((c) => {
-          const rfm = Array.isArray(c.analise_rfm) ? c.analise_rfm[0] : c.analise_rfm
-          return rfm != null && (rfm.dias_sem_comprar ?? 0) > prazo
-        })
-
-        const maxOportunidade = (clientesRaw as ClienteRaw[]).reduce((max, c) => {
-          const rfm = Array.isArray(c.analise_rfm) ? c.analise_rfm[0] : c.analise_rfm
-          return Math.max(max, rfm?.previsao_pedido ?? 0)
-        }, 0)
-
-        const clientesRFM: ClienteRFM[] = []
-        for (const c of clientesFiltradosDSV) {
-          if (agendados.has(c.codigo_cliente)) continue
-          const rfm = Array.isArray(c.analise_rfm) ? c.analise_rfm[0] : c.analise_rfm
-          if (!rfm) continue
-          clientesRFM.push({
-            codigo_cliente: c.codigo_cliente,
-            nome_fantasia: c.nome_fantasia,
-            razao_social: c.razao_social,
-            cidade: c.cidade,
-            perfil_rfm: rfm.perfil ?? null,
-            previsao_pedido: rfm.previsao_pedido ?? 0,
-            dias_sem_comprar: rfm.dias_sem_comprar ?? 0,
-            resultado_ultima_visita: ultimaVisitaMap.get(c.codigo_cliente) ?? null,
-          })
-        }
-
-        const comScore: ClienteSugerido[] = clientesRFM.map((c) => ({
-          ...c,
-          score: calcularScoreCliente(c, maxOportunidade, pesos),
-        }))
-
-        setSugestoes(ordenarPorScore(comScore).slice(0, 20))
-
-        // ──────────────────────────────────────────────────────────────
-        // 7b. Hierarquia por rota → cidade → clientes (oportunidade > 0)
-        // ──────────────────────────────────────────────────────────────
-        const rotaMap = new Map<string, {
-          somaOportunidade: number
-          cidades: Map<string, { somaOportunidade: number; clientes: ClienteSugeridoHierarquia[] }>
-        }>()
-
-        for (const c of clientesRaw as ClienteRaw[]) {
-          const rfm = Array.isArray(c.analise_rfm) ? c.analise_rfm[0] : c.analise_rfm
-          if (!rfm || !rfm.previsao_pedido || rfm.previsao_pedido <= 0) continue
-          if (!c.codigo_ibge_cidade) continue
-
-          const rota = cidadeRotaMap.get(c.codigo_ibge_cidade)
-          if (!rota) continue
-
-          const cidade = c.cidade ?? 'Sem cidade'
-
-          if (!rotaMap.has(rota)) {
-            rotaMap.set(rota, { somaOportunidade: 0, cidades: new Map() })
-          }
-          const rotaData = rotaMap.get(rota)!
-
-          if (!rotaData.cidades.has(cidade)) {
-            rotaData.cidades.set(cidade, { somaOportunidade: 0, clientes: [] })
-          }
-          const cidadeData = rotaData.cidades.get(cidade)!
-
-          const clienteRFM: ClienteRFM = {
-            codigo_cliente: c.codigo_cliente,
-            nome_fantasia: c.nome_fantasia,
-            razao_social: c.razao_social,
-            cidade: c.cidade,
-            perfil_rfm: rfm.perfil ?? null,
-            previsao_pedido: rfm.previsao_pedido,
-            dias_sem_comprar: rfm.dias_sem_comprar ?? 0,
-            resultado_ultima_visita: ultimaVisitaMap.get(c.codigo_cliente) ?? null,
-          }
-
-          cidadeData.somaOportunidade += rfm.previsao_pedido
-          rotaData.somaOportunidade += rfm.previsao_pedido
-
-          cidadeData.clientes.push({
-            ...clienteRFM,
-            score: calcularScoreCliente(clienteRFM, maxOportunidade, pesos),
-            agendado: agendados.has(c.codigo_cliente),
-          })
-        }
-
-        const hierarquia: RotaSugestao[] = Array.from(rotaMap.entries())
-          .map(([rota, data]) => ({
-            rota,
-            somaOportunidade: data.somaOportunidade,
-            cidades: Array.from(data.cidades.entries())
-              .map(([cidade, cData]) => ({
-                cidade,
-                somaOportunidade: cData.somaOportunidade,
-                clientes: [...cData.clientes]
-                  .sort((a, b) => b.previsao_pedido - a.previsao_pedido)
-                  .slice(0, 20),
-              }))
-              .sort((a, b) => b.somaOportunidade - a.somaOportunidade)
-              .slice(0, 10),
-          }))
-          .sort((a, b) => b.somaOportunidade - a.somaOportunidade)
-          .slice(0, 2)
-
-        setRotasSugestoes(hierarquia)
+        // 7. Score base + listas (plana e hierárquica)
+        const maxOportunidade = maxOportunidadeDe(clientes)
+        setSugestoes(buildFlatSuggestions(clientes, agendados, ultimaVisitaMap, maxOportunidade, pesos, prazo))
+        setRotasSugestoes(buildHierarchy(clientes, cidadeRotaMap, agendados, ultimaVisitaMap, maxOportunidade, pesos))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao carregar sugestões')
       } finally {
