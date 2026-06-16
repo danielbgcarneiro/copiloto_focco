@@ -45,6 +45,125 @@ function formatarDataBR(dateStr: string): string {
   return `${d}/${m}`
 }
 
+function Calendario({
+  viewYear, viewMonth, dataAgendada, hoje, onPrevMonth, onNextMonth, onDayClick,
+}: {
+  viewYear: number
+  viewMonth: number
+  dataAgendada: string
+  hoje: string
+  onPrevMonth: () => void
+  onNextMonth: () => void
+  onDayClick: (day: number) => void
+}) {
+  const cells = buildCalendarCells(viewYear, viewMonth)
+  return (
+    <div className="mb-4 border border-gray-200 rounded-xl overflow-hidden">
+      {/* Navegação mês/ano */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <button onClick={onPrevMonth} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors" aria-label="Mês anterior">
+          <ChevronLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <span className="text-sm font-semibold text-gray-800">{MESES[viewMonth]} {viewYear}</span>
+        <button onClick={onNextMonth} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors" aria-label="Próximo mês">
+          <ChevronRight className="w-5 h-5 text-gray-600" />
+        </button>
+      </div>
+
+      {/* Cabeçalho dias da semana */}
+      <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-100">
+        {DIAS_SEMANA.map(d => (
+          <div key={d} className="py-2 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{d}</div>
+        ))}
+      </div>
+
+      {/* Células dos dias */}
+      <div className="grid grid-cols-7 p-2 gap-y-1">
+        {cells.map((day, i) => {
+          if (day === null) return <div key={`empty-${i}`} />
+          const iso = toISO(viewYear, viewMonth, day)
+          const isPast = iso <= hoje
+          const isSelected = iso === dataAgendada
+          const isToday = iso === hoje
+          return (
+            <button
+              key={iso}
+              onClick={() => onDayClick(day)}
+              disabled={isPast}
+              className={`
+                mx-auto w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium transition-colors
+                ${isSelected
+                  ? 'bg-blue-600 text-white font-bold shadow-sm'
+                  : isToday
+                  ? 'ring-2 ring-blue-400 text-blue-700'
+                  : isPast
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-blue-50 active:bg-blue-100 cursor-pointer'
+                }
+              `}
+              aria-label={`${day} de ${MESES[viewMonth]}`}
+              aria-pressed={isSelected}
+            >
+              {day}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Data selecionada */}
+      {dataAgendada && dataAgendada > hoje && (
+        <div className="px-4 py-2.5 border-t border-gray-100 bg-blue-50 text-sm text-blue-700 font-medium text-center">
+          Selecionado: {new Date(dataAgendada + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ValorPrevistoField({
+  valor, onChange, onBlur, disabled, loadingForecast, forecastWarning,
+}: {
+  valor: string
+  onChange: (v: string) => void
+  onBlur: () => void
+  disabled: boolean
+  loadingForecast: boolean
+  forecastWarning: { mediaHistorica: number } | null
+}) {
+  return (
+    <div className="mb-5">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Valor previsto (R$) <span className="text-gray-400 text-xs">opcional</span>
+      </label>
+      <input
+        type="text"
+        inputMode="decimal"
+        placeholder="0,00"
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        disabled={disabled}
+        className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+      />
+      {disabled && (
+        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          Valor previsto não pode ser editado após a data de visita
+        </p>
+      )}
+      {loadingForecast && <p className="text-xs text-gray-400 mt-1">Verificando histórico...</p>}
+      {!loadingForecast && forecastWarning && (
+        <p className="text-orange-600 text-sm mt-1 flex items-start gap-1">
+          <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+          Sua previsão está acima do dobro da média histórica deste cliente (R${' '}
+          {forecastWarning.mediaHistorica.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          )
+        </p>
+      )}
+    </div>
+  )
+}
+
 export const AgendarVisitaSheet: React.FC<AgendarVisitaSheetProps> = ({
   isOpen,
   onClose,
@@ -177,7 +296,6 @@ export const AgendarVisitaSheet: React.FC<AgendarVisitaSheetProps> = ({
   if (!isOpen) return null
 
   const titulo = agendamentoExistente ? 'Editar agendamento' : 'Agendar próxima visita'
-  const cells   = buildCalendarCells(viewYear, viewMonth)
 
   return (
     <>
@@ -207,79 +325,15 @@ export const AgendarVisitaSheet: React.FC<AgendarVisitaSheetProps> = ({
         </div>
 
         {/* ── Calendário ── */}
-        <div className="mb-4 border border-gray-200 rounded-xl overflow-hidden">
-          {/* Navegação mês/ano */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <button
-              onClick={prevMonth}
-              className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors"
-              aria-label="Mês anterior"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <span className="text-sm font-semibold text-gray-800">
-              {MESES[viewMonth]} {viewYear}
-            </span>
-            <button
-              onClick={nextMonth}
-              className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors"
-              aria-label="Próximo mês"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-
-          {/* Cabeçalho dias da semana */}
-          <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-100">
-            {DIAS_SEMANA.map(d => (
-              <div key={d} className="py-2 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-                {d}
-              </div>
-            ))}
-          </div>
-
-          {/* Células dos dias */}
-          <div className="grid grid-cols-7 p-2 gap-y-1">
-            {cells.map((day, i) => {
-              if (day === null) return <div key={`empty-${i}`} />
-
-              const iso       = toISO(viewYear, viewMonth, day)
-              const isPast    = iso <= hoje
-              const isSelected = iso === dataAgendada
-              const isToday   = iso === hoje
-
-              return (
-                <button
-                  key={iso}
-                  onClick={() => handleDayClick(day)}
-                  disabled={isPast}
-                  className={`
-                    mx-auto w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium transition-colors
-                    ${isSelected
-                      ? 'bg-blue-600 text-white font-bold shadow-sm'
-                      : isToday
-                      ? 'ring-2 ring-blue-400 text-blue-700'
-                      : isPast
-                      ? 'text-gray-300 cursor-not-allowed'
-                      : 'text-gray-700 hover:bg-blue-50 active:bg-blue-100 cursor-pointer'
-                    }
-                  `}
-                  aria-label={`${day} de ${MESES[viewMonth]}`}
-                  aria-pressed={isSelected}
-                >
-                  {day}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Data selecionada */}
-          {dataAgendada && dataAgendada > hoje && (
-            <div className="px-4 py-2.5 border-t border-gray-100 bg-blue-50 text-sm text-blue-700 font-medium text-center">
-              Selecionado: {new Date(dataAgendada + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </div>
-          )}
-        </div>
+        <Calendario
+          viewYear={viewYear}
+          viewMonth={viewMonth}
+          dataAgendada={dataAgendada}
+          hoje={hoje}
+          onPrevMonth={prevMonth}
+          onNextMonth={nextMonth}
+          onDayClick={handleDayClick}
+        />
 
         {/* Sugestão de data */}
         {(loadingSugestao || sugestao) && (
@@ -294,36 +348,14 @@ export const AgendarVisitaSheet: React.FC<AgendarVisitaSheetProps> = ({
         )}
 
         {/* Valor previsto */}
-        <div className="mb-5">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Valor previsto (R$) <span className="text-gray-400 text-xs">opcional</span>
-          </label>
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="0,00"
-            value={valorPrevisto}
-            onChange={(e) => { setValorPrevisto(e.target.value); setForecastWarning(null) }}
-            onBlur={handleValorBlur}
-            disabled={!!dataPassada}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
-          />
-          {dataPassada && (
-            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              Valor previsto não pode ser editado após a data de visita
-            </p>
-          )}
-          {loadingForecast && <p className="text-xs text-gray-400 mt-1">Verificando histórico...</p>}
-          {!loadingForecast && forecastWarning && (
-            <p className="text-orange-600 text-sm mt-1 flex items-start gap-1">
-              <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-              Sua previsão está acima do dobro da média histórica deste cliente (R${' '}
-              {forecastWarning.mediaHistorica.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              )
-            </p>
-          )}
-        </div>
+        <ValorPrevistoField
+          valor={valorPrevisto}
+          onChange={(v) => { setValorPrevisto(v); setForecastWarning(null) }}
+          onBlur={handleValorBlur}
+          disabled={!!dataPassada}
+          loadingForecast={loadingForecast}
+          forecastWarning={forecastWarning}
+        />
 
         {/* Erro */}
         {error && (
