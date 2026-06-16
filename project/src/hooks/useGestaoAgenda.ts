@@ -156,13 +156,13 @@ type RfmInfo = { diasSemComprar: number; perfil: string; previsaoPedido: number;
 // ─── helpers puros de cálculo de KPI (extraídos de fetchKpisDetalhados) ───────
 
 /** Meta do período: semana usa rateio, mês = mensal, trimestre = mensal×3. */
-function calcMetaPeriodo(periodo: PeriodoAgendaDetalhe, metaMensal: number, realizadoMes: number, hoje: Date): number {
+export function calcMetaPeriodo(periodo: PeriodoAgendaDetalhe, metaMensal: number, realizadoMes: number, hoje: Date): number {
   if (periodo === 'semana') return calcularMetaSemana(metaMensal, realizadoMes, hoje)
   return periodo === 'mes' ? metaMensal : metaMensal * 3
 }
 
 /** Mapa codigo_cliente → dados RFM (primeira ocorrência = análise mais recente). */
-function buildRfmMap(rfmData: any[] | null): Map<number, RfmInfo> {
+export function buildRfmMap(rfmData: any[] | null): Map<number, RfmInfo> {
   const rfmMap = new Map<number, RfmInfo>()
   for (const r of rfmData ?? []) {
     if (!rfmMap.has(r.codigo_cliente)) {
@@ -178,7 +178,7 @@ function buildRfmMap(rfmData: any[] | null): Map<number, RfmInfo> {
 }
 
 /** AC3 — Atividade. */
-function computeAtividade(visitas: VisitaRow[], agendamentos: AgendamentoRow[], numSemanas: number) {
+export function computeAtividade(visitas: VisitaRow[], agendamentos: AgendamentoRow[], numSemanas: number) {
   const totalVisitas = visitas.length
   const visitasAgendadas = agendamentos.length
   const taxaCumprimento = visitasAgendadas > 0 ? (totalVisitas / visitasAgendadas) * 100 : 0
@@ -189,7 +189,7 @@ function computeAtividade(visitas: VisitaRow[], agendamentos: AgendamentoRow[], 
 }
 
 /** AC4 — Forecast + oportunidade RFM dos agendados. */
-function computeForecast(agendamentos: AgendamentoRow[], visitas: VisitaRow[], meta: number, rfmMap: Map<number, RfmInfo>) {
+export function computeForecast(agendamentos: AgendamentoRow[], visitas: VisitaRow[], meta: number, rfmMap: Map<number, RfmInfo>) {
   const forecastTotal = agendamentos.reduce((sum, a) => sum + (a.valor_previsto ?? 0), 0)
   const realizadoTotal = visitas.reduce((sum, v) => sum + (v.valor_realizado ?? 0), 0)
   const forecastAccuracy = forecastTotal > 0 ? realizadoTotal / forecastTotal : 0
@@ -234,7 +234,7 @@ function buildAgendaItems(agendamentos: AgendamentoRow[], clientes: ClienteRow[]
 }
 
 /** AC5 — Qualidade. Retorna também os mapas de motivo (reusados em últimas visitas). */
-function computeQualidade(visitas: VisitaRow[], motivos: MotivoRow[], totalVisitas: number) {
+export function computeQualidade(visitas: VisitaRow[], motivos: MotivoRow[], totalVisitas: number) {
   const motivoDescMap = new Map<number, string>()
   const motivoCanonicalMap = new Map<number, string>()
   for (const m of motivos) {
@@ -260,7 +260,7 @@ function computeQualidade(visitas: VisitaRow[], motivos: MotivoRow[], totalVisit
 }
 
 /** Clientes da carteira ativa por faixa de dias sem comprar. */
-function computeDiasSemCompra(clientesAtivos: ClienteRow[], rfmMap: Map<number, RfmInfo>) {
+export function computeDiasSemCompra(clientesAtivos: ClienteRow[], rfmMap: Map<number, RfmInfo>) {
   let clientes30d = 0, clientes60d = 0, clientes90d = 0
   for (const c of clientesAtivos) {
     const dsv = rfmMap.get(c.codigo_cliente)?.diasSemComprar ?? 0
@@ -272,7 +272,7 @@ function computeDiasSemCompra(clientesAtivos: ClienteRow[], rfmMap: Map<number, 
 }
 
 /** AC6 — Cobertura de carteira (apenas clientes ativos). */
-function computeCobertura(visitas: VisitaRow[], clientesAtivos: ClienteRow[]) {
+export function computeCobertura(visitas: VisitaRow[], clientesAtivos: ClienteRow[]) {
   const visitadosSet = new Set(visitas.map((v) => v.codigo_cliente))
   const clientesVisitados = clientesAtivos.filter((c) => visitadosSet.has(c.codigo_cliente)).length
   const pctCobertura = clientesAtivos.length > 0 ? (clientesVisitados / clientesAtivos.length) * 100 : 0
@@ -454,7 +454,7 @@ async function fetchKpisDetalhados(
 }
 
 /** Agrupa linhas por uma chave string. */
-function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
+export function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
   const map = new Map<string, T[]>()
   for (const r of rows) {
     const k = key(r)
@@ -465,7 +465,7 @@ function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
 }
 
 /** Mapa codigo_cliente → dias sem comprar (primeira ocorrência = mais recente). */
-function buildDsvMap(rfmData: any[] | null): Map<number, number> {
+export function buildDsvMap(rfmData: any[] | null): Map<number, number> {
   const map = new Map<number, number>()
   for (const r of rfmData ?? []) {
     if (!map.has(r.codigo_cliente)) map.set(r.codigo_cliente, r.dias_sem_comprar ?? 0)
@@ -474,7 +474,7 @@ function buildDsvMap(rfmData: any[] | null): Map<number, number> {
 }
 
 /** Conta, por cod_vendedor, clientes com mais de 60 dias sem comprar. */
-function countSemVisita60d(
+export function countSemVisita60d(
   clientesData: { codigo_cliente: number; cod_vendedor: number }[],
   dsvMap: Map<number, number>,
 ): Map<number, number> {

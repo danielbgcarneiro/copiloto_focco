@@ -18,6 +18,8 @@ jobs:
       - run: npm ci
       - name: Lint (inclui gate de complexidade ciclomática)
         run: npm run lint
+      - name: Testes unitários (helpers puros)
+        run: npm run test:unit
       - name: Typecheck + build
         run: npm run build
         env:

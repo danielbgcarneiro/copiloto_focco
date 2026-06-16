@@ -18,18 +18,18 @@ interface ClienteBuscaCardProps {
   agendado?: boolean
 }
 
-function dsvInfo(dsv: number | null | undefined): { label: string | null; color: string } {
+export function dsvInfo(dsv: number | null | undefined): { label: string | null; color: string } {
   if (dsv == null || dsv <= 0) return { label: null, color: 'text-gray-500' }
   const color = dsv > 90 ? 'text-red-600' : dsv > 60 ? 'text-yellow-600' : 'text-gray-500'
   return { label: `${dsv}d s/ comprar`, color }
 }
 
-function fmtOportunidade(v: number | null | undefined): string | null {
+export function fmtOportunidade(v: number | null | undefined): string | null {
   if (v == null || v <= 0) return null
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-function metaProgress(meta: number, vendas: number): { pct: number; color: string } {
+export function metaProgress(meta: number, vendas: number): { pct: number; color: string } {
   const pct = meta > 0 ? Math.min(100, (vendas / meta) * 100) : 0
   const color = pct >= 100 ? 'bg-green-500' : pct >= 80 ? 'bg-yellow-400' : 'bg-red-400'
   return { pct, color }
