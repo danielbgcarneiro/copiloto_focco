@@ -13,7 +13,6 @@ import Dashboard from './components/dashboard/Dashboard'
 import Clientes from './components/pages/Clientes'
 import Rotas from './components/pages/Rotas'
 import Cidades from './components/pages/Cidades'
-import DetalhesCliente from './components/pages/DetalhesCliente'
 import DetalhesClienteV2 from './components/pages/DetalhesClienteV2'
 import Inadimplentes from './components/pages/Inadimplentes'
 import DashboardGestao from './components/pages/DashboardGestao'
@@ -78,15 +77,6 @@ const router = createBrowserRouter([
       {
         path: "/clientes/detalhes/:id",
         element: <DetalhesClienteV2 />
-      },
-      // ── DetalhesCliente V1 — backup temporário (remover após validação) ──
-      {
-        path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes-v2",
-        element: <DetalhesCliente />
-      },
-      {
-        path: "/clientes/detalhes-v2/:id",
-        element: <DetalhesCliente />
       },
       {
         path: "/inadimplentes",
