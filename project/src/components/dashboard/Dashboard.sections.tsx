@@ -217,7 +217,7 @@ export function AcoesRapidas({ onNavigate }: { onNavigate: (path: string) => voi
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
       <button
         onClick={() => onNavigate('/meus-pedidos')}
-        className="bg-green-600 text-white p-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
+        className="bg-green-700 text-white p-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:bg-green-800 transition-colors flex items-center justify-center"
       >
         <ClipboardList className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
         <span>Pedidos</span>

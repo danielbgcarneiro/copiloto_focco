@@ -271,7 +271,7 @@ export function VisitasSection({
             </button>
             <button
               onClick={onAgendarNovo}
-              className="py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm shadow-sm hover:bg-green-600 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+              className="py-2.5 rounded-xl bg-green-700 text-white font-semibold text-sm shadow-sm hover:bg-green-800 active:scale-95 transition-all flex items-center justify-center gap-1.5"
             >
               <Calendar className="h-4 w-4 shrink-0" />
               Agendar visita

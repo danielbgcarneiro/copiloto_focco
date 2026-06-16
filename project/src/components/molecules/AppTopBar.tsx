@@ -45,7 +45,7 @@ export function AppTopBar({ showMenuButton, onMenuToggle }: AppTopBarProps) {
       {/* Direita: usuário + logout */}
       <div className="flex items-center gap-1 flex-shrink-0">
         {displayName && (
-          <div className="hidden sm:flex items-center gap-1 text-sm text-white/90">
+          <div className="hidden sm:flex items-center gap-1 text-sm text-white">
             <User className="h-4 w-4" />
             <span className="max-w-[120px] truncate">{displayName}</span>
           </div>

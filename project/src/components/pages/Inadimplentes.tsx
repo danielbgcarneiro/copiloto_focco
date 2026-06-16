@@ -285,7 +285,7 @@ const Inadimplentes: React.FC = () => {
                     </button>
                     <button
                       onClick={() => window.open(`https://wa.me/${inadimplente.telefone.replace(/\D/g, '')}`, '_blank')}
-                      className="w-full bg-green-600 text-white py-2 sm:py-2.5 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                      className="w-full bg-green-700 text-white py-2 sm:py-2.5 rounded-lg font-medium hover:bg-green-800 transition-colors flex items-center justify-center gap-2"
                     >
                       <MessageCircle className="h-4 w-4" />
                       <span className="text-xs sm:text-sm">WhatsApp</span>
