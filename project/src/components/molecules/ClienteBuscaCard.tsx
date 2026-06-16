@@ -18,31 +18,33 @@ interface ClienteBuscaCardProps {
   agendado?: boolean
 }
 
+function dsvInfo(dsv: number | null | undefined): { label: string | null; color: string } {
+  if (dsv == null || dsv <= 0) return { label: null, color: 'text-gray-500' }
+  const color = dsv > 90 ? 'text-red-600' : dsv > 60 ? 'text-yellow-600' : 'text-gray-500'
+  return { label: `${dsv}d s/ comprar`, color }
+}
+
+function fmtOportunidade(v: number | null | undefined): string | null {
+  if (v == null || v <= 0) return null
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function metaProgress(meta: number, vendas: number): { pct: number; color: string } {
+  const pct = meta > 0 ? Math.min(100, (vendas / meta) * 100) : 0
+  const color = pct >= 100 ? 'bg-green-500' : pct >= 80 ? 'bg-yellow-400' : 'bg-red-400'
+  return { pct, color }
+}
+
 export function ClienteBuscaCard({ cliente, onClick, agendado }: ClienteBuscaCardProps) {
   const nomeExibido = cliente.nome_fantasia || cliente.razao_social
-  const rfmKey = cliente.perfil_rfm?.toLowerCase() ?? ''
-  const rfmBadge = RFM_BADGE[rfmKey]
+  const rfmBadge = RFM_BADGE[cliente.perfil_rfm?.toLowerCase() ?? '']
 
   const meta = cliente.meta_ano_atual ?? 0
-  const vendas = cliente.valor_ano_atual ?? 0
-  const percentualMeta = meta > 0 ? Math.min(100, (vendas / meta) * 100) : 0
-
-  const oportunidadeFmt =
-    cliente.oportunidade_rfm != null && cliente.oportunidade_rfm > 0
-      ? cliente.oportunidade_rfm.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-      : null
-
-  const dsvLabel =
-    cliente.dsv != null && cliente.dsv > 0
-      ? `${cliente.dsv}d s/ comprar`
-      : null
-
-  const dsvColor =
-    cliente.dsv != null && cliente.dsv > 90
-      ? 'text-red-600'
-      : cliente.dsv != null && cliente.dsv > 60
-      ? 'text-yellow-600'
-      : 'text-gray-500'
+  const { pct: percentualMeta, color: barColor } = metaProgress(meta, cliente.valor_ano_atual ?? 0)
+  const oportunidadeFmt = fmtOportunidade(cliente.oportunidade_rfm)
+  const dsv = dsvInfo(cliente.dsv)
+  const atraso = cliente.maior_dias_atraso ?? 0
+  const inadimplente = atraso > 0
 
   return (
     <button
@@ -71,15 +73,15 @@ export function ClienteBuscaCard({ cliente, onClick, agendado }: ClienteBuscaCar
         {cliente.cidade && (
           <span className="text-xs text-gray-500">{cliente.cidade}</span>
         )}
-        {cliente.cidade && dsvLabel && (
+        {cliente.cidade && dsv.label && (
           <span className="text-xs text-gray-300">·</span>
         )}
-        {dsvLabel && (
-          <span className={`text-xs font-medium ${dsvColor}`}>{dsvLabel}</span>
+        {dsv.label && (
+          <span className={`text-xs font-medium ${dsv.color}`}>{dsv.label}</span>
         )}
         {oportunidadeFmt && (
           <>
-            {(cliente.cidade || dsvLabel) && (
+            {(cliente.cidade || dsv.label) && (
               <span className="text-xs text-gray-300">·</span>
             )}
             <span className="flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
@@ -95,10 +97,7 @@ export function ClienteBuscaCard({ cliente, onClick, agendado }: ClienteBuscaCar
         <div className="flex items-center gap-2">
           <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${
-                percentualMeta >= 100 ? 'bg-green-500' :
-                percentualMeta >= 80  ? 'bg-yellow-400' : 'bg-red-400'
-              }`}
+              className={`h-full rounded-full transition-all ${barColor}`}
               style={{ width: `${percentualMeta}%` }}
             />
           </div>
@@ -109,10 +108,10 @@ export function ClienteBuscaCard({ cliente, onClick, agendado }: ClienteBuscaCar
       )}
 
       {/* Linha 4 — Badge inadimplência */}
-      {cliente.maior_dias_atraso != null && cliente.maior_dias_atraso > 0 && (
-        <div className={`flex items-center gap-1 text-xs font-medium ${cliente.maior_dias_atraso > 60 ? 'text-red-600' : 'text-amber-600'}`}>
+      {inadimplente && (
+        <div className={`flex items-center gap-1 text-xs font-medium ${atraso > 60 ? 'text-red-600' : 'text-amber-600'}`}>
           <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-          <span>Inadimplente — {cliente.maior_dias_atraso}d em atraso</span>
+          <span>Inadimplente — {atraso}d em atraso</span>
         </div>
       )}
     </button>
