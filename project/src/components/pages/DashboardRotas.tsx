@@ -106,6 +106,17 @@ interface VendedorInfo {
 type RotaSortField = 'rota' | 'soma_oportunidades' | 'meta_2025' | 'vendido_2025' | 'percentual_meta'
 type SortDirection = 'asc' | 'desc'
 
+/** Métricas da cidade: usa os valores filtrados quando há filtro ativo, senão os totais. */
+function resolveCidadeMetrics(cidade: any, mf: any, temFiltro: boolean) {
+  const usaFiltro = temFiltro && mf
+  const meta = usaFiltro ? mf.meta : cidade.meta_cidade
+  const vendas = usaFiltro ? mf.vendas : cidade.vendas_cidade
+  const oportunidades = usaFiltro ? mf.oportunidades : (cidade.soma_oportunidades ?? 0)
+  const qtd = usaFiltro ? mf.qtdClientes : cidade.qtd_clientes
+  const at = meta > 0 ? (vendas / meta) * 100 : 0
+  return { meta, vendas, oportunidades, qtd, at }
+}
+
 const DashboardRotas: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -1136,11 +1147,7 @@ const DashboardRotas: React.FC = () => {
                                       // Esconder cidade se filtros ativos e nenhum cliente rastreado corresponde.
                                       // mf undefined = cidade sem clientes nos vendors rastreados (ex: só cod_vendedor=0)
                                       if (temFiltro && (!mf || mf.qtdClientes === 0)) return null
-                                      const meta = temFiltro && mf ? mf.meta : cidade.meta_cidade
-                                      const vendas = temFiltro && mf ? mf.vendas : cidade.vendas_cidade
-                                      const oportunidades = temFiltro && mf ? mf.oportunidades : (cidade.soma_oportunidades ?? 0)
-                                      const qtd = temFiltro && mf ? mf.qtdClientes : cidade.qtd_clientes
-                                      const at = meta > 0 ? (vendas / meta) * 100 : 0
+                                      const { meta, vendas, oportunidades, qtd, at } = resolveCidadeMetrics(cidade, mf, temFiltro)
                                       return (
                                       <React.Fragment key={cidade.codigo_ibge_cidade}>
                                         {/* Linha da cidade — expansível para nível 3 */}
