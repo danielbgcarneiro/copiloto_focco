@@ -135,6 +135,194 @@ function getPeriodoDatesDetalhe(periodo: PeriodoAgendaDetalhe): { inicio: string
   return { inicio: formatDateLocal(inicio), fim, numSemanas }
 }
 
+// ─── tipos de linha (resultados das queries) ─────────────────────────────────
+
+type VisitaRow = {
+  id: string
+  resultado: string | null
+  valor_realizado: number | null
+  observacoes: string | null
+  motivo_nao_venda_id: number | null
+  data_visita: string
+  codigo_cliente: number
+  cliente_inativado: boolean
+  inativado_em: string | null
+}
+type AgendamentoRow = { id: string; codigo_cliente: number; valor_previsto: number | null; data_agendada: string }
+type ClienteRow = { codigo_cliente: number; nome_fantasia: string | null; razao_social: string | null; cidade: string | null; situacao: string | null }
+type MotivoRow = { id: number; descricao: string; codigo_canonico: string }
+type RfmInfo = { diasSemComprar: number; perfil: string; previsaoPedido: number; metaAnoAtual: number }
+
+// ─── helpers puros de cálculo de KPI (extraídos de fetchKpisDetalhados) ───────
+
+/** Meta do período: semana usa rateio, mês = mensal, trimestre = mensal×3. */
+function calcMetaPeriodo(periodo: PeriodoAgendaDetalhe, metaMensal: number, realizadoMes: number, hoje: Date): number {
+  if (periodo === 'semana') return calcularMetaSemana(metaMensal, realizadoMes, hoje)
+  return periodo === 'mes' ? metaMensal : metaMensal * 3
+}
+
+/** Mapa codigo_cliente → dados RFM (primeira ocorrência = análise mais recente). */
+function buildRfmMap(rfmData: any[] | null): Map<number, RfmInfo> {
+  const rfmMap = new Map<number, RfmInfo>()
+  for (const r of rfmData ?? []) {
+    if (!rfmMap.has(r.codigo_cliente)) {
+      rfmMap.set(r.codigo_cliente, {
+        diasSemComprar: r.dias_sem_comprar ?? 0,
+        perfil: r.perfil ?? '',
+        previsaoPedido: r.previsao_pedido ?? 0,
+        metaAnoAtual: r.meta_ano_atual ?? 0,
+      })
+    }
+  }
+  return rfmMap
+}
+
+/** AC3 — Atividade. */
+function computeAtividade(visitas: VisitaRow[], agendamentos: AgendamentoRow[], numSemanas: number) {
+  const totalVisitas = visitas.length
+  const visitasAgendadas = agendamentos.length
+  const taxaCumprimento = visitasAgendadas > 0 ? (totalVisitas / visitasAgendadas) * 100 : 0
+  const vendeu = visitas.filter((v) => v.resultado === 'vendeu').length
+  const taxaConversao = totalVisitas > 0 ? (vendeu / totalVisitas) * 100 : 0
+  const mediaVisitasPorSemana = totalVisitas / numSemanas
+  return { totalVisitas, visitasAgendadas, taxaCumprimento, taxaConversao, mediaVisitasPorSemana }
+}
+
+/** AC4 — Forecast + oportunidade RFM dos agendados. */
+function computeForecast(agendamentos: AgendamentoRow[], visitas: VisitaRow[], meta: number, rfmMap: Map<number, RfmInfo>) {
+  const forecastTotal = agendamentos.reduce((sum, a) => sum + (a.valor_previsto ?? 0), 0)
+  const realizadoTotal = visitas.reduce((sum, v) => sum + (v.valor_realizado ?? 0), 0)
+  const forecastAccuracy = forecastTotal > 0 ? realizadoTotal / forecastTotal : 0
+  const atingimentoMeta = meta > 0 ? (realizadoTotal / meta) * 100 : 0
+  const somaOportunidade = agendamentos.reduce((sum, a) => sum + (rfmMap.get(a.codigo_cliente)?.previsaoPedido ?? 0), 0)
+  return { forecastTotal, realizadoTotal, forecastAccuracy, atingimentoMeta, somaOportunidade }
+}
+
+/** Story 3.21 — items da tab Agenda (read-only no drilldown). */
+function buildAgendaItems(agendamentos: AgendamentoRow[], clientes: ClienteRow[], rfmMap: Map<number, RfmInfo>, visitas: VisitaRow[]): AgendaTotalizacaoItem[] {
+  const clienteNomeMapAgenda = new Map<number, { nome: string; cidade: string | null }>()
+  for (const c of clientes) {
+    clienteNomeMapAgenda.set(c.codigo_cliente, {
+      nome: c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`,
+      cidade: c.cidade ?? null,
+    })
+  }
+  // mapa codigo_cliente → última visita do período
+  const visitaPorCliente = new Map<number, { resultado: string; valor_realizado: number | null }>()
+  for (const v of visitas) {
+    if (!visitaPorCliente.has(v.codigo_cliente)) {
+      visitaPorCliente.set(v.codigo_cliente, { resultado: v.resultado ?? '', valor_realizado: v.valor_realizado })
+    }
+  }
+  return agendamentos.map((a) => {
+    const info = clienteNomeMapAgenda.get(a.codigo_cliente)
+    const rfm = rfmMap.get(a.codigo_cliente)
+    const visita = visitaPorCliente.get(a.codigo_cliente)
+    return {
+      id: a.id,
+      codigo_cliente: a.codigo_cliente,
+      nome: info?.nome ?? `Cliente ${a.codigo_cliente}`,
+      cidade: info?.cidade ?? null,
+      perfil_rfm: rfm?.perfil ?? null,
+      valor_previsto: a.valor_previsto,
+      oportunidade: rfm?.previsaoPedido ?? null,
+      meta_ano_atual: rfm?.metaAnoAtual ?? null,
+      visita_resultado: visita?.resultado ?? null,
+      visita_valor_realizado: visita?.valor_realizado ?? null,
+    }
+  })
+}
+
+/** AC5 — Qualidade. Retorna também os mapas de motivo (reusados em últimas visitas). */
+function computeQualidade(visitas: VisitaRow[], motivos: MotivoRow[], totalVisitas: number) {
+  const motivoDescMap = new Map<number, string>()
+  const motivoCanonicalMap = new Map<number, string>()
+  for (const m of motivos) {
+    motivoDescMap.set(m.id, m.descricao)
+    motivoCanonicalMap.set(m.id, m.codigo_canonico)
+  }
+
+  const motivoCounts = new Map<number, number>()
+  for (const v of visitas) {
+    if (v.motivo_nao_venda_id != null) {
+      motivoCounts.set(v.motivo_nao_venda_id, (motivoCounts.get(v.motivo_nao_venda_id) ?? 0) + 1)
+    }
+  }
+  const topMotivos: TopMotivo[] = [...motivoCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([id, count]) => ({ motivo: motivoDescMap.get(id) ?? `Motivo ${id}`, count }))
+
+  const comObservacao = visitas.filter((v) => v.observacoes && v.observacoes.trim() !== '').length
+  const pctComObservacao = totalVisitas > 0 ? (comObservacao / totalVisitas) * 100 : 0
+
+  return { topMotivos, pctComObservacao, motivoDescMap, motivoCanonicalMap }
+}
+
+/** Clientes da carteira ativa por faixa de dias sem comprar. */
+function computeDiasSemCompra(clientesAtivos: ClienteRow[], rfmMap: Map<number, RfmInfo>) {
+  let clientes30d = 0, clientes60d = 0, clientes90d = 0
+  for (const c of clientesAtivos) {
+    const dsv = rfmMap.get(c.codigo_cliente)?.diasSemComprar ?? 0
+    if (dsv > 30) clientes30d++
+    if (dsv > 60) clientes60d++
+    if (dsv > 90) clientes90d++
+  }
+  return { clientes30d, clientes60d, clientes90d }
+}
+
+/** AC6 — Cobertura de carteira (apenas clientes ativos). */
+function computeCobertura(visitas: VisitaRow[], clientesAtivos: ClienteRow[]) {
+  const visitadosSet = new Set(visitas.map((v) => v.codigo_cliente))
+  const clientesVisitados = clientesAtivos.filter((c) => visitadosSet.has(c.codigo_cliente)).length
+  const pctCobertura = clientesAtivos.length > 0 ? (clientesVisitados / clientesAtivos.length) * 100 : 0
+  return { visitadosSet, clientesVisitados, pctCobertura }
+}
+
+/** Mapa de nomes usando TODOS os clientes (inclusive I/B) p/ visitas históricas. */
+function buildClienteNomeMap(clientes: ClienteRow[]): Map<number, string> {
+  const clienteNomeMap = new Map<number, string>()
+  for (const c of clientes) {
+    clienteNomeMap.set(c.codigo_cliente, c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`)
+  }
+  return clienteNomeMap
+}
+
+/** Clientes ativos sem visita no período, ordenados por dias sem comprar. */
+function buildClientesNaoVisitados(clientesAtivos: ClienteRow[], visitadosSet: Set<number>, rfmMap: Map<number, RfmInfo>): ClienteNaoVisitado[] {
+  return clientesAtivos
+    .filter((c) => !visitadosSet.has(c.codigo_cliente))
+    .map((c) => ({
+      codigoCliente: c.codigo_cliente,
+      nomeCliente: c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`,
+      diasSemComprar: rfmMap.get(c.codigo_cliente)?.diasSemComprar ?? 0,
+      perfil: rfmMap.get(c.codigo_cliente)?.perfil ?? '',
+    }))
+    .sort((a, b) => b.diasSemComprar - a.diasSemComprar)
+}
+
+/** AC7 — Últimas visitas (lista completa do período). */
+function buildUltimasVisitas(
+  visitas: VisitaRow[],
+  clienteNomeMap: Map<number, string>,
+  motivoDescMap: Map<number, string>,
+  motivoCanonicalMap: Map<number, string>,
+): UltimaVisita[] {
+  return visitas.map((v) => ({
+    visitaId: v.id,
+    data: v.data_visita,
+    codigoCliente: v.codigo_cliente,
+    nomeCliente: clienteNomeMap.get(v.codigo_cliente) ?? `Cliente ${v.codigo_cliente}`,
+    resultado: v.resultado ?? '',
+    valorRealizado: v.valor_realizado,
+    motivo: v.motivo_nao_venda_id != null ? (motivoDescMap.get(v.motivo_nao_venda_id) ?? null) : null,
+    motivoCanonical: v.motivo_nao_venda_id != null ? (motivoCanonicalMap.get(v.motivo_nao_venda_id) ?? null) : null,
+    observacoes: v.observacoes ?? null,
+    inativado: v.cliente_inativado ?? false,
+    inativadoEm: v.inativado_em ?? null,
+  }))
+}
+
 async function fetchKpisDetalhados(
   vendedorId: string,
   periodo: PeriodoAgendaDetalhe
@@ -199,31 +387,19 @@ async function fetchKpisDetalhados(
       .maybeSingle(),
   ])
 
-  const visitas = (visitasData ?? []) as {
-    id: string
-    resultado: string | null
-    valor_realizado: number | null
-    observacoes: string | null
-    motivo_nao_venda_id: number | null
-    data_visita: string
-    codigo_cliente: number
-    cliente_inativado: boolean
-    inativado_em: string | null
-  }[]
-  const agendamentos = (agendamentosData ?? []) as { id: string; codigo_cliente: number; valor_previsto: number | null; data_agendada: string }[]
+  const visitas = (visitasData ?? []) as VisitaRow[]
+  const agendamentos = (agendamentosData ?? []) as AgendamentoRow[]
   const metaMensal = (metasData ?? [])[0]?.meta_valor ?? 0
-  const clientes = (clientesData ?? []) as { codigo_cliente: number; nome_fantasia: string | null; razao_social: string | null; cidade: string | null; situacao: string | null }[]
+  const clientes = (clientesData ?? []) as ClienteRow[]
   // Apenas clientes ativos para métricas de carteira (cobertura, dias sem comprar, não visitados)
   const clientesAtivos = clientes.filter(c => c.situacao !== 'I' && c.situacao !== 'B')
-  const motivos = (motivosData ?? []) as { id: number; descricao: string; codigo_canonico: string }[]
+  const motivos = (motivosData ?? []) as MotivoRow[]
   const realizadoMes = (vendasMesData as { total_vendas: number } | null)?.total_vendas ?? 0
 
-  const meta = periodo === 'semana'
-    ? calcularMetaSemana(metaMensal, realizadoMes, hoje)
-    : periodo === 'mes' ? metaMensal : metaMensal * 3
+  const meta = calcMetaPeriodo(periodo, metaMensal, realizadoMes, hoje)
 
   // 3. Analise RFM para a carteira (apenas clientes ativos)
-  const rfmMap = new Map<number, { diasSemComprar: number; perfil: string; previsaoPedido: number; metaAnoAtual: number }>()
+  let rfmMap = new Map<number, RfmInfo>()
   if (clientesAtivos.length > 0) {
     const clienteCodes = clientesAtivos.map((c) => c.codigo_cliente)
     const { data: rfmData } = await supabase
@@ -231,134 +407,22 @@ async function fetchKpisDetalhados(
       .select('codigo_cliente, dias_sem_comprar, perfil, previsao_pedido, meta_ano_atual')
       .in('codigo_cliente', clienteCodes)
       .order('data_analise', { ascending: false })
-
-    for (const r of rfmData ?? []) {
-      if (!rfmMap.has(r.codigo_cliente)) {
-        rfmMap.set(r.codigo_cliente, {
-          diasSemComprar: r.dias_sem_comprar ?? 0,
-          perfil: r.perfil ?? '',
-          previsaoPedido: r.previsao_pedido ?? 0,
-          metaAnoAtual: r.meta_ano_atual ?? 0,
-        })
-      }
-    }
+    rfmMap = buildRfmMap(rfmData)
   }
 
-  // AC3 — Atividade
-  const totalVisitas = visitas.length
-  const visitasAgendadas = agendamentos.length
-  const taxaCumprimento = visitasAgendadas > 0 ? (totalVisitas / visitasAgendadas) * 100 : 0
-  const vendeu = visitas.filter((v) => v.resultado === 'vendeu').length
-  const taxaConversao = totalVisitas > 0 ? (vendeu / totalVisitas) * 100 : 0
-  const mediaVisitasPorSemana = totalVisitas / numSemanas
-
-  // AC4 — Forecast
-  const forecastTotal = agendamentos.reduce((sum, a) => sum + (a.valor_previsto ?? 0), 0)
-  const realizadoTotal = visitas.reduce((sum, v) => sum + (v.valor_realizado ?? 0), 0)
-  const forecastAccuracy = forecastTotal > 0 ? realizadoTotal / forecastTotal : 0
-  const atingimentoMeta = meta > 0 ? (realizadoTotal / meta) * 100 : 0
-
-  // 3.21 — Oportunidade RFM dos clientes agendados no período
-  const somaOportunidade = agendamentos.reduce((sum, a) => sum + (rfmMap.get(a.codigo_cliente)?.previsaoPedido ?? 0), 0)
-
-  // 3.21 — AgendaItems para tab Agenda (read-only no drilldown)
-  const clienteNomeMapAgenda = new Map<number, { nome: string; cidade: string | null }>()
-  for (const c of clientes) {
-    clienteNomeMapAgenda.set(c.codigo_cliente, {
-      nome: c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`,
-      cidade: c.cidade ?? null,
-    })
-  }
-  // mapa codigo_cliente → última visita do período
-  const visitaPorCliente = new Map<number, { resultado: string; valor_realizado: number | null }>()
-  for (const v of visitas) {
-    if (!visitaPorCliente.has(v.codigo_cliente)) {
-      visitaPorCliente.set(v.codigo_cliente, { resultado: v.resultado ?? '', valor_realizado: v.valor_realizado })
-    }
-  }
-  const agendaItems: AgendaTotalizacaoItem[] = agendamentos.map((a) => {
-    const info = clienteNomeMapAgenda.get(a.codigo_cliente)
-    const rfm = rfmMap.get(a.codigo_cliente)
-    const visita = visitaPorCliente.get(a.codigo_cliente)
-    return {
-      id: a.id,
-      codigo_cliente: a.codigo_cliente,
-      nome: info?.nome ?? `Cliente ${a.codigo_cliente}`,
-      cidade: info?.cidade ?? null,
-      perfil_rfm: rfm?.perfil ?? null,
-      valor_previsto: a.valor_previsto,
-      oportunidade: rfm?.previsaoPedido ?? null,
-      meta_ano_atual: rfm?.metaAnoAtual ?? null,
-      visita_resultado: visita?.resultado ?? null,
-      visita_valor_realizado: visita?.valor_realizado ?? null,
-    }
-  })
-
-  // AC5 — Qualidade
-  const motivoDescMap = new Map<number, string>()
-  const motivoCanonicalMap = new Map<number, string>()
-  for (const m of motivos) {
-    motivoDescMap.set(m.id, m.descricao)
-    motivoCanonicalMap.set(m.id, m.codigo_canonico)
-  }
-
-  const motivoCounts = new Map<number, number>()
-  for (const v of visitas) {
-    if (v.motivo_nao_venda_id != null) {
-      motivoCounts.set(v.motivo_nao_venda_id, (motivoCounts.get(v.motivo_nao_venda_id) ?? 0) + 1)
-    }
-  }
-  const topMotivos: TopMotivo[] = [...motivoCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([id, count]) => ({ motivo: motivoDescMap.get(id) ?? `Motivo ${id}`, count }))
-
-  const comObservacao = visitas.filter((v) => v.observacoes && v.observacoes.trim() !== '').length
-  const pctComObservacao = totalVisitas > 0 ? (comObservacao / totalVisitas) * 100 : 0
-
-  let clientes30d = 0, clientes60d = 0, clientes90d = 0
-  for (const c of clientesAtivos) {
-    const dsv = rfmMap.get(c.codigo_cliente)?.diasSemComprar ?? 0
-    if (dsv > 30) clientes30d++
-    if (dsv > 60) clientes60d++
-    if (dsv > 90) clientes90d++
-  }
-
-  // AC6 — Cobertura de carteira (apenas clientes ativos)
-  const visitadosSet = new Set(visitas.map((v) => v.codigo_cliente))
-  const clientesVisitados = clientesAtivos.filter((c) => visitadosSet.has(c.codigo_cliente)).length
-  const pctCobertura = clientesAtivos.length > 0 ? (clientesVisitados / clientesAtivos.length) * 100 : 0
-
-  // Mapa de nomes usando TODOS os clientes (inclusive I/B) para resolver nomes em visitas históricas
-  const clienteNomeMap = new Map<number, string>()
-  for (const c of clientes) {
-    clienteNomeMap.set(c.codigo_cliente, c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`)
-  }
-
-  const clientesNaoVisitados: ClienteNaoVisitado[] = clientesAtivos
-    .filter((c) => !visitadosSet.has(c.codigo_cliente))
-    .map((c) => ({
-      codigoCliente: c.codigo_cliente,
-      nomeCliente: c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`,
-      diasSemComprar: rfmMap.get(c.codigo_cliente)?.diasSemComprar ?? 0,
-      perfil: rfmMap.get(c.codigo_cliente)?.perfil ?? '',
-    }))
-    .sort((a, b) => b.diasSemComprar - a.diasSemComprar)
-
-  // AC7 — Últimas 10 visitas
-  const ultimasVisitas: UltimaVisita[] = visitas.map((v) => ({
-    visitaId: v.id,
-    data: v.data_visita,
-    codigoCliente: v.codigo_cliente,
-    nomeCliente: clienteNomeMap.get(v.codigo_cliente) ?? `Cliente ${v.codigo_cliente}`,
-    resultado: v.resultado ?? '',
-    valorRealizado: v.valor_realizado,
-    motivo: v.motivo_nao_venda_id != null ? (motivoDescMap.get(v.motivo_nao_venda_id) ?? null) : null,
-    motivoCanonical: v.motivo_nao_venda_id != null ? (motivoCanonicalMap.get(v.motivo_nao_venda_id) ?? null) : null,
-    observacoes: v.observacoes ?? null,
-    inativado: v.cliente_inativado ?? false,
-    inativadoEm: v.inativado_em ?? null,
-  }))
+  // KPIs derivados (cada bloco em helper puro — ver acima)
+  const { totalVisitas, visitasAgendadas, taxaCumprimento, taxaConversao, mediaVisitasPorSemana } =
+    computeAtividade(visitas, agendamentos, numSemanas)
+  const { forecastTotal, realizadoTotal, forecastAccuracy, atingimentoMeta, somaOportunidade } =
+    computeForecast(agendamentos, visitas, meta, rfmMap)
+  const agendaItems = buildAgendaItems(agendamentos, clientes, rfmMap, visitas)
+  const { topMotivos, pctComObservacao, motivoDescMap, motivoCanonicalMap } =
+    computeQualidade(visitas, motivos, totalVisitas)
+  const { clientes30d, clientes60d, clientes90d } = computeDiasSemCompra(clientesAtivos, rfmMap)
+  const { visitadosSet, clientesVisitados, pctCobertura } = computeCobertura(visitas, clientesAtivos)
+  const clienteNomeMap = buildClienteNomeMap(clientes)
+  const clientesNaoVisitados = buildClientesNaoVisitados(clientesAtivos, visitadosSet, rfmMap)
+  const ultimasVisitas = buildUltimasVisitas(visitas, clienteNomeMap, motivoDescMap, motivoCanonicalMap)
 
   return {
     nomeVendedor,
@@ -387,6 +451,42 @@ async function fetchKpisDetalhados(
     realizadoMes,
     agendaItems,
   }
+}
+
+/** Agrupa linhas por uma chave string. */
+function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
+  const map = new Map<string, T[]>()
+  for (const r of rows) {
+    const k = key(r)
+    if (!map.has(k)) map.set(k, [])
+    map.get(k)!.push(r)
+  }
+  return map
+}
+
+/** Mapa codigo_cliente → dias sem comprar (primeira ocorrência = mais recente). */
+function buildDsvMap(rfmData: any[] | null): Map<number, number> {
+  const map = new Map<number, number>()
+  for (const r of rfmData ?? []) {
+    if (!map.has(r.codigo_cliente)) map.set(r.codigo_cliente, r.dias_sem_comprar ?? 0)
+  }
+  return map
+}
+
+/** Conta, por cod_vendedor, clientes com mais de 60 dias sem comprar. */
+function countSemVisita60d(
+  clientesData: { codigo_cliente: number; cod_vendedor: number }[],
+  dsvMap: Map<number, number>,
+): Map<number, number> {
+  const res = new Map<number, number>()
+  for (const c of clientesData) {
+    const dsv = dsvMap.get(c.codigo_cliente) ?? 0
+    if (dsv > 60) {
+      const cod = c.cod_vendedor as number
+      res.set(cod, (res.get(cod) ?? 0) + 1)
+    }
+  }
+  return res
 }
 
 async function fetchKpis(
@@ -446,32 +546,12 @@ async function fetchKpis(
       .in('codigo_cliente', clienteCodes)
       .order('data_analise', { ascending: false })
 
-    const rfmMap = new Map<number, number>()
-    for (const r of rfmData ?? []) {
-      if (!rfmMap.has(r.codigo_cliente)) rfmMap.set(r.codigo_cliente, r.dias_sem_comprar ?? 0)
-    }
-
-    for (const c of clientesData) {
-      const dsv = rfmMap.get(c.codigo_cliente) ?? 0
-      if (dsv > 60) {
-        const cod = c.cod_vendedor as number
-        semVisita60dPorCodVendedor.set(cod, (semVisita60dPorCodVendedor.get(cod) ?? 0) + 1)
-      }
-    }
+    semVisita60dPorCodVendedor = countSemVisita60d(clientesData, buildDsvMap(rfmData))
   }
 
   // Montar mapas por vendedorId
-  const visitasPorVendedor = new Map<string, { resultado: string; valor_realizado: number | null }[]>()
-  for (const v of visitasData ?? []) {
-    if (!visitasPorVendedor.has(v.vendedor_id)) visitasPorVendedor.set(v.vendedor_id, [])
-    visitasPorVendedor.get(v.vendedor_id)!.push(v)
-  }
-
-  const agsPorVendedor = new Map<string, { valor_previsto: number | null }[]>()
-  for (const a of agendamentosData ?? []) {
-    if (!agsPorVendedor.has(a.vendedor_id)) agsPorVendedor.set(a.vendedor_id, [])
-    agsPorVendedor.get(a.vendedor_id)!.push(a)
-  }
+  const visitasPorVendedor = groupBy(visitasData ?? [], (v) => v.vendedor_id)
+  const agsPorVendedor = groupBy(agendamentosData ?? [], (a) => a.vendedor_id)
 
   const metaPorCodVendedor = new Map<number, number>()
   for (const m of metasData ?? []) {
