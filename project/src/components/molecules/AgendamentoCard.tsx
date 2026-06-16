@@ -61,51 +61,68 @@ function fmt(value: number): string {
   })
 }
 
-export function AgendamentoCard({ ag, onClick, onRegistrar }: AgendamentoCardProps) {
-  const config = useConfiguracoes()
-  const rfmBadge = getBadgeRfm(ag.perfil_rfm)
-  const nomeExibido = ag.nome_fantasia || ag.razao_social
-  const temResultado = !!ag.visita_resultado
-
-  // AC3: DSV com thresholds configuráveis (Story 3.11)
-  const dsvLevel = getDsvAlertLevel(
-    ag.dsv,
-    config.prazo_alerta_amarelo_dias,
-    config.prazo_alerta_vermelho_dias
+/** Linha de valores: oportunidade RFM + valor previsto + valor realizado. */
+function ValoresAgendamento({ ag, temResultado }: { ag: AgendamentoDiaDetalhado; temResultado: boolean }) {
+  return (
+    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+      {ag.oportunidade_rfm != null && ag.oportunidade_rfm > 0 && (
+        <span className="flex items-center gap-0.5 text-xs text-yellow-600 font-medium">
+          <TrendingUp className="w-3 h-3 flex-shrink-0" />
+          {fmt(ag.oportunidade_rfm)}
+        </span>
+      )}
+      {ag.valor_previsto != null && ag.valor_previsto > 0 && (
+        <span className="flex items-center gap-0.5 text-xs text-blue-600">
+          <DollarSign className="w-3 h-3 flex-shrink-0" />
+          {fmt(ag.valor_previsto)}
+        </span>
+      )}
+      {temResultado && ag.visita_valor_realizado != null && (
+        <span className="text-xs text-green-600 font-semibold">
+          Realizado: {fmt(ag.visita_valor_realizado)}
+        </span>
+      )}
+    </div>
   )
+}
+
+type DsvConfig = { prazo_alerta_amarelo_dias: number; prazo_alerta_vermelho_dias: number }
+
+/** Estado visual derivado do agendamento (DSV, borda, badges contextuais). */
+function deriveCardState(ag: AgendamentoDiaDetalhado, config: DsvConfig) {
+  // AC3: DSV com thresholds configuráveis (Story 3.11)
+  const dsvLevel = getDsvAlertLevel(ag.dsv, config.prazo_alerta_amarelo_dias, config.prazo_alerta_vermelho_dias)
   const dsvBadge =
     dsvLevel !== 'normal' && ag.dsv != null
       ? {
           label: `${ag.dsv}d s/ comprar`,
-          classes:
-            dsvLevel === 'vermelho'
-              ? 'bg-red-100 text-red-700'
-              : 'bg-yellow-100 text-yellow-700',
+          classes: dsvLevel === 'vermelho' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700',
         }
       : null
 
   // AC4: borda esquerda colorida (Story 3.11)
   const borderLeft =
-    dsvLevel === 'vermelho'
-      ? 'border-l-red-500'
-      : dsvLevel === 'amarelo'
-      ? 'border-l-yellow-400'
-      : 'border-l-transparent'
+    dsvLevel === 'vermelho' ? 'border-l-red-500' : dsvLevel === 'amarelo' ? 'border-l-yellow-400' : 'border-l-transparent'
 
-  // AC5: badge azul "Sem previsão" quando valor_previsto null/0 e visita em ≤3 dias (Story 3.11)
+  // AC5/AC6: janela até a visita
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
   const visitaDate = new Date(ag.data_agendada + 'T00:00:00')
-  const diasParaVisita = Math.round(
-    (visitaDate.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-  )
-  const showSemPrevisao =
-    (ag.valor_previsto === null || ag.valor_previsto === 0) &&
-    diasParaVisita >= 0 &&
-    diasParaVisita <= 3
+  const diasParaVisita = Math.round((visitaDate.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
 
-  // AC6: "Atenção" quando pendente e data já passou (Story 3.11)
+  const showSemPrevisao =
+    (ag.valor_previsto === null || ag.valor_previsto === 0) && diasParaVisita >= 0 && diasParaVisita <= 3
   const showAtencao = ag.status === 'pendente' && diasParaVisita < 0
+
+  return { dsvBadge, borderLeft, showSemPrevisao, showAtencao }
+}
+
+export function AgendamentoCard({ ag, onClick, onRegistrar }: AgendamentoCardProps) {
+  const config = useConfiguracoes()
+  const rfmBadge = getBadgeRfm(ag.perfil_rfm)
+  const nomeExibido = ag.nome_fantasia || ag.razao_social
+  const temResultado = !!ag.visita_resultado
+  const { dsvBadge, borderLeft, showSemPrevisao, showAtencao } = deriveCardState(ag, config)
 
   return (
     <button
@@ -175,25 +192,7 @@ export function AgendamentoCard({ ag, onClick, onRegistrar }: AgendamentoCardPro
       )}
 
       {/* Linha 3: oportunidade + valor previsto + realizado */}
-      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-        {ag.oportunidade_rfm != null && ag.oportunidade_rfm > 0 && (
-          <span className="flex items-center gap-0.5 text-xs text-yellow-600 font-medium">
-            <TrendingUp className="w-3 h-3 flex-shrink-0" />
-            {fmt(ag.oportunidade_rfm)}
-          </span>
-        )}
-        {ag.valor_previsto != null && ag.valor_previsto > 0 && (
-          <span className="flex items-center gap-0.5 text-xs text-blue-600">
-            <DollarSign className="w-3 h-3 flex-shrink-0" />
-            {fmt(ag.valor_previsto)}
-          </span>
-        )}
-        {temResultado && ag.visita_valor_realizado != null && (
-          <span className="text-xs text-green-600 font-semibold">
-            Realizado: {fmt(ag.visita_valor_realizado)}
-          </span>
-        )}
-      </div>
+      <ValoresAgendamento ag={ag} temResultado={temResultado} />
 
       {/* Botão registrar resultado (AC7) */}
       {!temResultado && (
