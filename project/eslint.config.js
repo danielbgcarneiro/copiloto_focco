@@ -61,7 +61,7 @@ export default [
 
       // Complexidade ciclomática — ratchet: teto no nível atual do projeto.
       // À medida que hotspots são refatorados, baixar este número (meta: 10).
-      "complexity": ["error", 32],
+      "complexity": ["error", 30],
     }
   }
 ];
