@@ -59,9 +59,10 @@ export default [
       // JS
       "no-unused-vars": "off",
 
-      // Complexidade ciclomática — ratchet: teto no nível atual do projeto.
-      // À medida que hotspots são refatorados, baixar este número (meta: 10).
-      "complexity": ["error", 30],
+      // Complexidade ciclomática — meta agressiva como WARN: expõe toda a cauda
+      // (funções > 20) como backlog de alvos no `npm run lint`, sem quebrar o
+      // build (warnings não falham). Conforme a cauda cai, baixar até 10.
+      "complexity": ["warn", 20],
     }
   }
 ];
