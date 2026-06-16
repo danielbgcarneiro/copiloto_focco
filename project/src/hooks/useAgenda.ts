@@ -63,6 +63,63 @@ function writeLocalCache(data: AgendaCache) {
   }
 }
 
+// ─── helpers de montagem (compartilhados por fetchWeek e fetchMonth) ──────────
+
+function buildClienteMap(rows: any[] | null): Map<number, { razao_social: string; nome_fantasia: string | null }> {
+  const m = new Map<number, { razao_social: string; nome_fantasia: string | null }>()
+  for (const c of rows ?? []) {
+    m.set(c.codigo_cliente, { razao_social: c.razao_social, nome_fantasia: c.nome_fantasia ?? null })
+  }
+  return m
+}
+
+function buildRfmMap(rows: any[] | null): Map<number, { perfil: string; previsao_pedido: number | null; meta_ano_atual: number | null }> {
+  const m = new Map<number, { perfil: string; previsao_pedido: number | null; meta_ano_atual: number | null }>()
+  for (const r of rows ?? []) {
+    if (!m.has(r.codigo_cliente)) {
+      m.set(r.codigo_cliente, { perfil: r.perfil, previsao_pedido: r.previsao_pedido ?? null, meta_ano_atual: r.meta_ano_atual ?? null })
+    }
+  }
+  return m
+}
+
+/** Busca nomes + RFM dos clientes e devolve os dois mapas prontos. */
+async function fetchClienteERfm(codigosCliente: number[]) {
+  const [clientesRes, rfmRes] = await Promise.all([
+    supabase
+      .from('tabela_clientes')
+      .select('codigo_cliente, razao_social, nome_fantasia')
+      .in('codigo_cliente', codigosCliente),
+    supabase
+      .from('analise_rfm')
+      .select('codigo_cliente, perfil, previsao_pedido, meta_ano_atual')
+      .in('codigo_cliente', codigosCliente)
+      .order('data_analise', { ascending: false }),
+  ])
+  return { clienteMap: buildClienteMap(clientesRes.data), rfmMap: buildRfmMap(rfmRes.data) }
+}
+
+function toAgendamentoDia(
+  ag: any,
+  clienteMap: Map<number, { razao_social: string; nome_fantasia: string | null }>,
+  rfmMap: Map<number, { perfil: string; previsao_pedido: number | null; meta_ano_atual: number | null }>,
+): AgendamentoDia {
+  const client = clienteMap.get(ag.codigo_cliente)
+  const rfm = rfmMap.get(ag.codigo_cliente)
+  return {
+    id: ag.id,
+    codigo_cliente: ag.codigo_cliente,
+    razao_social: client?.razao_social ?? `Cliente ${ag.codigo_cliente}`,
+    nome_fantasia: client?.nome_fantasia ?? null,
+    data_agendada: ag.data_agendada,
+    status: ag.status,
+    valor_previsto: ag.valor_previsto ?? null,
+    previsao_pedido: rfm?.previsao_pedido ?? null,
+    meta_ano_atual: rfm?.meta_ano_atual ?? null,
+    perfil_rfm: rfm?.perfil ?? null,
+  }
+}
+
 export function useAgenda(vendedorId: string | undefined) {
   const [cache, setCache] = useState<AgendaCache>(() => readLocalCache())
   const [loading, setLoading] = useState(false)
@@ -120,58 +177,11 @@ export function useAgenda(vendedorId: string | undefined) {
 
       if (items.length > 0) {
         const codigosCliente = [...new Set(items.map((a) => a.codigo_cliente))]
+        const { clienteMap, rfmMap } = await fetchClienteERfm(codigosCliente)
 
-        // 2. Buscar nomes dos clientes
-        const { data: clientes } = await supabase
-          .from('tabela_clientes')
-          .select('codigo_cliente, razao_social, nome_fantasia')
-          .in('codigo_cliente', codigosCliente)
-
-        const clienteMap = new Map<number, { razao_social: string; nome_fantasia: string | null }>()
-        for (const c of clientes ?? []) {
-          clienteMap.set(c.codigo_cliente, {
-            razao_social: c.razao_social,
-            nome_fantasia: c.nome_fantasia ?? null,
-          })
-        }
-
-        // 3. Buscar perfil RFM mais recente por cliente
-        const { data: rfmData } = await supabase
-          .from('analise_rfm')
-          .select('codigo_cliente, perfil, previsao_pedido, meta_ano_atual')
-          .in('codigo_cliente', codigosCliente)
-          .order('data_analise', { ascending: false })
-
-        const rfmMap = new Map<number, { perfil: string; previsao_pedido: number | null; meta_ano_atual: number | null }>()
-        for (const r of rfmData ?? []) {
-          if (!rfmMap.has(r.codigo_cliente)) {
-            rfmMap.set(r.codigo_cliente, {
-              perfil: r.perfil,
-              previsao_pedido: r.previsao_pedido ?? null,
-              meta_ano_atual: r.meta_ano_atual ?? null,
-            })
-          }
-        }
-
-        // 4. Montar mapa agrupado por data
         for (const ag of items) {
-          const client = clienteMap.get(ag.codigo_cliente)
-          const rfm = rfmMap.get(ag.codigo_cliente)
-          const entry: AgendamentoDia = {
-            id: ag.id,
-            codigo_cliente: ag.codigo_cliente,
-            razao_social: client?.razao_social ?? `Cliente ${ag.codigo_cliente}`,
-            nome_fantasia: client?.nome_fantasia ?? null,
-            data_agendada: ag.data_agendada,
-            status: ag.status,
-            valor_previsto: ag.valor_previsto ?? null,
-            previsao_pedido: rfm?.previsao_pedido ?? null,
-            meta_ano_atual: rfm?.meta_ano_atual ?? null,
-            perfil_rfm: rfm?.perfil ?? null,
-          }
-          const key = ag.data_agendada
-          if (key in grouped) {
-            grouped[key].push(entry)
+          if (ag.data_agendada in grouped) {
+            grouped[ag.data_agendada].push(toAgendamentoDia(ag, clienteMap, rfmMap))
           }
         }
       }
@@ -251,55 +261,11 @@ export function useAgenda(vendedorId: string | undefined) {
       const items = agendamentos ?? []
       if (items.length > 0) {
         const codigosCliente = [...new Set(items.map((a) => a.codigo_cliente))]
-
-        const [clientesRes, rfmRes] = await Promise.all([
-          supabase
-            .from('tabela_clientes')
-            .select('codigo_cliente, razao_social, nome_fantasia')
-            .in('codigo_cliente', codigosCliente),
-          supabase
-            .from('analise_rfm')
-            .select('codigo_cliente, perfil, previsao_pedido, meta_ano_atual')
-            .in('codigo_cliente', codigosCliente)
-            .order('data_analise', { ascending: false }),
-        ])
-
-        const clienteMap = new Map<number, { razao_social: string; nome_fantasia: string | null }>()
-        for (const c of clientesRes.data ?? []) {
-          clienteMap.set(c.codigo_cliente, {
-            razao_social: c.razao_social,
-            nome_fantasia: c.nome_fantasia ?? null,
-          })
-        }
-
-        const rfmMap = new Map<number, { perfil: string; previsao_pedido: number | null; meta_ano_atual: number | null }>()
-        for (const r of rfmRes.data ?? []) {
-          if (!rfmMap.has(r.codigo_cliente)) {
-            rfmMap.set(r.codigo_cliente, {
-              perfil: r.perfil,
-              previsao_pedido: r.previsao_pedido ?? null,
-              meta_ano_atual: r.meta_ano_atual ?? null,
-            })
-          }
-        }
+        const { clienteMap, rfmMap } = await fetchClienteERfm(codigosCliente)
 
         for (const ag of items) {
-          const client = clienteMap.get(ag.codigo_cliente)
-          const rfm = rfmMap.get(ag.codigo_cliente)
-          const entry: AgendamentoDia = {
-            id: ag.id,
-            codigo_cliente: ag.codigo_cliente,
-            razao_social: client?.razao_social ?? `Cliente ${ag.codigo_cliente}`,
-            nome_fantasia: client?.nome_fantasia ?? null,
-            data_agendada: ag.data_agendada,
-            status: ag.status,
-            valor_previsto: ag.valor_previsto ?? null,
-            previsao_pedido: rfm?.previsao_pedido ?? null,
-            meta_ano_atual: rfm?.meta_ano_atual ?? null,
-            perfil_rfm: rfm?.perfil ?? null,
-          }
           if (ag.data_agendada in grouped) {
-            grouped[ag.data_agendada].push(entry)
+            grouped[ag.data_agendada].push(toAgendamentoDia(ag, clienteMap, rfmMap))
           }
         }
       }
