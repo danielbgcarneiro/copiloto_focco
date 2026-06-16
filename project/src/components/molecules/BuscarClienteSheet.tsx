@@ -15,7 +15,7 @@
  * AC11: Mínimo 2 caracteres
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type RefObject } from 'react'
 import {
   Search,
   X,
@@ -39,6 +39,55 @@ interface BuscarClienteSheetProps {
 }
 
 const DIAS_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
+function BuscaHeader({
+  step, query, onQueryChange, clienteNome, onVoltar, onClose, inputRef,
+}: {
+  step: 'busca' | 'confirmar'
+  query: string
+  onQueryChange: (v: string) => void
+  clienteNome: string | undefined
+  onVoltar: () => void
+  onClose: () => void
+  inputRef: RefObject<HTMLInputElement | null>
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white safe-area-top">
+      {step === 'confirmar' ? (
+        <>
+          <button onClick={onVoltar} className="p-1 -ml-1 text-gray-500 cursor-pointer" aria-label="Voltar">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">{clienteNome}</p>
+            <p className="text-xs text-gray-400">Selecione a data e confirme</p>
+          </div>
+          <button onClick={onClose} className="text-xs font-medium text-gray-500 cursor-pointer">Cancelar</button>
+        </>
+      ) : (
+        <>
+          <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2">
+            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => onQueryChange(e.target.value)}
+              placeholder="Buscar por nome, cidade ou código"
+              className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none"
+            />
+            {query && (
+              <button onClick={() => onQueryChange('')} aria-label="Limpar busca">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            )}
+          </div>
+          <button onClick={onClose} className="text-xs font-medium text-gray-500 cursor-pointer whitespace-nowrap">Cancelar</button>
+        </>
+      )}
+    </div>
+  )
+}
 
 export function BuscarClienteSheet({
   isOpen,
@@ -179,56 +228,15 @@ export function BuscarClienteSheet({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white safe-area-top">
-        {step === 'confirmar' ? (
-          <>
-            <button
-              onClick={handleVoltarBusca}
-              className="p-1 -ml-1 text-gray-500 cursor-pointer"
-              aria-label="Voltar"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
-                {clienteSelecionado?.nome_fantasia ?? clienteSelecionado?.razao_social}
-              </p>
-              <p className="text-xs text-gray-400">Selecione a data e confirme</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-xs font-medium text-gray-500 cursor-pointer"
-            >
-              Cancelar
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2">
-              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => handleQuery(e.target.value)}
-                placeholder="Buscar por nome, cidade ou código"
-                className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none"
-              />
-              {query && (
-                <button onClick={() => handleQuery('')} aria-label="Limpar busca">
-                  <X className="w-4 h-4 text-gray-400" />
-                </button>
-              )}
-            </div>
-            <button
-              onClick={onClose}
-              className="text-xs font-medium text-gray-500 cursor-pointer whitespace-nowrap"
-            >
-              Cancelar
-            </button>
-          </>
-        )}
-      </div>
+      <BuscaHeader
+        step={step}
+        query={query}
+        onQueryChange={handleQuery}
+        clienteNome={clienteSelecionado?.nome_fantasia ?? clienteSelecionado?.razao_social}
+        onVoltar={handleVoltarBusca}
+        onClose={onClose}
+        inputRef={inputRef}
+      />
 
       {/* Conteúdo */}
       <div className="flex-1 overflow-y-auto">
