@@ -158,6 +158,7 @@ const Inadimplentes: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
+              aria-label="Buscar inadimplentes por nome, código ou cidade"
               placeholder="Nome / Código / Cidade"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -166,6 +167,7 @@ const Inadimplentes: React.FC = () => {
           </div>
           <div className="relative flex-shrink-0">
             <button
+              aria-label="Filtrar e ordenar"
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               onClick={() => setShowFilterMenu(!showFilterMenu)}
             >

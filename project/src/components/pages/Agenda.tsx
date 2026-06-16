@@ -214,8 +214,11 @@ export default function Agenda() {
         setMetaMes(m)
         setRealizadoMes(r)
       })
-      .catch(() => {})
-  }, [vendedorId, viewMonth.year, viewMonth.month])
+      .catch((err) => {
+        console.error('[Agenda] Erro ao buscar meta/realizado do mês:', err)
+      })
+    // refreshKey: meta/realizado deve reagir a criar/editar agendamento (igual ao dia)
+  }, [vendedorId, viewMonth.year, viewMonth.month, refreshKey])
 
   // Swipe entre dias (AC3)
   const touchStartX = useRef<number | null>(null)

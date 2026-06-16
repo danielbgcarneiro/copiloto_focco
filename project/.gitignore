@@ -39,3 +39,10 @@ Thumbs.db
 
 # Claude Code MCP config (pode conter tokens)
 .mcp.json
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/playwright/.auth/
+/blob-report/

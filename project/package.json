@@ -12,6 +12,8 @@
     "recharts": "^3.1.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
+    "@playwright/test": "^1.61.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
@@ -38,7 +40,17 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:auth": "playwright test --project=auth-flows",
+    "test:vendedor": "playwright test --project=vendedor",
+    "test:diretor": "playwright test --project=diretor",
+    "test:a11y": "playwright test --project=a11y",
+    "test:mobile": "playwright test --project=vendedor:mobile",
+    "test:report": "playwright show-report",
+    "test:install": "playwright install chromium"
   },
   "keywords": [],
   "author": "",
