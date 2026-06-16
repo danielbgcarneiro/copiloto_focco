@@ -13,7 +13,7 @@
  */
 
 import { useNavigate, useParams } from 'react-router-dom'
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type RefObject } from 'react'
 import { ChevronDown, Check, X, AlertTriangle } from 'lucide-react'
 import { useKpisDetalhadosVendedor, PeriodoAgendaDetalhe, UltimaVisita } from '../../hooks/useGestaoAgenda'
 import { useSetPage } from '../../contexts'
@@ -40,6 +40,125 @@ function Skeleton() {
       <div className="h-24 bg-gray-100 rounded-xl" />
       <div className="h-24 bg-gray-100 rounded-xl" />
       <div className="h-32 bg-gray-100 rounded-xl" />
+    </div>
+  )
+}
+
+type InativadoState = Record<string, { inativado: boolean; inativadoEm: string | null }>
+
+function VendedorDropdown({
+  nomeVendedor, vendedores, vendedorId, show, onToggle, onSelect, containerRef,
+}: {
+  nomeVendedor: string
+  vendedores: VendedorProfile[]
+  vendedorId: string | undefined
+  show: boolean
+  onToggle: () => void
+  onSelect: (id: string) => void
+  containerRef: RefObject<HTMLDivElement | null>
+}) {
+  return (
+    <div className="ml-auto relative" ref={containerRef}>
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer max-w-[140px]"
+      >
+        <span className="text-xs font-semibold text-gray-700 truncate">{nomeVendedor}</span>
+        <ChevronDown className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
+      </button>
+
+      {show && vendedores.length > 0 && (
+        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
+          {vendedores.map((v) => {
+            const isCurrent = v.id === vendedorId
+            const nome = v.apelido || v.nome_completo
+            return (
+              <button
+                key={v.id}
+                onClick={() => onSelect(v.id)}
+                className={[
+                  'w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-xs transition-colors cursor-pointer',
+                  isCurrent ? 'bg-primary/8 text-primary font-semibold' : 'text-gray-700 hover:bg-gray-50',
+                ].join(' ')}
+              >
+                <span className="truncate">{nome}</span>
+                {isCurrent && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VisitasTab({
+  visitas, visitasInativadas, onSelectVisita,
+}: {
+  visitas: UltimaVisita[]
+  visitasInativadas: InativadoState
+  onSelectVisita: (v: UltimaVisita) => void
+}) {
+  return (
+    <div className="px-4 py-4">
+      <p className="text-xs font-semibold text-gray-500 mb-3">
+        {visitas.length} {visitas.length === 1 ? 'visita' : 'visitas'} no período
+      </p>
+      {visitas.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">Nenhuma visita no período</p>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-50 overflow-hidden">
+          {visitas.map((v, i) => {
+            const badge = RESULTADO_LABELS[v.resultado] ?? { label: v.resultado, color: 'bg-gray-100 text-gray-600' }
+            const isEncerrou = v.motivoCanonical === 'ENCERROU_ATIVIDADES'
+            const estadoInativado = visitasInativadas[v.visitaId]
+            const inativado = estadoInativado?.inativado ?? v.inativado
+            return (
+              <div
+                key={i}
+                className={`px-4 py-3 ${isEncerrou ? 'cursor-pointer hover:bg-orange-50 active:bg-orange-100 transition-colors' : ''}`}
+                onClick={() => isEncerrou ? onSelectVisita({ ...v, inativado, inativadoEm: estadoInativado?.inativadoEm ?? v.inativadoEm }) : undefined}
+              >
+                <div className="flex items-start gap-2">
+                  {/* Col 1 — Nome + Data */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-xs font-medium text-gray-900 truncate">{v.nomeCliente}</p>
+                      <span className="text-[10px] text-gray-400 flex-shrink-0">#{v.codigoCliente}</span>
+                      {inativado && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gray-200 text-gray-500 flex-shrink-0">
+                          Inativado
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-0.5">{v.data}</p>
+                  </div>
+                  {/* Col 2 — Motivo + Observação */}
+                  {v.motivo && (
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-gray-500 font-medium truncate">{v.motivo}</p>
+                      {v.observacoes && (
+                        <p className="text-[11px] text-gray-400 mt-0.5 truncate italic">&quot;{v.observacoes}&quot;</p>
+                      )}
+                    </div>
+                  )}
+                  {/* Col 3 — Badge resultado */}
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
+                      {badge.label}
+                    </span>
+                    {v.valorRealizado != null && v.valorRealizado > 0 && (
+                      <span className="text-[11px] text-green-700 font-semibold">
+                        {v.valorRealizado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -114,44 +233,18 @@ export default function GestaoAgendaVendedor() {
         </div>
 
         {/* Dropdown de vendedor */}
-        <div className="ml-auto relative" ref={dropdownRef}>
-          <button
-            onClick={() => setShowDropdown((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer max-w-[140px]"
-          >
-            <span className="text-xs font-semibold text-gray-700 truncate">
-              {data?.nomeVendedor ?? '…'}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
-          </button>
-
-          {showDropdown && vendedores.length > 0 && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
-              {vendedores.map((v) => {
-                const isCurrent = v.id === vendedorId
-                const nome = v.apelido || v.nome_completo
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => {
-                      setShowDropdown(false)
-                      if (!isCurrent) navigate(`/gestao/agenda/vendedor/${v.id}`)
-                    }}
-                    className={[
-                      'w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-xs transition-colors cursor-pointer',
-                      isCurrent
-                        ? 'bg-primary/8 text-primary font-semibold'
-                        : 'text-gray-700 hover:bg-gray-50',
-                    ].join(' ')}
-                  >
-                    <span className="truncate">{nome}</span>
-                    {isCurrent && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        <VendedorDropdown
+          nomeVendedor={data?.nomeVendedor ?? '…'}
+          vendedores={vendedores}
+          vendedorId={vendedorId}
+          show={showDropdown}
+          onToggle={() => setShowDropdown((v) => !v)}
+          onSelect={(id) => {
+            setShowDropdown(false)
+            if (id !== vendedorId) navigate(`/gestao/agenda/vendedor/${id}`)
+          }}
+          containerRef={dropdownRef}
+        />
       </div>
 
       {/* Tabs */}
@@ -239,66 +332,11 @@ export default function GestaoAgendaVendedor() {
 
             {/* Tab Visitas */}
             {tab === 'visitas' && (
-              <div className="px-4 py-4">
-                <p className="text-xs font-semibold text-gray-500 mb-3">
-                  {data.ultimasVisitas.length} {data.ultimasVisitas.length === 1 ? 'visita' : 'visitas'} no período
-                </p>
-                {data.ultimasVisitas.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-8">Nenhuma visita no período</p>
-                ) : (
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-50 overflow-hidden">
-                    {data.ultimasVisitas.map((v, i) => {
-                      const badge = RESULTADO_LABELS[v.resultado] ?? { label: v.resultado, color: 'bg-gray-100 text-gray-600' }
-                      const isEncerrou = v.motivoCanonical === 'ENCERROU_ATIVIDADES'
-                      const estadoInativado = visitasInativadas[v.visitaId]
-                      const inativado = estadoInativado?.inativado ?? v.inativado
-                      return (
-                        <div
-                          key={i}
-                          className={`px-4 py-3 ${isEncerrou ? 'cursor-pointer hover:bg-orange-50 active:bg-orange-100 transition-colors' : ''}`}
-                          onClick={() => isEncerrou ? setVisitaSelecionada({ ...v, inativado, inativadoEm: estadoInativado?.inativadoEm ?? v.inativadoEm }) : undefined}
-                        >
-                          <div className="flex items-start gap-2">
-                            {/* Col 1 — Nome + Data */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className="text-xs font-medium text-gray-900 truncate">{v.nomeCliente}</p>
-                                <span className="text-[10px] text-gray-400 flex-shrink-0">#{v.codigoCliente}</span>
-                                {inativado && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gray-200 text-gray-500 flex-shrink-0">
-                                    Inativado
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[11px] text-gray-400 mt-0.5">{v.data}</p>
-                            </div>
-                            {/* Col 2 — Motivo + Observação */}
-                            {v.motivo && (
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[11px] text-gray-500 font-medium truncate">{v.motivo}</p>
-                                {v.observacoes && (
-                                  <p className="text-[11px] text-gray-400 mt-0.5 truncate italic">&quot;{v.observacoes}&quot;</p>
-                                )}
-                              </div>
-                            )}
-                            {/* Col 3 — Badge resultado */}
-                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
-                                {badge.label}
-                              </span>
-                              {v.valorRealizado != null && v.valorRealizado > 0 && (
-                                <span className="text-[11px] text-green-700 font-semibold">
-                                  {v.valorRealizado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
+              <VisitasTab
+                visitas={data.ultimasVisitas}
+                visitasInativadas={visitasInativadas}
+                onSelectVisita={setVisitaSelecionada}
+              />
             )}
           </>
         )}
