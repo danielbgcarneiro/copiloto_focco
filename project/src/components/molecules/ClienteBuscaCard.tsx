@@ -74,7 +74,7 @@ export function ClienteBuscaCard({ cliente, onClick, agendado }: ClienteBuscaCar
           <span className="text-xs text-gray-500">{cliente.cidade}</span>
         )}
         {cliente.cidade && dsv.label && (
-          <span className="text-xs text-gray-300">·</span>
+          <span className="text-xs text-gray-500">·</span>
         )}
         {dsv.label && (
           <span className={`text-xs font-medium ${dsv.color}`}>{dsv.label}</span>
@@ -82,7 +82,7 @@ export function ClienteBuscaCard({ cliente, onClick, agendado }: ClienteBuscaCar
         {oportunidadeFmt && (
           <>
             {(cliente.cidade || dsv.label) && (
-              <span className="text-xs text-gray-300">·</span>
+              <span className="text-xs text-gray-500">·</span>
             )}
             <span className="flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
               <TrendingUp className="w-3 h-3" />
@@ -101,7 +101,7 @@ export function ClienteBuscaCard({ cliente, onClick, agendado }: ClienteBuscaCar
               style={{ width: `${percentualMeta}%` }}
             />
           </div>
-          <span className="text-[10px] text-gray-400 font-medium flex-shrink-0">
+          <span className="text-[10px] text-gray-500 font-medium flex-shrink-0">
             {percentualMeta.toFixed(0)}% obj
           </span>
         </div>

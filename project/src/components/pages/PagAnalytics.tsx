@@ -442,7 +442,7 @@ const PagAnalytics: React.FC = () => {
             </>
           )}
           {loadingProgress === 0 && (
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-500 mt-2">
               Verificando cache...
             </p>
           )}
@@ -698,7 +698,7 @@ const PagAnalytics: React.FC = () => {
                                   <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg whitespace-nowrap">
                                     <p className="font-bold">{celula.segmentoPredominante}</p>
                                     <p className="mt-1">{celula.count} clientes</p>
-                                    <p className="text-gray-300">R: {r} | FM: {fm}</p>
+                                    <p className="text-gray-500">R: {r} | FM: {fm}</p>
                                   </div>
                                 </div>
                               )}
@@ -740,7 +740,7 @@ const PagAnalytics: React.FC = () => {
                         <p className="text-xs text-gray-700 truncate" title={segmento}>
                           {segmento}
                         </p>
-                        <p className="text-xs text-gray-400 tabular-nums">
+                        <p className="text-xs text-gray-500 tabular-nums">
                           {count}
                         </p>
                       </div>
@@ -777,7 +777,7 @@ const PagAnalytics: React.FC = () => {
                         <p className="text-xs text-gray-700">
                           {perfil}
                         </p>
-                        <p className="text-xs text-gray-400 tabular-nums">
+                        <p className="text-xs text-gray-500 tabular-nums">
                           {count}
                         </p>
                       </div>

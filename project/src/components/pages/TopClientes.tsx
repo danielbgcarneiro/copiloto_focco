@@ -308,7 +308,7 @@ const TopClientes: React.FC = () => {
                       : `${vendedoresSelecionados.length} vendedores`
                     }
                   </span>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
                 </button>
 
                 {dropdownVendedorAberto && (
@@ -350,7 +350,7 @@ const TopClientes: React.FC = () => {
                       : `${rotasSelecionadas.length} rotas`
                     }
                   </span>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
                 </button>
 
                 {dropdownRotaAberto && (

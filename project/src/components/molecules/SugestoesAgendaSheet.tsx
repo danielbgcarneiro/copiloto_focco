@@ -54,7 +54,7 @@ function SugestoesHeader({
           </button>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{cidade}</p>
-            <p className="text-xs text-gray-400">{rotaNome} · {numClientes} clientes</p>
+            <p className="text-xs text-gray-500">{rotaNome} · {numClientes} clientes</p>
           </div>
         </>
       ) : step === 'confirmar' ? (
@@ -64,7 +64,7 @@ function SugestoesHeader({
           </button>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{clienteNome}</p>
-            <p className="text-xs text-gray-400">Selecione a data</p>
+            <p className="text-xs text-gray-500">Selecione a data</p>
           </div>
         </>
       ) : (
@@ -73,12 +73,12 @@ function SugestoesHeader({
           <div className="flex-1">
             <p className="text-sm font-semibold text-gray-900">Sugestões da semana</p>
             {numRotas > 0 && (
-              <p className="text-xs text-gray-400">{numRotas} rota{numRotas > 1 ? 's' : ''} prioritária{numRotas > 1 ? 's' : ''}</p>
+              <p className="text-xs text-gray-500">{numRotas} rota{numRotas > 1 ? 's' : ''} prioritária{numRotas > 1 ? 's' : ''}</p>
             )}
           </div>
         </>
       )}
-      <button onClick={onClose} className="p-1 text-gray-400 cursor-pointer" aria-label="Fechar">
+      <button onClick={onClose} className="p-1 text-gray-500 cursor-pointer" aria-label="Fechar">
         <X className="w-5 h-5" />
       </button>
     </div>
@@ -103,8 +103,8 @@ function RotasStep({
       ) : rotas.length === 0 ? (
         <div className="py-12 text-center">
           <Star className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-          <p className="text-sm text-gray-400">Nenhuma sugestão no momento</p>
-          <p className="text-xs text-gray-300 mt-1">Todos os clientes prioritários já têm visita agendada</p>
+          <p className="text-sm text-gray-500">Nenhuma sugestão no momento</p>
+          <p className="text-xs text-gray-500 mt-1">Todos os clientes prioritários já têm visita agendada</p>
         </div>
       ) : (
         rotas.map((rota) => (
@@ -120,7 +120,7 @@ function RotasStep({
                   {formatCur(rota.somaOportunidade)} oportunidade
                 </p>
               </div>
-              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${expandedRota === rota.rota ? 'rotate-90' : ''}`} />
+              <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${expandedRota === rota.rota ? 'rotate-90' : ''}`} />
             </button>
 
             {expandedRota === rota.rota && (
@@ -133,9 +133,9 @@ function RotasStep({
                   >
                     <div className="text-left">
                       <p className="text-sm text-gray-800 font-medium">{cidade.cidade}</p>
-                      <p className="text-xs text-gray-400">{cidade.clientes.length} clientes · <span className="text-emerald-600">{formatCur(cidade.somaOportunidade)}</span></p>
+                      <p className="text-xs text-gray-500">{cidade.clientes.length} clientes · <span className="text-emerald-600">{formatCur(cidade.somaOportunidade)}</span></p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                    <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
                   </button>
                 ))}
               </div>
@@ -151,7 +151,7 @@ function ClientesStep({ clientes, onSelectCliente }: { clientes: ClienteSugerido
   return (
     <div className="px-4 py-3 flex flex-col gap-2">
       {clientes.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-8">Nenhum cliente com oportunidade</p>
+        <p className="text-sm text-gray-500 text-center py-8">Nenhum cliente com oportunidade</p>
       ) : (
         clientes.map((c) => {
           const nomeExibido = c.nome_fantasia || c.razao_social
@@ -179,7 +179,7 @@ function ClientesStep({ clientes, onSelectCliente }: { clientes: ClienteSugerido
                 <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
                   <div className="h-full bg-primary rounded-full" style={{ width: `${Math.round(c.score * 100)}%` }} />
                 </div>
-                <span className="text-[10px] text-gray-400 w-6 text-right tabular-nums">{Math.round(c.score * 100)}</span>
+                <span className="text-[10px] text-gray-500 w-6 text-right tabular-nums">{Math.round(c.score * 100)}</span>
                 <button
                   onClick={() => onSelectCliente(c)}
                   className="flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1 active:bg-primary/20 transition-colors cursor-pointer flex-shrink-0"
@@ -242,7 +242,7 @@ function ConfirmarStep({
           })}
         </div>
         <div className="mt-3">
-          <label className="text-xs text-gray-400 block mb-1">Ou escolha outra data</label>
+          <label className="text-xs text-gray-500 block mb-1">Ou escolha outra data</label>
           <input
             type="date"
             value={dataSelecionada}
@@ -260,7 +260,7 @@ function ConfirmarStep({
           Valor previsto (opcional)
         </label>
         <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2.5 focus-within:border-primary transition-colors">
-          <span className="text-sm text-gray-400 mr-1">R$</span>
+          <span className="text-sm text-gray-500 mr-1">R$</span>
           <input
             type="number"
             inputMode="decimal"

@@ -157,13 +157,13 @@ function StepProximaVisita({
         </div>
         <p className="text-sm font-semibold text-gray-800">Agendar próxima visita?</p>
         {loadingSugestao ? (
-          <p className="text-xs text-gray-400">Calculando data sugerida...</p>
+          <p className="text-xs text-gray-500">Calculando data sugerida...</p>
         ) : sugestao ? (
           <p className="text-sm text-blue-600 font-medium">
             Daqui {diasAte(sugestao.data)} dias — {formatarDataBRDate(sugestao.data)}
           </p>
         ) : (
-          <p className="text-xs text-gray-400">Data sugerida indisponível</p>
+          <p className="text-xs text-gray-500">Data sugerida indisponível</p>
         )}
       </div>
 
@@ -345,7 +345,7 @@ export const RegistrarVisitaSheet: React.FC<RegistrarVisitaSheetProps> = ({
               </h2>
               <button
                 onClick={onClose}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-full cursor-pointer"
+                className="p-1 text-gray-500 hover:text-gray-600 rounded-full cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>

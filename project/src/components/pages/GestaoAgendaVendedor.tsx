@@ -105,7 +105,7 @@ function VisitasTab({
         {visitas.length} {visitas.length === 1 ? 'visita' : 'visitas'} no período
       </p>
       {visitas.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-8">Nenhuma visita no período</p>
+        <p className="text-sm text-gray-500 text-center py-8">Nenhuma visita no período</p>
       ) : (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-50 overflow-hidden">
           {visitas.map((v, i) => {
@@ -124,21 +124,21 @@ function VisitasTab({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="text-xs font-medium text-gray-900 truncate">{v.nomeCliente}</p>
-                      <span className="text-[10px] text-gray-400 flex-shrink-0">#{v.codigoCliente}</span>
+                      <span className="text-[10px] text-gray-500 flex-shrink-0">#{v.codigoCliente}</span>
                       {inativado && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gray-200 text-gray-500 flex-shrink-0">
                           Inativado
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{v.data}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">{v.data}</p>
                   </div>
                   {/* Col 2 — Motivo + Observação */}
                   {v.motivo && (
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] text-gray-500 font-medium truncate">{v.motivo}</p>
                       {v.observacoes && (
-                        <p className="text-[11px] text-gray-400 mt-0.5 truncate italic">&quot;{v.observacoes}&quot;</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5 truncate italic">&quot;{v.observacoes}&quot;</p>
                       )}
                     </div>
                   )}
@@ -357,7 +357,7 @@ export default function GestaoAgendaVendedor() {
               <h2 className="text-base font-semibold text-gray-900">Encerrou atividades</h2>
               <button
                 onClick={() => setVisitaSelecionada(null)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-full cursor-pointer"
+                className="p-1 text-gray-500 hover:text-gray-600 rounded-full cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>

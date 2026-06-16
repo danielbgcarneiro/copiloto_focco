@@ -100,7 +100,7 @@ export function ClienteSearchBar({
   return (
     <div className="mb-4 flex items-center gap-3">
       <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
         <input
           type="text"
           aria-label="Buscar óticas por nome, código ou bairro"

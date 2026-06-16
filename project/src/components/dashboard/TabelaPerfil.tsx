@@ -105,7 +105,7 @@ export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados, filtroCidade 
 
       {/* ── Sort — botão único com dropdown ── */}
       <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-gray-100">
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-gray-500">
           Ordenado por <span className="font-semibold text-gray-600">{SORT_LABELS[sortKey]}</span>
           {sortDir === 'asc' ? ' ↑' : ' ↓'}
         </span>
@@ -145,7 +145,7 @@ export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados, filtroCidade 
 
       {/* ── Lista de clientes ── */}
       {dados.clientes.length === 0 ? (
-        <div className="p-8 text-center text-gray-400 text-sm">Nenhum cliente neste perfil</div>
+        <div className="p-8 text-center text-gray-500 text-sm">Nenhum cliente neste perfil</div>
       ) : (
         <div className="overflow-y-auto max-h-[28rem] divide-y divide-gray-100 bg-white">
           {sortedClientes.map((cliente) => {
@@ -179,9 +179,9 @@ export const TabelaPerfil: React.FC<TabelaPerfilProps> = ({ dados, filtroCidade 
                     )}
                     <span className="text-xs text-gray-500 truncate">
                       {cliente.cidade_uf}
-                      <span className="mx-1.5 text-gray-300">·</span>
+                      <span className="mx-1.5 text-gray-500">·</span>
                       <span className="text-gray-600">Obj {formatCurrency(cliente.objetivo)}</span>
-                      <span className="mx-1.5 text-gray-300">·</span>
+                      <span className="mx-1.5 text-gray-500">·</span>
                       <span className="text-gray-600">VD {formatCurrency(cliente.vendas)}</span>
                     </span>
                   </div>

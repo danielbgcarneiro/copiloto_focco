@@ -76,11 +76,11 @@ export function CoberturaCarteiraSummary({
                       {c.diasSemComprar}d sem comprar
                     </span>
                     {c.perfil && (
-                      <span className="text-[10px] text-gray-400">{c.perfil}</span>
+                      <span className="text-[10px] text-gray-500">{c.perfil}</span>
                     )}
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 ml-2" />
+                <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0 ml-2" />
               </button>
             ))}
           </div>

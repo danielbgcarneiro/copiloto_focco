@@ -229,7 +229,7 @@ const Cidades: React.FC = () => {
         {/* Search Bar + Filtro */}
         <div className="mb-6 flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
             <input
               type="text"
               placeholder="Buscar cidades..."
@@ -255,7 +255,7 @@ const Cidades: React.FC = () => {
 
             {showSortMenu && (
               <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-2.5 pb-1">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-3 pt-2.5 pb-1">
                   Ordenar por
                 </p>
                 {([

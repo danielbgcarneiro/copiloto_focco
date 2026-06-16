@@ -105,7 +105,7 @@ export const AdicionarTelefoneSheet: React.FC<AdicionarTelefoneSheetProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+            className="p-2 rounded-full text-gray-500 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" />
@@ -145,7 +145,7 @@ export const AdicionarTelefoneSheet: React.FC<AdicionarTelefoneSheetProps> = ({
         {/* Descrição */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Descrição <span className="text-gray-400 text-xs">opcional</span>
+            Descrição <span className="text-gray-500 text-xs">opcional</span>
           </label>
           <input
             type="text"

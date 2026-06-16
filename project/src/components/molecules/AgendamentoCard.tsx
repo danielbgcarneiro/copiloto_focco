@@ -143,7 +143,7 @@ export function AgendamentoCard({ ag, onClick, onRegistrar }: AgendamentoCardPro
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">{nomeExibido}</p>
           {ag.nome_fantasia && (
-            <p className="text-xs text-gray-400 truncate">{ag.razao_social}</p>
+            <p className="text-xs text-gray-500 truncate">{ag.razao_social}</p>
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -160,7 +160,7 @@ export function AgendamentoCard({ ag, onClick, onRegistrar }: AgendamentoCardPro
       {(ag.cidade || dsvBadge) && (
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           {ag.cidade && (
-            <span className="flex items-center gap-0.5 text-xs text-gray-400">
+            <span className="flex items-center gap-0.5 text-xs text-gray-500">
               <MapPin className="w-3 h-3 flex-shrink-0" />
               {ag.cidade}
             </span>

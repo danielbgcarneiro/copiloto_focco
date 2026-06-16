@@ -523,7 +523,7 @@ const DashboardRotas: React.FC = () => {
 
   const getSortIcon = (field: RotaSortField, currentSort: { field: RotaSortField; direction: SortDirection }) => {
     if (currentSort.field !== field) {
-      return <ArrowUpDown className="h-4 w-4 text-gray-400" />
+      return <ArrowUpDown className="h-4 w-4 text-gray-500" />
     }
     return currentSort.direction === 'asc'
       ? <ArrowUp className="h-4 w-4 text-primary" />
@@ -532,7 +532,7 @@ const DashboardRotas: React.FC = () => {
 
   const getSortIconExpandidas = (field: keyof CidadeComMeta, currentSort: { field: keyof CidadeComMeta; direction: SortDirection }) => {
     if (currentSort.field !== field) {
-      return <ArrowUpDown className="h-4 w-4 text-gray-400" />
+      return <ArrowUpDown className="h-4 w-4 text-gray-500" />
     }
     return currentSort.direction === 'asc'
       ? <ArrowUp className="h-4 w-4 text-primary" />
@@ -870,7 +870,7 @@ const DashboardRotas: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-3 sm:mb-0">Ranking de Rotas</h3>
             <div className="flex items-center gap-2">
               {filtrosAtivos > 0 && (
-                <button onClick={limparFiltros} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                <button onClick={limparFiltros} className="text-xs text-gray-500 hover:text-gray-600 flex items-center gap-1">
                   <X className="h-3 w-3" /> Limpar
                 </button>
               )}
@@ -910,7 +910,7 @@ const DashboardRotas: React.FC = () => {
                       ? 'Todos'
                       : `${vendedoresSelecionadosRotas.length} selecionados`}
                   </span>
-                  <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" />
                 </button>
                 {dropdownRotasAberto && (
                   <div className="absolute left-0 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-20">
@@ -947,7 +947,7 @@ const DashboardRotas: React.FC = () => {
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 {filtroDiasSemVenda !== '' && (
-                  <p className="text-[10px] text-gray-400 mt-1">≥ {filtroDiasSemVenda} dias</p>
+                  <p className="text-[10px] text-gray-500 mt-1">≥ {filtroDiasSemVenda} dias</p>
                 )}
               </div>
 
@@ -963,7 +963,7 @@ const DashboardRotas: React.FC = () => {
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 {filtroMaxDiasSemVenda !== '' && (
-                  <p className="text-[10px] text-gray-400 mt-1">≤ {filtroMaxDiasSemVenda} dias</p>
+                  <p className="text-[10px] text-gray-500 mt-1">≤ {filtroMaxDiasSemVenda} dias</p>
                 )}
               </div>
 
@@ -1217,7 +1217,7 @@ const DashboardRotas: React.FC = () => {
                                                           </td>
                                                           <td className="px-4 py-1.5 text-gray-500 font-medium">
                                                             <div className="flex items-center gap-1">
-                                                              <Clock className="w-3 h-3 text-gray-400" />
+                                                              <Clock className="w-3 h-3 text-gray-500" />
                                                               <span className="font-bold text-[10px] sm:text-[11px]">DSV-{cliente.dias_sem_venda}</span>
                                                             </div>
                                                           </td>
@@ -1225,7 +1225,7 @@ const DashboardRotas: React.FC = () => {
                                                             {cliente.qtd_boletos > 0 ? (
                                                               <span className="font-bold text-red-500">{cliente.qtd_boletos}</span>
                                                             ) : (
-                                                              <span className="text-gray-300">—</span>
+                                                              <span className="text-gray-500">—</span>
                                                             )}
                                                           </td>
                                                           <td className="text-right px-4 py-1.5 text-gray-600">{formatCurrency(cliente.meta, true)}</td>
@@ -1395,7 +1395,7 @@ const DashboardRotas: React.FC = () => {
                         <tr key={c.codigo_cliente} className={`border-b border-gray-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                           <td className="px-4 py-2 text-gray-800 font-medium">
                             <span className="truncate block max-w-[180px]">{c.nome_fantasia}</span>
-                            <span className="text-gray-400 text-[10px]">Cód. {c.codigo_cliente}</span>
+                            <span className="text-gray-500 text-[10px]">Cód. {c.codigo_cliente}</span>
                           </td>
                           <td className="px-4 py-2 text-gray-600">{c.cidade} — {c.estado}</td>
                           <td className="px-4 py-2 text-gray-600">{c.vendedor_apelido}</td>

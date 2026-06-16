@@ -21,12 +21,6 @@ for (const p of PAGES) {
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa'])
-      // color-contrast: ofensores sistêmicos seguros já corrigidos (texto off-white
-      // no topbar; botões brancos sobre green-600/500 → green-700) — Dashboard e
-      // Inadimplentes ficaram 100% limpos. Resta o tier "muted-gray" (gray-400/300
-      // em labels secundárias) + alguns badges (red-500/orange-600), que são
-      // decisão de design — mantido fora do gate até um passe de design dedicado.
-      .disableRules(['color-contrast'])
       .analyze();
 
     const serious = results.violations.filter(

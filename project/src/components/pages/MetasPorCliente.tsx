@@ -231,7 +231,7 @@ const MetasPorCliente: React.FC = () => {
                             </option>
                         ))}
                     </select>
-                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
                 {/* Cidade Filter */}
                 <div className="relative">
@@ -242,7 +242,7 @@ const MetasPorCliente: React.FC = () => {
                         onChange={(e) => setFiltroCidade(e.target.value)}
                         className="w-full pl-10 pr-4 py-1 border rounded-lg text-sm shadow-sm"
                     />
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                 </div>
             </div>
         </Card>

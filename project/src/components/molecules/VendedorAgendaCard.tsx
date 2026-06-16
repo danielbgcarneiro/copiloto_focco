@@ -41,7 +41,7 @@ export function VendedorAgendaCard({ kpi, onClick }: VendedorAgendaCardProps) {
             </span>
           )}
         </div>
-        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
       </div>
 
       {/* Linha 2: KPIs */}

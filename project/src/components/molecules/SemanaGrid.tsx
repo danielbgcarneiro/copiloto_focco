@@ -185,7 +185,7 @@ export function SemanaGrid({
                   />
                 ))}
                 {extraCount > 0 && (
-                  <span className="text-[10px] text-gray-400 leading-none">+{extraCount}</span>
+                  <span className="text-[10px] text-gray-500 leading-none">+{extraCount}</span>
                 )}
               </div>
 

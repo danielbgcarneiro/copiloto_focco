@@ -170,7 +170,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({ label, options, selected, onC
         className="flex items-center gap-1.5 px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent max-w-[180px]"
       >
         <span className="truncate">{displayLabel}</span>
-        <ChevDown className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+        <ChevDown className="h-3.5 w-3.5 flex-shrink-0 text-gray-500" />
       </button>
       {open && (
         <div className="absolute z-20 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[160px] py-1">
@@ -204,7 +204,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({ label, options, selected, onC
 // ─── Ícone de ordenação ───────────────────────────────────────────────────────
 
 const SortIcon: React.FC<{ field: SortField; active: SortField; dir: SortDir }> = ({ field, active, dir }) => {
-  if (active !== field) return <ChevronsUpDown className="h-3.5 w-3.5 text-gray-400 inline ml-1" />;
+  if (active !== field) return <ChevronsUpDown className="h-3.5 w-3.5 text-gray-500 inline ml-1" />;
   return dir === 'asc'
     ? <ChevronUp className="h-3.5 w-3.5 text-primary inline ml-1" />
     : <ChevronDown className="h-3.5 w-3.5 text-primary inline ml-1" />;
@@ -225,7 +225,7 @@ const GapSegment: React.FC<{ label: string; h: number | null; targetH: number }>
       <div className="flex items-center justify-between mb-1">
         <span className="text-[10px] text-gray-500">{label}</span>
         <span className={`text-[10px] font-semibold tabular-nums ${textColor}`}>
-          {formatH(h)}<span className="font-normal text-gray-400"> / {formatH(targetH)}</span>
+          {formatH(h)}<span className="font-normal text-gray-500"> / {formatH(targetH)}</span>
         </span>
       </div>
       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -281,7 +281,7 @@ function EtapaFaturamento({ row, faturado, cancelado, separado }: { row: Pipelin
             <p className="text-xs font-semibold text-gray-800">Faturado</p>
             {row.num_nf
               ? <p className="text-xs text-gray-500">NF {row.num_nf} · {formatDataHora(row.data_nf)}</p>
-              : <p className="text-xs text-gray-400">NF não capturada</p>
+              : <p className="text-xs text-gray-500">NF não capturada</p>
             }
           </div>
         </div>
@@ -318,17 +318,17 @@ function TempoTotal({ row, gapElapsed, slaEfetivo }: { row: PipelineRow; gapElap
             <span className={`text-sm font-bold tabular-nums ${row.gap_total_h > 48 ? 'text-red-600' : 'text-gray-900'}`}>
               {formatH(row.gap_total_h)}
             </span>
-            <span className="text-xs text-gray-400 ml-1">/ meta 48h</span>
+            <span className="text-xs text-gray-500 ml-1">/ meta 48h</span>
           </div>
         ) : gapElapsed !== null ? (
           <div className="text-right">
             <span className={`text-sm font-bold tabular-nums ${slaEfetivo === 'ATRASADO' ? 'text-red-600' : 'text-amber-600'}`}>
               {formatH(gapElapsed)}
             </span>
-            <span className="text-xs text-gray-400 ml-1">em andamento</span>
+            <span className="text-xs text-gray-500 ml-1">em andamento</span>
           </div>
         ) : (
-          <span className="text-sm text-gray-400">—</span>
+          <span className="text-sm text-gray-500">—</span>
         )}
       </div>
       {row.gap_total_h !== null && (
@@ -366,14 +366,14 @@ const DrawerDetalhePedido: React.FC<DrawerProps> = ({ row, vendedor, slaEfetivo,
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
           <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Detalhe do Pedido</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Detalhe do Pedido</p>
             <div className="flex items-center gap-2">
               <p className="font-bold text-gray-900 text-lg leading-tight">#{row.pedido_interno}</p>
               <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded font-medium">{row.tipo_pedido_label}</span>
             </div>
             <p className="text-sm text-gray-600 mt-0.5">{row.nome_fantasia ?? '—'}</p>
           </div>
-          <button onClick={onClose} className="mt-1 text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="mt-1 text-gray-500 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -392,13 +392,13 @@ const DrawerDetalhePedido: React.FC<DrawerProps> = ({ row, vendedor, slaEfetivo,
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{vendedor}</span>
           )}
           {row.num_pedido_externo && (
-            <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">ext: {row.num_pedido_externo}</span>
+            <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">ext: {row.num_pedido_externo}</span>
           )}
         </div>
 
         {/* Timeline — scrollável */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
-          <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-4">Linha do Tempo</h4>
+          <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-4">Linha do Tempo</h4>
 
           {/* Entrada */}
           <div className="flex gap-3">
@@ -440,7 +440,7 @@ function FiltrosAtivos({
   if (tipos.length === 0 && slas.length === 0) return null
   return (
     <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-      <span className="text-[10px] text-gray-400 uppercase tracking-wide">Filtros ativos:</span>
+      <span className="text-[10px] text-gray-500 uppercase tracking-wide">Filtros ativos:</span>
       {tipos.map(t => (
         <button
           key={t}
@@ -461,7 +461,7 @@ function FiltrosAtivos({
       ))}
       <button
         onClick={onClear}
-        className="text-[10px] text-gray-400 hover:text-gray-700 ml-auto underline"
+        className="text-[10px] text-gray-500 hover:text-gray-700 ml-auto underline"
       >
         Limpar tudo
       </button>
@@ -732,7 +732,7 @@ const PipelineOperacional: React.FC = () => {
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Total</p>
                   <p className="text-xl font-bold text-gray-900">{kpis.total}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">pedidos no período</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">pedidos no período</p>
                 </div>
                 <Package className="h-5 w-5 text-blue-400" />
               </div>
@@ -742,13 +742,13 @@ const PipelineOperacional: React.FC = () => {
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Clientes únicos</p>
                   <p className="text-xl font-bold text-gray-900">{kpis.clientesUnicos}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
+                  <p className="text-[10px] text-gray-500 mt-0.5">
                     {kpis.clientesUnicos > 0 && kpis.total > 0
                       ? `~${(kpis.total / kpis.clientesUnicos).toFixed(1)} ped/cliente`
                       : '—'}
                   </p>
                 </div>
-                <Users className="h-5 w-5 text-gray-400" />
+                <Users className="h-5 w-5 text-gray-500" />
               </div>
             </Card>
             <Card variant="default" padding="none" className="p-4">
@@ -791,14 +791,14 @@ const PipelineOperacional: React.FC = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Atrasados (SLA)</p>
-                  <p className={`text-xl font-bold ${kpis.atrasados > 0 ? 'text-red-700' : 'text-gray-400'}`}>
+                  <p className={`text-xl font-bold ${kpis.atrasados > 0 ? 'text-red-700' : 'text-gray-500'}`}>
                     {kpis.atrasados}
                   </p>
-                  <p className={`text-[10px] mt-0.5 ${kpis.atrasados > 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                  <p className={`text-[10px] mt-0.5 ${kpis.atrasados > 0 ? 'text-red-400' : 'text-gray-500'}`}>
                     {kpis.emAndamento > 0 ? `${Math.round(kpis.atrasados / kpis.emAndamento * 100)}% dos ativos` : '—'}
                   </p>
                 </div>
-                <AlertTriangle className={`h-5 w-5 ${kpis.atrasados > 0 ? 'text-red-400' : 'text-gray-300'}`} />
+                <AlertTriangle className={`h-5 w-5 ${kpis.atrasados > 0 ? 'text-red-400' : 'text-gray-500'}`} />
               </div>
             </Card>
           </div>
@@ -808,7 +808,7 @@ const PipelineOperacional: React.FC = () => {
             <Card variant="default" padding="none" className="p-4 sm:p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Desempenho por Etapa</h3>
-                <span className="text-xs text-gray-400">SLA alvo: 48h total</span>
+                <span className="text-xs text-gray-500">SLA alvo: 48h total</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {ETAPA_META.filter(e => kpis[e.key] !== null).map(({ key, label, desc, targetH }) => {
@@ -831,7 +831,7 @@ const PipelineOperacional: React.FC = () => {
                   return (
                     <div key={key} className={`border-l-4 ${borderColor} ${bgColor} rounded-r-lg p-4`}>
                       <p className="text-xs font-semibold text-gray-600 mb-0.5">{label}</p>
-                      <p className="text-[10px] text-gray-400 mb-3 leading-tight">{desc}</p>
+                      <p className="text-[10px] text-gray-500 mb-3 leading-tight">{desc}</p>
                       <div className="flex items-end justify-between mb-2">
                         <span className={`text-2xl font-bold tabular-nums leading-none ${valueColor}`}>
                           {formatH(value)}
@@ -844,8 +844,8 @@ const PipelineOperacional: React.FC = () => {
                         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
                       </div>
                       <div className="flex justify-between mt-1.5">
-                        <span className="text-[10px] text-gray-400">{pctUsado}% da meta</span>
-                        <span className="text-[10px] text-gray-400">meta: {formatH(targetH)}</span>
+                        <span className="text-[10px] text-gray-500">{pctUsado}% da meta</span>
+                        <span className="text-[10px] text-gray-500">meta: {formatH(targetH)}</span>
                       </div>
                     </div>
                   );
@@ -886,7 +886,7 @@ const PipelineOperacional: React.FC = () => {
                 <tbody>
                   {dadosAgrupados.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-10 text-gray-400">
+                      <td colSpan={5} className="text-center py-10 text-gray-500">
                         Nenhum pedido encontrado para o período / filtros selecionados
                       </td>
                     </tr>
@@ -945,9 +945,9 @@ const PipelineOperacional: React.FC = () => {
                               >
                                 <td className="py-2 px-3">
                                   <span className="font-medium text-gray-900">{row.pedido_interno}</span>
-                                  <span className="block text-[10px] text-gray-400">{row.tipo_pedido_label}</span>
+                                  <span className="block text-[10px] text-gray-500">{row.tipo_pedido_label}</span>
                                   {row.num_pedido_externo && (
-                                    <span className="block text-[10px] text-gray-400">ext: {row.num_pedido_externo}</span>
+                                    <span className="block text-[10px] text-gray-500">ext: {row.num_pedido_externo}</span>
                                   )}
                                 </td>
                                 <td className="py-2 px-3 hidden md:table-cell">
@@ -966,7 +966,7 @@ const PipelineOperacional: React.FC = () => {
                                       {formatH(elapsedH(row.data_emissao_pedido))}
                                     </span>
                                   ) : (
-                                    <span className="text-gray-400">—</span>
+                                    <span className="text-gray-500">—</span>
                                   )}
                                 </td>
                                 <td className="py-2 px-3">

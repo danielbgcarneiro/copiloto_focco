@@ -34,7 +34,7 @@ export function KpiQualidadeCard({
           Top motivos de não-venda
         </p>
         {topMotivos.length === 0 ? (
-          <p className="text-xs text-gray-400 italic">Nenhuma não-venda registrada</p>
+          <p className="text-xs text-gray-500 italic">Nenhuma não-venda registrada</p>
         ) : (
           <div className="space-y-1">
             {topMotivos.map((m, i) => (

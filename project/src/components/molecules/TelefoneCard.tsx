@@ -70,7 +70,7 @@ export const TelefoneCard: React.FC<TelefoneCardProps> = ({
             {formatarNumero(telefone.numero)}
           </span>
           {telefone.origem === 'erp' ? (
-            <span className="text-[10px] text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 shrink-0">ERP</span>
+            <span className="text-[10px] text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 shrink-0">ERP</span>
           ) : isProprietario ? (
             <span className="text-[10px] text-blue-500 bg-blue-50 rounded px-1.5 py-0.5 shrink-0">seu</span>
           ) : null}
@@ -104,7 +104,7 @@ export const TelefoneCard: React.FC<TelefoneCardProps> = ({
         {isProprietario && (
           <button
             onClick={() => setConfirmando(true)}
-            className="p-2 rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 active:bg-red-100 transition-colors shrink-0"
+            className="p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-500 active:bg-red-100 transition-colors shrink-0"
             aria-label="Remover telefone"
           >
             <X className="h-4 w-4" />

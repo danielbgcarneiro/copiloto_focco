@@ -108,7 +108,7 @@ function RotaSelector({
             onChange={(e) => onDataInicioChange(e.target.value)}
             className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-sky-400"
           />
-          <span className="text-gray-400 text-sm">até</span>
+          <span className="text-gray-500 text-sm">até</span>
           <input
             type="date"
             value={dataFim}
@@ -299,7 +299,7 @@ function CidadePaginator({
           <>
             <div className="flex items-center gap-2 my-3">
               <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-xs text-gray-400">Inadimplentes / Bloqueados</span>
+              <span className="text-xs text-gray-500">Inadimplentes / Bloqueados</span>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
             <div className="space-y-1.5">
@@ -386,7 +386,7 @@ function ClienteRow({
           )}
         </div>
         {cliente.dsv != null && (
-          <span className="text-xs text-gray-400">DSV {cliente.dsv}d</span>
+          <span className="text-xs text-gray-500">DSV {cliente.dsv}d</span>
         )}
       </div>
       {cliente.previsao_pedido != null && cliente.previsao_pedido > 0 && (

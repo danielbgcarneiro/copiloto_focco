@@ -86,14 +86,14 @@ export function AgendaTotalizacaoCard({
         <>
           {/* Header */}
           <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
-            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
               Clientes agendados
             </span>
           </div>
 
           {/* Linhas de cliente */}
           {items.length === 0 ? (
-            <div className="px-3 py-4 text-xs text-gray-400 text-center">
+            <div className="px-3 py-4 text-xs text-gray-500 text-center">
               Nenhum cliente agendado
             </div>
           ) : (
@@ -115,7 +115,7 @@ export function AgendaTotalizacaoCard({
                   </button>
 
                   {item.cidade && (
-                    <span className="text-[10px] text-gray-400 truncate max-w-[64px] shrink-0 leading-tight">
+                    <span className="text-[10px] text-gray-500 truncate max-w-[64px] shrink-0 leading-tight">
                       {item.cidade}
                     </span>
                   )}
@@ -134,7 +134,7 @@ export function AgendaTotalizacaoCard({
                           e.stopPropagation()
                           onRegistrar(item.id)
                         }}
-                        className="text-gray-300 hover:text-primary transition-colors cursor-pointer"
+                        className="text-gray-500 hover:text-primary transition-colors cursor-pointer"
                         title="Registrar resultado"
                       >
                         <PenLine className="w-3.5 h-3.5" />
@@ -146,19 +146,19 @@ export function AgendaTotalizacaoCard({
                 {/* Linha 2: Previsão | Oportunidade | Meta */}
                 <div className="grid grid-cols-3 gap-1">
                   <div>
-                    <p className="text-[8px] text-gray-400 leading-tight">Previsão</p>
+                    <p className="text-[8px] text-gray-600 leading-tight">Previsão</p>
                     <p className="text-[10px] font-semibold text-primary tabular-nums whitespace-nowrap leading-tight">
                       {item.valor_previsto ? fmt(item.valor_previsto) : '—'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[8px] text-gray-400 leading-tight">Oport.</p>
+                    <p className="text-[8px] text-gray-600 leading-tight">Oport.</p>
                     <p className="text-[10px] font-semibold text-yellow-600 tabular-nums whitespace-nowrap leading-tight">
                       {item.oportunidade ? fmt(item.oportunidade) : '—'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[8px] text-gray-400 leading-tight">Meta</p>
+                    <p className="text-[8px] text-gray-600 leading-tight">Meta</p>
                     <p className="text-[10px] font-semibold text-gray-500 tabular-nums whitespace-nowrap leading-tight">
                       {item.meta_ano_atual ? fmt(item.meta_ano_atual) : '—'}
                     </p>
@@ -172,7 +172,7 @@ export function AgendaTotalizacaoCard({
 
       {/* ─── Bloco de totais — peso visual de gestão ─────────────────── */}
       <div className="px-3 pt-3 pb-3 border-t border-gray-100 bg-gradient-to-b from-gray-50/80 to-white">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2.5">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-2.5">
           Resumo
         </p>
 
@@ -187,7 +187,7 @@ export function AgendaTotalizacaoCard({
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-gray-400">
+            <p className="text-[10px] text-gray-500">
               {items.length} cliente{items.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -196,7 +196,7 @@ export function AgendaTotalizacaoCard({
         {/* Grid 2×2: Oportunidade / Meta / Meta Semana / Saldo Mês */}
         <div className="grid grid-cols-2 gap-1.5">
           <div className="bg-yellow-50 rounded-lg px-2.5 py-2">
-            <p className="text-[8px] font-semibold text-yellow-600 uppercase tracking-wide mb-0.5">
+            <p className="text-[8px] font-semibold text-yellow-700 uppercase tracking-wide mb-0.5">
               Soma Oport.
             </p>
             <p className="text-sm font-bold text-yellow-700 tabular-nums whitespace-nowrap">
@@ -204,7 +204,7 @@ export function AgendaTotalizacaoCard({
             </p>
           </div>
           <div className="bg-gray-100 rounded-lg px-2.5 py-2">
-            <p className="text-[8px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">
+            <p className="text-[8px] font-semibold text-gray-600 uppercase tracking-wide mb-0.5">
               Meta Clientes
             </p>
             <p className="text-sm font-bold text-gray-700 tabular-nums whitespace-nowrap">
@@ -220,7 +220,7 @@ export function AgendaTotalizacaoCard({
             </p>
           </div>
           <div className="bg-orange-50 rounded-lg px-2.5 py-2">
-            <p className="text-[8px] font-semibold text-orange-600 uppercase tracking-wide mb-0.5">
+            <p className="text-[8px] font-semibold text-orange-700 uppercase tracking-wide mb-0.5">
               Saldo do Mês
             </p>
             <p className="text-sm font-bold text-orange-700 tabular-nums whitespace-nowrap">

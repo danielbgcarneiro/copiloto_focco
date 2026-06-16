@@ -116,9 +116,9 @@ export function Breadcrumb({
   return (
     <div className="flex items-center gap-1 text-xs text-gray-500 flex-wrap">
       {rotaNome && <span className="font-medium text-primary">{rotaNome}</span>}
-      {rotaNome && cidadeDecodificada && <ChevronRight className="h-3 w-3 text-gray-400" />}
+      {rotaNome && cidadeDecodificada && <ChevronRight className="h-3 w-3 text-gray-500" />}
       {cidadeDecodificada && <span className="font-medium text-primary">{cidadeDecodificada}</span>}
-      <ChevronRight className="h-3 w-3 text-gray-400" />
+      <ChevronRight className="h-3 w-3 text-gray-500" />
       <span className="font-medium text-gray-700 truncate max-w-[160px]">{nome}</span>
     </div>
   )
@@ -205,12 +205,12 @@ export function FinanceiroSection({
           <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
             <p className="text-[10px] text-gray-500 mb-0.5">{anoAtual}</p>
             <p className="text-sm font-bold text-gray-900">{formatCurrency(d.vendasAtual)}</p>
-            <p className="text-[10px] text-gray-400">{d.qtdAtual} pedido{d.qtdAtual !== 1 ? 's' : ''}</p>
+            <p className="text-[10px] text-gray-500">{d.qtdAtual} pedido{d.qtdAtual !== 1 ? 's' : ''}</p>
           </div>
           <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
             <p className="text-[10px] text-gray-500 mb-0.5">{anoAnterior}</p>
             <p className="text-sm font-bold text-gray-900">{formatCurrency(d.vendasAnterior)}</p>
-            <p className="text-[10px] text-gray-400">{d.qtdAnterior} pedido{d.qtdAnterior !== 1 ? 's' : ''}</p>
+            <p className="text-[10px] text-gray-500">{d.qtdAnterior} pedido{d.qtdAnterior !== 1 ? 's' : ''}</p>
           </div>
         </div>
       </div>
@@ -256,7 +256,7 @@ export function VisitasSection({
         {loadingVisita ? (
           <div className="flex items-center gap-2 py-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-            <span className="text-xs text-gray-400">Carregando…</span>
+            <span className="text-xs text-gray-500">Carregando…</span>
           </div>
         ) : visitaHoje ? (
           <VisitaRegistradaCard visita={visitaHoje} />
@@ -283,7 +283,7 @@ export function VisitasSection({
         {loadingAgendamentos ? (
           <div className="flex items-center gap-2 py-1">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-            <span className="text-xs text-gray-400">Carregando…</span>
+            <span className="text-xs text-gray-500">Carregando…</span>
           </div>
         ) : agendamentosFuturos.length > 0 ? (
           <div className="space-y-2">
@@ -319,7 +319,7 @@ export function VisitasSection({
                   <button
                     onClick={() => onCancelarAgendamento(ag.id)}
                     disabled={cancelandoId === ag.id}
-                    className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 active:bg-red-100 transition-colors disabled:opacity-40"
+                    className="p-1.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-500 active:bg-red-100 transition-colors disabled:opacity-40"
                     aria-label="Cancelar agendamento"
                   >
                     {cancelandoId === ag.id
@@ -332,7 +332,7 @@ export function VisitasSection({
             ))}
           </div>
         ) : (
-          <p className="text-xs text-gray-400 py-1">Nenhuma visita agendada</p>
+          <p className="text-xs text-gray-500 py-1">Nenhuma visita agendada</p>
         )}
 
         {/* Alerta DSV sem agendamento */}
@@ -376,7 +376,7 @@ export function ContatosSection({
         {loadingTelefones ? (
           <div className="flex items-center gap-2 py-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-            <span className="text-xs text-gray-400">Carregando…</span>
+            <span className="text-xs text-gray-500">Carregando…</span>
           </div>
         ) : telefones.length > 0 ? (
           <div className="space-y-2">
@@ -391,7 +391,7 @@ export function ContatosSection({
           </div>
         ) : (
           <div className="py-3 text-center">
-            <p className="text-xs text-gray-400 mb-2">Nenhum telefone cadastrado</p>
+            <p className="text-xs text-gray-500 mb-2">Nenhum telefone cadastrado</p>
             <button
               onClick={onAdicionar}
               className="text-xs text-primary font-semibold hover:underline"
@@ -446,7 +446,7 @@ export function MixCategoriaTable({
             </table>
           </div>
         ) : (
-          <p className="text-xs text-gray-400 text-center py-3">Nenhum produto encontrado</p>
+          <p className="text-xs text-gray-500 text-center py-3">Nenhum produto encontrado</p>
         )}
       </div>
     </>
@@ -483,7 +483,7 @@ export function TitulosAbertosSection({
         {loadingTitulos ? (
           <div className="flex items-center gap-2 py-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-            <span className="text-xs text-gray-400">Carregando…</span>
+            <span className="text-xs text-gray-500">Carregando…</span>
           </div>
         ) : titulosData.length > 0 ? (
           <div className="rounded-lg overflow-hidden border border-gray-300">
@@ -536,7 +536,7 @@ export function HistoricoVisitasSection({
         {loadingVisitas ? (
           <div className="flex items-center gap-2 py-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-            <span className="text-xs text-gray-400">Carregando…</span>
+            <span className="text-xs text-gray-500">Carregando…</span>
           </div>
         ) : historicoVisitas.length > 0 ? (
           <div className="rounded-lg overflow-hidden border border-gray-300">
@@ -572,7 +572,7 @@ export function HistoricoVisitasSection({
                     <span className={`text-center font-semibold ${resultadoColor}`}>
                       {resultadoLabel}
                     </span>
-                    <span className={`text-right font-bold ${vendeu ? 'text-green-700' : 'text-gray-400'}`}>
+                    <span className={`text-right font-bold ${vendeu ? 'text-green-700' : 'text-gray-500'}`}>
                       {ausente || reagendou ? '—' : vendeu ? 'Sim' : 'Não'}
                     </span>
                   </div>
@@ -580,13 +580,13 @@ export function HistoricoVisitasSection({
               })}
             </div>
             {historicoVisitas.length > 5 && (
-              <p className="text-[10px] text-gray-400 text-center py-2 bg-gray-50 border-t border-gray-200">
+              <p className="text-[10px] text-gray-500 text-center py-2 bg-gray-50 border-t border-gray-200">
                 + {historicoVisitas.length - 5} anteriores
               </p>
             )}
           </div>
         ) : (
-          <p className="text-xs text-gray-400 py-1">Nenhuma visita registrada</p>
+          <p className="text-xs text-gray-500 py-1">Nenhuma visita registrada</p>
         )}
       </div>
     </>

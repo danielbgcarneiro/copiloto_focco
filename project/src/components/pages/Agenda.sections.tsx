@@ -43,7 +43,7 @@ export function MiniCalendario({
               isSelected ? 'bg-primary text-white' : 'hover:bg-gray-100',
             ].join(' ')}
           >
-            <span className={`text-[11px] font-medium ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+            <span className={`text-[11px] font-medium ${isSelected ? 'text-white' : 'text-gray-500'}`}>
               {DIAS_SEMANA_ABREV[d.getDay()]}
             </span>
             <span
@@ -117,7 +117,7 @@ export function AgendaViewToggle({
               onClick={() => onViewChange(v)}
               className={[
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer',
-                view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800',
               ].join(' ')}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -215,7 +215,7 @@ export function AgendaDiaView({
       <div className="flex-1 overflow-y-auto pb-24" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="px-4 pt-4 pb-2">
           <p className="text-base font-semibold text-gray-900 capitalize">{diaLabel}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{contagem}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{contagem}</p>
         </div>
 
         {error && (
@@ -237,8 +237,8 @@ export function AgendaDiaView({
         ) : !errorDia && agsDia.length === 0 ? (
           <div className="py-10 flex flex-col items-center gap-2 text-center px-4">
             <CalendarDays className="w-10 h-10 text-gray-200" />
-            <p className="text-sm text-gray-400">Nenhuma visita agendada para este dia</p>
-            <p className="text-xs text-gray-300">Use o botão + para agendar</p>
+            <p className="text-sm text-gray-500">Nenhuma visita agendada para este dia</p>
+            <p className="text-xs text-gray-500">Use o botão + para agendar</p>
           </div>
         ) : null}
 
@@ -285,7 +285,7 @@ export function AgendaSemanaView({
       />
 
       <div className="px-4 pt-2 pb-4 border-t border-gray-100">
-        <p className="text-xs text-gray-400 mb-2 font-medium">Perfil do cliente</p>
+        <p className="text-xs text-gray-500 mb-2 font-medium">Perfil do cliente</p>
         <div className="flex flex-wrap gap-3">
           {[
             { label: 'Ouro', color: 'bg-yellow-400' },

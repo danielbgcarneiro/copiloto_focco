@@ -60,7 +60,7 @@ export const VisitaRegistradaCard: React.FC<VisitaRegistradaCardProps> = ({ visi
             {config.label}
           </span>
         </div>
-        <span className="text-xs text-gray-400">às {horario}</span>
+        <span className="text-xs text-gray-500">às {horario}</span>
       </div>
 
       {visita.valor_realizado != null && (

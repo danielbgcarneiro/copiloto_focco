@@ -60,14 +60,14 @@ function BuscaHeader({
           </button>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{clienteNome}</p>
-            <p className="text-xs text-gray-400">Selecione a data e confirme</p>
+            <p className="text-xs text-gray-500">Selecione a data e confirme</p>
           </div>
           <button onClick={onClose} className="text-xs font-medium text-gray-500 cursor-pointer">Cancelar</button>
         </>
       ) : (
         <>
           <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2">
-            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
             <input
               ref={inputRef}
               type="text"
@@ -78,7 +78,7 @@ function BuscaHeader({
             />
             {query && (
               <button onClick={() => onQueryChange('')} aria-label="Limpar busca">
-                <X className="w-4 h-4 text-gray-400" />
+                <X className="w-4 h-4 text-gray-500" />
               </button>
             )}
           </div>
@@ -246,8 +246,8 @@ export function BuscarClienteSheet({
             {query.trim().length < 2 ? (
               <div className="py-16 text-center">
                 <Search className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                <p className="text-sm text-gray-400">Digite ao menos 2 caracteres para buscar</p>
-                <p className="text-xs text-gray-300 mt-1">nome, cidade ou código do cliente</p>
+                <p className="text-sm text-gray-500">Digite ao menos 2 caracteres para buscar</p>
+                <p className="text-xs text-gray-500 mt-1">nome, cidade ou código do cliente</p>
               </div>
             ) : loading ? (
               <div className="flex justify-center py-12">
@@ -255,8 +255,8 @@ export function BuscarClienteSheet({
               </div>
             ) : resultados.length === 0 ? (
               <div className="py-16 text-center">
-                <p className="text-sm text-gray-400">Nenhum cliente encontrado</p>
-                <p className="text-xs text-gray-300 mt-1">Tente outro nome ou código</p>
+                <p className="text-sm text-gray-500">Nenhum cliente encontrado</p>
+                <p className="text-xs text-gray-500 mt-1">Tente outro nome ou código</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -313,7 +313,7 @@ export function BuscarClienteSheet({
 
               {/* Input nativo para outras datas */}
               <div className="mt-3">
-                <label className="text-xs text-gray-400 block mb-1">Ou escolha outra data</label>
+                <label className="text-xs text-gray-500 block mb-1">Ou escolha outra data</label>
                 <input
                   type="date"
                   value={dataSelecionada}
@@ -331,7 +331,7 @@ export function BuscarClienteSheet({
                 Valor previsto (opcional)
               </label>
               <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2.5 focus-within:border-primary transition-colors">
-                <span className="text-sm text-gray-400 mr-1">R$</span>
+                <span className="text-sm text-gray-500 mr-1">R$</span>
                 <input
                   type="number"
                   inputMode="decimal"

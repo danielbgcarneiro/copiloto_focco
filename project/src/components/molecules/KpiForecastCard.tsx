@@ -63,7 +63,7 @@ export function KpiForecastCard({
               <span className={`text-xs font-semibold ${accuracyColor(forecastAccuracy)}`}>
                 {(forecastAccuracy * 100).toFixed(0)}%
               </span>
-              <p className="text-[10px] text-gray-400">
+              <p className="text-[10px] text-gray-500">
                 {forecastAccuracy >= 1.0 ? 'Superou a previsão' : forecastAccuracy >= 0.8 ? 'Dentro da margem' : 'Abaixo da previsão'}
               </p>
             </div>
@@ -80,8 +80,8 @@ export function KpiForecastCard({
             </span>
           </div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] text-gray-400">{fmt(realizadoTotal)}</span>
-            <span className="text-[11px] text-gray-400">{fmt(meta)}</span>
+            <span className="text-[11px] text-gray-500">{fmt(realizadoTotal)}</span>
+            <span className="text-[11px] text-gray-500">{fmt(meta)}</span>
           </div>
           <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
             <div

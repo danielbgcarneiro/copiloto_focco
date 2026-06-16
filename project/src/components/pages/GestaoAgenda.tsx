@@ -80,7 +80,7 @@ export default function GestaoAgenda() {
           {/* AC4: Lista de vendedores */}
           <div className="flex flex-col gap-2">
             {kpis.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">Nenhum vendedor encontrado</p>
+              <p className="text-sm text-gray-500 text-center py-8">Nenhum vendedor encontrado</p>
             ) : (
               kpis
                 .sort((a, b) => b.visitasRealizadas - a.visitasRealizadas)

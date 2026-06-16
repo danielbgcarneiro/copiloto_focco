@@ -143,7 +143,7 @@ function PositivadasCard({ metricas }: { metricas: Metricas | undefined }) {
         <p className="text-[10px] font-medium text-gray-600 leading-tight">Positivadas</p>
       </div>
       <p className="text-lg font-bold text-gray-900">{metricas?.oticas_positivadas || 0}</p>
-      <p className="text-[10px] text-gray-400">óticas</p>
+      <p className="text-[10px] text-gray-500">óticas</p>
     </Card>
   )
 }
@@ -158,7 +158,7 @@ function ObjAnualCard({ objAnualData }: { objAnualData: ObjAnualData }) {
       <p className="text-lg font-bold text-gray-900">
         {objAnualData?.percentual_anual ? `${objAnualData.percentual_anual.toFixed(1)}%` : 'N/A'}
       </p>
-      <p className="text-[10px] text-gray-400 hidden md:block">
+      <p className="text-[10px] text-gray-500 hidden md:block">
         {objAnualData?.total_metas_ano ? formatCurrency(objAnualData.total_metas_ano) : ''}
       </p>
     </Card>
@@ -173,10 +173,10 @@ function SemVendas180Card({ oticasSemVendas180d, vendedorRanking }: { oticasSemV
         <p className="text-[10px] font-medium text-gray-600 leading-tight">+180-DSV</p>
       </div>
       <p className="text-lg font-bold text-red-600">{oticasSemVendas180d || 0}</p>
-      <p className="text-[10px] text-gray-400 hidden md:block">
+      <p className="text-[10px] text-gray-500 hidden md:block">
         De {vendedorRanking?.total_clientes || 0} clientes
       </p>
-      <p className="text-[10px] text-gray-400 md:hidden">óticas</p>
+      <p className="text-[10px] text-gray-500 md:hidden">óticas</p>
     </Card>
   )
 }
@@ -263,7 +263,7 @@ export function TabelasPerfilSection({
             onChange={(e) => onFiltroChange(e.target.value)}
             className="w-full pl-10 pr-4 py-1 border rounded-lg text-sm shadow-sm"
           />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
         </div>
       </div>
       <div className="grid grid-cols-1 gap-6">

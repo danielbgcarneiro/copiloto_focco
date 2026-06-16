@@ -20,7 +20,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
   return (
     <div className={`flex flex-col items-center justify-center text-center ${isSm ? 'py-8' : 'py-12'}`}>
-      <div className={`text-gray-400 mb-3 ${isSm ? 'h-8 w-8' : 'h-12 w-12'}`}>
+      <div className={`text-gray-500 mb-3 ${isSm ? 'h-8 w-8' : 'h-12 w-12'}`}>
         {icon ?? <SearchX className={isSm ? 'h-8 w-8' : 'h-12 w-12'} aria-hidden="true" />}
       </div>
       <p className="text-base font-medium text-gray-600">{title}</p>

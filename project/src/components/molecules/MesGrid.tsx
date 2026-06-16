@@ -133,7 +133,7 @@ export function MesGrid({ year, month, agendaCache, today, onSelectDay, onMonthC
       {/* Cabeçalho dos dias da semana */}
       <div className="grid grid-cols-7 px-2 pb-1">
         {DIAS_SEMANA.map((d) => (
-          <div key={d} className="text-center text-[11px] font-medium text-gray-400 py-1">
+          <div key={d} className="text-center text-[11px] font-medium text-gray-500 py-1">
             {d}
           </div>
         ))}
@@ -185,7 +185,7 @@ export function MesGrid({ year, month, agendaCache, today, onSelectDay, onMonthC
                           ? 'bg-primary text-white'
                           : hasAgs
                           ? 'text-gray-900'
-                          : 'text-gray-400',
+                          : 'text-gray-500',
                       ].join(' ')}
                     >
                       {day.getDate()}
@@ -201,7 +201,7 @@ export function MesGrid({ year, month, agendaCache, today, onSelectDay, onMonthC
                         />
                       ))}
                       {extraCount > 0 && (
-                        <span className="text-[9px] text-gray-400 leading-none">+{extraCount}</span>
+                        <span className="text-[9px] text-gray-500 leading-none">+{extraCount}</span>
                       )}
                     </div>
                   </button>
@@ -214,7 +214,7 @@ export function MesGrid({ year, month, agendaCache, today, onSelectDay, onMonthC
 
       {/* AC7: Resumo do mês */}
       <div className="mx-4 mb-4 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
           Este mês
         </p>
         <div className="flex items-center gap-3 flex-wrap">

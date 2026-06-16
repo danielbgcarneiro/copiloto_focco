@@ -60,7 +60,7 @@ function Row({ label, value, sub, valueClass }: { label: string; value: string; 
       <span className="text-xs text-gray-500 leading-tight">{label}</span>
       <div className="text-right flex-shrink-0">
         <span className={`text-xs ${valueClass ?? 'text-gray-700'}`}>{value}</span>
-        {sub && <p className="text-[10px] text-gray-400">{sub}</p>}
+        {sub && <p className="text-[10px] text-gray-500">{sub}</p>}
       </div>
     </div>
   )

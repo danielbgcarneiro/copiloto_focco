@@ -77,7 +77,7 @@ export const ProximaVisitaCard: React.FC<ProximaVisitaCardProps> = ({
           </button>
           <button
             onClick={() => setConfirmando(true)}
-            className="p-2.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 active:bg-red-100 transition-colors"
+            className="p-2.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-500 active:bg-red-100 transition-colors"
             aria-label="Cancelar agendamento"
           >
             <X className="h-4 w-4" />

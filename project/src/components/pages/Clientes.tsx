@@ -488,7 +488,7 @@ const Clientes: React.FC = () => {
                     {statusInfo.status}
                   </span>
                 ) : (
-                  <span className="text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-1 rounded-md whitespace-nowrap bg-gray-100 text-gray-400 border border-gray-300 animate-pulse">
+                  <span className="text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-1 rounded-md whitespace-nowrap bg-gray-100 text-gray-500 border border-gray-300 animate-pulse">
                     Carregando...
                   </span>
                 )
