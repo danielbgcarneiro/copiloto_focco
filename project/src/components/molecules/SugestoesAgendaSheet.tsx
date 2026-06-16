@@ -30,6 +30,61 @@ function formatCur(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 }
 
+type Step = 'rotas' | 'clientes' | 'confirmar'
+
+function SugestoesHeader({
+  step, cidade, rotaNome, numClientes, clienteNome, numRotas, onVoltarRotas, onVoltarClientes, onClose,
+}: {
+  step: Step
+  cidade: string | null
+  rotaNome: string | undefined
+  numClientes: number
+  clienteNome: string | undefined
+  numRotas: number
+  onVoltarRotas: () => void
+  onVoltarClientes: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 flex-shrink-0">
+      {step === 'clientes' ? (
+        <>
+          <button onClick={onVoltarRotas} className="p-1 -ml-1 text-gray-500 cursor-pointer" aria-label="Voltar">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">{cidade}</p>
+            <p className="text-xs text-gray-400">{rotaNome} · {numClientes} clientes</p>
+          </div>
+        </>
+      ) : step === 'confirmar' ? (
+        <>
+          <button onClick={onVoltarClientes} className="p-1 -ml-1 text-gray-500 cursor-pointer" aria-label="Voltar">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">{clienteNome}</p>
+            <p className="text-xs text-gray-400">Selecione a data</p>
+          </div>
+        </>
+      ) : (
+        <>
+          <Star className="w-4 h-4 text-primary flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-gray-900">Sugestões da semana</p>
+            {numRotas > 0 && (
+              <p className="text-xs text-gray-400">{numRotas} rota{numRotas > 1 ? 's' : ''} prioritária{numRotas > 1 ? 's' : ''}</p>
+            )}
+          </div>
+        </>
+      )}
+      <button onClick={onClose} className="p-1 text-gray-400 cursor-pointer" aria-label="Fechar">
+        <X className="w-5 h-5" />
+      </button>
+    </div>
+  )
+}
+
 export function SugestoesAgendaSheet({
   isOpen,
   onClose,
@@ -38,7 +93,6 @@ export function SugestoesAgendaSheet({
   rotasSugestoes,
   onSuccess,
 }: SugestoesAgendaSheetProps) {
-  type Step = 'rotas' | 'clientes' | 'confirmar'
   const [step, setStep] = useState<Step>('rotas')
   const [rotaSelecionada, setRotaSelecionada] = useState<RotaSugestao | null>(null)
   const [cidadeSelecionada, setCidadeSelecionada] = useState<string | null>(null)
@@ -175,44 +229,17 @@ export function SugestoesAgendaSheet({
         </div>
 
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 flex-shrink-0">
-          {step === 'clientes' ? (
-            <>
-              <button onClick={handleVoltarRotas} className="p-1 -ml-1 text-gray-500 cursor-pointer" aria-label="Voltar">
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{cidadeSelecionada}</p>
-                <p className="text-xs text-gray-400">{rotaSelecionada?.rota} · {clientesCidade.length} clientes</p>
-              </div>
-            </>
-          ) : step === 'confirmar' ? (
-            <>
-              <button onClick={handleVoltarClientes} className="p-1 -ml-1 text-gray-500 cursor-pointer" aria-label="Voltar">
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">
-                  {clienteSelecionado?.nome_fantasia ?? clienteSelecionado?.razao_social}
-                </p>
-                <p className="text-xs text-gray-400">Selecione a data</p>
-              </div>
-            </>
-          ) : (
-            <>
-              <Star className="w-4 h-4 text-primary flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-gray-900">Sugestões da semana</p>
-                {rotasSugestoes.length > 0 && (
-                  <p className="text-xs text-gray-400">{rotasSugestoes.length} rota{rotasSugestoes.length > 1 ? 's' : ''} prioritária{rotasSugestoes.length > 1 ? 's' : ''}</p>
-                )}
-              </div>
-            </>
-          )}
-          <button onClick={handleClose} className="p-1 text-gray-400 cursor-pointer" aria-label="Fechar">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        <SugestoesHeader
+          step={step}
+          cidade={cidadeSelecionada}
+          rotaNome={rotaSelecionada?.rota}
+          numClientes={clientesCidade.length}
+          clienteNome={clienteSelecionado?.nome_fantasia ?? clienteSelecionado?.razao_social}
+          numRotas={rotasSugestoes.length}
+          onVoltarRotas={handleVoltarRotas}
+          onVoltarClientes={handleVoltarClientes}
+          onClose={handleClose}
+        />
 
         {/* Conteúdo */}
         <div className="flex-1 overflow-y-auto">
