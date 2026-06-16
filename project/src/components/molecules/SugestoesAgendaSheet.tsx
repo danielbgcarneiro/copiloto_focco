@@ -85,6 +85,215 @@ function SugestoesHeader({
   )
 }
 
+function RotasStep({
+  loading, rotas, expandedRota, onToggleRota, onSelectCidade,
+}: {
+  loading: boolean
+  rotas: RotaSugestao[]
+  expandedRota: string | null
+  onToggleRota: (rota: string) => void
+  onSelectCidade: (rota: RotaSugestao, cidade: string) => void
+}) {
+  return (
+    <div className="px-4 py-3 flex flex-col gap-3">
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : rotas.length === 0 ? (
+        <div className="py-12 text-center">
+          <Star className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+          <p className="text-sm text-gray-400">Nenhuma sugestão no momento</p>
+          <p className="text-xs text-gray-300 mt-1">Todos os clientes prioritários já têm visita agendada</p>
+        </div>
+      ) : (
+        rotas.map((rota) => (
+          <div key={rota.rota} className="rounded-xl border border-gray-100 overflow-hidden">
+            <button
+              onClick={() => onToggleRota(rota.rota)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-primary/5 active:bg-primary/10 transition-colors cursor-pointer"
+            >
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-900">{rota.rota}</p>
+                <p className="text-xs text-emerald-600 flex items-center gap-1 mt-0.5">
+                  <TrendingUp className="w-3 h-3" />
+                  {formatCur(rota.somaOportunidade)} oportunidade
+                </p>
+              </div>
+              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${expandedRota === rota.rota ? 'rotate-90' : ''}`} />
+            </button>
+
+            {expandedRota === rota.rota && (
+              <div className="divide-y divide-gray-50 bg-white">
+                {rota.cidades.map((cidade) => (
+                  <button
+                    key={cidade.cidade}
+                    onClick={() => onSelectCidade(rota, cidade.cidade)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    <div className="text-left">
+                      <p className="text-sm text-gray-800 font-medium">{cidade.cidade}</p>
+                      <p className="text-xs text-gray-400">{cidade.clientes.length} clientes · <span className="text-emerald-600">{formatCur(cidade.somaOportunidade)}</span></p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+function ClientesStep({ clientes, onSelectCliente }: { clientes: ClienteSugeridoHierarquia[]; onSelectCliente: (c: ClienteSugeridoHierarquia) => void }) {
+  return (
+    <div className="px-4 py-3 flex flex-col gap-2">
+      {clientes.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">Nenhum cliente com oportunidade</p>
+      ) : (
+        clientes.map((c) => {
+          const nomeExibido = c.nome_fantasia || c.razao_social
+          const oportunidadeFmt = formatCur(c.previsao_pedido)
+          const dsvColor = c.dias_sem_comprar > 90 ? 'text-red-600' : c.dias_sem_comprar > 60 ? 'text-yellow-600' : 'text-gray-500'
+          return (
+            <div key={c.codigo_cliente} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex flex-col gap-2">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-900 truncate flex-1">{nomeExibido}</p>
+                {c.agendado && (
+                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0 flex items-center gap-1">
+                    <Check className="w-2.5 h-2.5" />Agendado
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {c.dias_sem_comprar > 0 && (
+                  <span className={`font-medium ${dsvColor}`}>{c.dias_sem_comprar}d s/ comprar</span>
+                )}
+                <span className="flex items-center gap-0.5 text-emerald-600 font-medium">
+                  <TrendingUp className="w-3 h-3" />{oportunidadeFmt}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full" style={{ width: `${Math.round(c.score * 100)}%` }} />
+                </div>
+                <span className="text-[10px] text-gray-400 w-6 text-right tabular-nums">{Math.round(c.score * 100)}</span>
+                <button
+                  onClick={() => onSelectCliente(c)}
+                  className="flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1 active:bg-primary/20 transition-colors cursor-pointer flex-shrink-0"
+                >
+                  <Plus className="w-3 h-3" />
+                  Agendar
+                </button>
+              </div>
+            </div>
+          )
+        })
+      )}
+    </div>
+  )
+}
+
+function ConfirmarStep({
+  weekDays, hoje, dataSelecionada, onDataChange, valorPrevisto, onValorChange, aviso, isDuplicata, loadingInsert, onConfirmarForce,
+}: {
+  weekDays: Date[]
+  hoje: Date
+  dataSelecionada: string
+  onDataChange: (d: string) => void
+  valorPrevisto: string
+  onValorChange: (v: string) => void
+  aviso: string | null
+  isDuplicata: boolean
+  loadingInsert: boolean
+  onConfirmarForce: () => void
+}) {
+  return (
+    <div className="px-4 py-4 flex flex-col gap-5">
+      {/* Seletor de data */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 mb-2.5 flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5" />
+          Data da visita
+        </p>
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5">
+          {weekDays.map((d) => {
+            const dateStr = formatDate(d)
+            const isPast = d < hoje
+            const isSelected = dateStr === dataSelecionada
+            return (
+              <button
+                key={dateStr}
+                disabled={isPast}
+                onClick={() => onDataChange(dateStr)}
+                className={[
+                  'flex flex-col items-center min-w-[44px] py-2 px-1 rounded-xl text-xs font-medium transition-colors',
+                  isPast ? 'opacity-30 cursor-not-allowed'
+                    : isSelected ? 'bg-primary text-white cursor-pointer'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer',
+                ].join(' ')}
+              >
+                <span className="text-[10px] opacity-70">{DIAS_ABREV[d.getDay()]}</span>
+                <span className="text-sm font-bold mt-0.5">{d.getDate()}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="mt-3">
+          <label className="text-xs text-gray-400 block mb-1">Ou escolha outra data</label>
+          <input
+            type="date"
+            value={dataSelecionada}
+            min={formatDate(hoje)}
+            onChange={(e) => e.target.value && onDataChange(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white outline-none focus:border-primary transition-colors"
+          />
+        </div>
+      </div>
+
+      {/* Valor previsto */}
+      <div>
+        <label className="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
+          <DollarSign className="w-3.5 h-3.5" />
+          Valor previsto (opcional)
+        </label>
+        <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2.5 focus-within:border-primary transition-colors">
+          <span className="text-sm text-gray-400 mr-1">R$</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={valorPrevisto}
+            onChange={(e) => onValorChange(e.target.value)}
+            placeholder="0,00"
+            className="flex-1 text-sm text-gray-900 bg-transparent outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Aviso de duplicata ou erro */}
+      {aviso && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 flex flex-col gap-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-yellow-800">{aviso}</p>
+          </div>
+          {isDuplicata && (
+            <button
+              onClick={onConfirmarForce}
+              disabled={loadingInsert}
+              className="text-xs font-semibold text-yellow-700 underline self-start cursor-pointer disabled:opacity-50"
+            >
+              Criar mesmo assim
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SugestoesAgendaSheet({
   isOpen,
   onClose,
@@ -243,198 +452,33 @@ export function SugestoesAgendaSheet({
 
         {/* Conteúdo */}
         <div className="flex-1 overflow-y-auto">
-
-          {/* ═══ ROTAS ═══ */}
           {step === 'rotas' && (
-            <div className="px-4 py-3 flex flex-col gap-3">
-              {loadingSugestoes ? (
-                <div className="flex justify-center py-12">
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : rotasSugestoes.length === 0 ? (
-                <div className="py-12 text-center">
-                  <Star className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                  <p className="text-sm text-gray-400">Nenhuma sugestão no momento</p>
-                  <p className="text-xs text-gray-300 mt-1">Todos os clientes prioritários já têm visita agendada</p>
-                </div>
-              ) : (
-                rotasSugestoes.map((rota) => (
-                  <div key={rota.rota} className="rounded-xl border border-gray-100 overflow-hidden">
-                    {/* Header da rota */}
-                    <button
-                      onClick={() => setExpandedRota(expandedRota === rota.rota ? null : rota.rota)}
-                      className="w-full flex items-center justify-between px-4 py-3 bg-primary/5 active:bg-primary/10 transition-colors cursor-pointer"
-                    >
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-gray-900">{rota.rota}</p>
-                        <p className="text-xs text-emerald-600 flex items-center gap-1 mt-0.5">
-                          <TrendingUp className="w-3 h-3" />
-                          {formatCur(rota.somaOportunidade)} oportunidade
-                        </p>
-                      </div>
-                      <ChevronRight
-                        className={`w-4 h-4 text-gray-400 transition-transform ${expandedRota === rota.rota ? 'rotate-90' : ''}`}
-                      />
-                    </button>
-
-                    {/* Cidades expandidas */}
-                    {expandedRota === rota.rota && (
-                      <div className="divide-y divide-gray-50 bg-white">
-                        {rota.cidades.map((cidade) => (
-                          <button
-                            key={cidade.cidade}
-                            onClick={() => handleSelectCidade(rota, cidade.cidade)}
-                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
-                          >
-                            <div className="text-left">
-                              <p className="text-sm text-gray-800 font-medium">{cidade.cidade}</p>
-                              <p className="text-xs text-gray-400">{cidade.clientes.length} clientes · <span className="text-emerald-600">{formatCur(cidade.somaOportunidade)}</span></p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+            <RotasStep
+              loading={loadingSugestoes}
+              rotas={rotasSugestoes}
+              expandedRota={expandedRota}
+              onToggleRota={(r) => setExpandedRota(expandedRota === r ? null : r)}
+              onSelectCidade={handleSelectCidade}
+            />
           )}
 
-          {/* ═══ CLIENTES DA CIDADE ═══ */}
           {step === 'clientes' && (
-            <div className="px-4 py-3 flex flex-col gap-2">
-              {clientesCidade.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-8">Nenhum cliente com oportunidade</p>
-              ) : (
-                clientesCidade.map((c) => {
-                  const nomeExibido = c.nome_fantasia || c.razao_social
-                  const oportunidadeFmt = formatCur(c.previsao_pedido)
-                  const dsvColor = c.dias_sem_comprar > 90 ? 'text-red-600' : c.dias_sem_comprar > 60 ? 'text-yellow-600' : 'text-gray-500'
-                  return (
-                    <div key={c.codigo_cliente} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex flex-col gap-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-gray-900 truncate flex-1">{nomeExibido}</p>
-                        {c.agendado && (
-                          <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0 flex items-center gap-1">
-                            <Check className="w-2.5 h-2.5" />Agendado
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        {c.dias_sem_comprar > 0 && (
-                          <span className={`font-medium ${dsvColor}`}>{c.dias_sem_comprar}d s/ comprar</span>
-                        )}
-                        <span className="flex items-center gap-0.5 text-emerald-600 font-medium">
-                          <TrendingUp className="w-3 h-3" />{oportunidadeFmt}
-                        </span>
-                      </div>
-                      {/* Barra de score */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full"
-                            style={{ width: `${Math.round(c.score * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-gray-400 w-6 text-right tabular-nums">{Math.round(c.score * 100)}</span>
-                        <button
-                          onClick={() => handleSelectCliente(c)}
-                          className="flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1 active:bg-primary/20 transition-colors cursor-pointer flex-shrink-0"
-                        >
-                          <Plus className="w-3 h-3" />
-                          Agendar
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
+            <ClientesStep clientes={clientesCidade} onSelectCliente={handleSelectCliente} />
           )}
 
-          {/* ═══ CONFIRMAR ═══ */}
           {step === 'confirmar' && clienteSelecionado && (
-            <div className="px-4 py-4 flex flex-col gap-5">
-              {/* Seletor de data */}
-              <div>
-                <p className="text-xs font-semibold text-gray-500 mb-2.5 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
-                  Data da visita
-                </p>
-                <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5">
-                  {weekDays.map((d) => {
-                    const dateStr = formatDate(d)
-                    const isPast = d < hoje
-                    const isSelected = dateStr === dataSelecionada
-                    return (
-                      <button
-                        key={dateStr}
-                        disabled={isPast}
-                        onClick={() => handleDataChange(dateStr)}
-                        className={[
-                          'flex flex-col items-center min-w-[44px] py-2 px-1 rounded-xl text-xs font-medium transition-colors',
-                          isPast ? 'opacity-30 cursor-not-allowed'
-                            : isSelected ? 'bg-primary text-white cursor-pointer'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer',
-                        ].join(' ')}
-                      >
-                        <span className="text-[10px] opacity-70">{DIAS_ABREV[d.getDay()]}</span>
-                        <span className="text-sm font-bold mt-0.5">{d.getDate()}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="mt-3">
-                  <label className="text-xs text-gray-400 block mb-1">Ou escolha outra data</label>
-                  <input
-                    type="date"
-                    value={dataSelecionada}
-                    min={formatDate(hoje)}
-                    onChange={(e) => e.target.value && handleDataChange(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Valor previsto */}
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5" />
-                  Valor previsto (opcional)
-                </label>
-                <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2.5 focus-within:border-primary transition-colors">
-                  <span className="text-sm text-gray-400 mr-1">R$</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={valorPrevisto}
-                    onChange={(e) => setValorPrevisto(e.target.value)}
-                    placeholder="0,00"
-                    className="flex-1 text-sm text-gray-900 bg-transparent outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Aviso de duplicata ou erro */}
-              {aviso && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 flex flex-col gap-2">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-yellow-800">{aviso}</p>
-                  </div>
-                  {isDuplicata && (
-                    <button
-                      onClick={() => handleConfirmar(true)}
-                      disabled={loadingInsert}
-                      className="text-xs font-semibold text-yellow-700 underline self-start cursor-pointer disabled:opacity-50"
-                    >
-                      Criar mesmo assim
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+            <ConfirmarStep
+              weekDays={weekDays}
+              hoje={hoje}
+              dataSelecionada={dataSelecionada}
+              onDataChange={handleDataChange}
+              valorPrevisto={valorPrevisto}
+              onValorChange={setValorPrevisto}
+              aviso={aviso}
+              isDuplicata={isDuplicata}
+              loadingInsert={loadingInsert}
+              onConfirmarForce={() => handleConfirmar(true)}
+            />
           )}
         </div>
 
