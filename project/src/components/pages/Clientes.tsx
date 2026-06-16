@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Search, Filter, Check, Clock, MapPin, CheckCircle, Calendar, Plus, X } from 'lucide-react'
+import { Check, Clock, MapPin, CheckCircle, Calendar, Plus, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { getClientesPorVendedor } from '../../lib/queries/clientes'
@@ -18,6 +18,7 @@ import { useSetPage } from '../../contexts'
 import { RegistrarVisitaSheet } from '../molecules/RegistrarVisitaSheet'
 import { AgendarVisitaSheet } from '../molecules/AgendarVisitaSheet'
 import { useVisitas } from '../../hooks/useVisitas'
+import { ClientesBreadcrumb, ClienteSearchBar, compareClientes } from './Clientes.sections'
 
 // Cache de formatadores (criado uma única vez)
 const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
@@ -667,14 +668,6 @@ const Clientes: React.FC = () => {
       prevProps.cliente.analise_rfm === nextProps.cliente.analise_rfm
     )
   })
-  const getPerfilValue = (perfil: string) => {
-    const perfilLower = perfil?.toLowerCase() || ''
-    if (perfilLower.includes('ouro')) return 3
-    if (perfilLower.includes('prata')) return 2
-    if (perfilLower.includes('bronze')) return 1
-    return 0
-  }
-
   // Função para alternar ordenação (otimizada com useCallback)
   const toggleSort = useCallback((newSortBy: string) => {
     if (sortBy === newSortBy) {
@@ -746,35 +739,7 @@ const Clientes: React.FC = () => {
                normalizeText(cliente.codigo_cliente.toString()).includes(normalizedSearchTerm) ||
                normalizeText(cliente.bairro || '').includes(normalizedSearchTerm)
       })
-      .sort((a, b) => {
-        // Acessar analise_rfm com segurança
-        const a_rfm = a.analise_rfm || {};
-        const b_rfm = b.analise_rfm || {};
-        let comparison = 0
-
-        switch (sortBy) {
-          case 'perfil':
-            comparison = getPerfilValue(b_rfm.perfil || '') - getPerfilValue(a_rfm.perfil || '')
-            break
-          case 'nome':
-            comparison = a.nome_fantasia.localeCompare(b.nome_fantasia)
-            break
-          case 'bairro':
-            comparison = (a.bairro || '').localeCompare(b.bairro || '')
-            break
-          case 'oportunidade':
-            comparison = (b_rfm.previsao_pedido || 0) - (a_rfm.previsao_pedido || 0)
-            break
-          case 'dsv':
-            comparison = (b_rfm.dias_sem_comprar || 0) - (a_rfm.dias_sem_comprar || 0)
-            break
-          default:
-            comparison = getPerfilValue(b_rfm.perfil || '') - getPerfilValue(a_rfm.perfil || '')
-        }
-
-        // Aplicar direção de ordenação
-        return sortDirection === 'desc' ? comparison : -comparison
-      })
+      .sort((a, b) => compareClientes(a, b, sortBy, sortDirection))
   }, [clientes, searchTerm, sortBy, sortDirection])
 
   // Callback após registrar visita com sucesso via RegistrarVisitaSheet
@@ -801,77 +766,18 @@ const Clientes: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
-        {/* Breadcrumb */}
-        {(rotaNome || cidadeDecodificada) && (
-          <div className="mb-4 px-2">
-            <div className="flex items-center text-sm text-gray-600">
-              {rotaNome && <span>Rota: <span className="font-semibold text-primary">{rotaNome}</span></span>}
-              {rotaNome && cidadeDecodificada && <span className="mx-2">•</span>}
-              {cidadeDecodificada && <span>Cidade: <span className="font-semibold text-primary">{cidadeDecodificada}</span></span>}
-            </div>
-          </div>
-        )}
-        
-        {/* Search Bar */}
-        <div className="mb-4 flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar óticas / bairro..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
-          <div className="relative flex-shrink-0" ref={sortMenuRef}>
-            <button 
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              onClick={() => setShowSortMenu(!showSortMenu)}
-            >
-              <Filter className="h-4 w-4 text-gray-600" />
-            </button>
-            {showSortMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-40">
-                <button
-                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200 flex items-center justify-between ${sortBy === 'perfil' ? 'bg-blue-50 font-semibold' : ''}`}
-                  onClick={() => { toggleSort('perfil'); setShowSortMenu(false) }}
-                >
-                  <span>Perfil</span>
-                  {sortBy === 'perfil' && <span className="text-[10px] text-gray-500">{sortDirection === 'desc' ? '↓' : '↑'}</span>}
-                </button>
-                <button
-                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200 flex items-center justify-between ${sortBy === 'nome' ? 'bg-blue-50 font-semibold' : ''}`}
-                  onClick={() => { toggleSort('nome'); setShowSortMenu(false) }}
-                >
-                  <span>Nome</span>
-                  {sortBy === 'nome' && <span className="text-[10px] text-gray-500">{sortDirection === 'asc' ? 'A-Z' : 'Z-A'}</span>}
-                </button>
-                <button
-                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200 flex items-center justify-between ${sortBy === 'bairro' ? 'bg-blue-50 font-semibold' : ''}`}
-                  onClick={() => { toggleSort('bairro'); setShowSortMenu(false) }}
-                >
-                  <span>Bairro</span>
-                  {sortBy === 'bairro' && <span className="text-[10px] text-gray-500">{sortDirection === 'asc' ? 'A-Z' : 'Z-A'}</span>}
-                </button>
-                <button
-                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 border-b border-gray-200 flex items-center justify-between ${sortBy === 'oportunidade' ? 'bg-blue-50 font-semibold' : ''}`}
-                  onClick={() => { toggleSort('oportunidade'); setShowSortMenu(false) }}
-                >
-                  <span>Oportunidade</span>
-                  {sortBy === 'oportunidade' && <span className="text-[10px] text-gray-500">{sortDirection === 'desc' ? '↓' : '↑'}</span>}
-                </button>
-                <button
-                  className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 flex items-center justify-between ${sortBy === 'dsv' ? 'bg-blue-50 font-semibold' : ''}`}
-                  onClick={() => { toggleSort('dsv'); setShowSortMenu(false) }}
-                >
-                  <span>DSV</span>
-                  {sortBy === 'dsv' && <span className="text-[10px] text-gray-500">{sortDirection === 'desc' ? '↓' : '↑'}</span>}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <ClientesBreadcrumb rotaNome={rotaNome} cidadeDecodificada={cidadeDecodificada} />
+
+        <ClienteSearchBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          showSortMenu={showSortMenu}
+          onToggleSortMenu={() => setShowSortMenu(!showSortMenu)}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSort={(key) => { toggleSort(key); setShowSortMenu(false) }}
+          sortMenuRef={sortMenuRef}
+        />
 
         {/* Clientes List */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
