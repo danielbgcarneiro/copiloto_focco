@@ -43,6 +43,150 @@ function formatarDataBRDate(d: Date): string {
   return `${dia}/${mes}`
 }
 
+function StepDetalhe({
+  resultado, valorRealizado, onValor, motivoId, onMotivo, motivos, loadingMotivos,
+  observacoes, onObs, error, loading, confirmarDesabilitado, onVoltar, onConfirmar,
+}: {
+  resultado: ResultadoType
+  valorRealizado: string
+  onValor: (v: string) => void
+  motivoId: number | null
+  onMotivo: (id: number | null) => void
+  motivos: MotivoNaoVenda[]
+  loadingMotivos: boolean
+  observacoes: string
+  onObs: (v: string) => void
+  error: string | null
+  loading: boolean
+  confirmarDesabilitado: boolean
+  onVoltar: () => void
+  onConfirmar: () => void
+}) {
+  return (
+    <div className="mt-2 space-y-4">
+      {/* Vendeu: valor opcional */}
+      {resultado === 'vendeu' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Valor realizado (opcional)</label>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={valorRealizado}
+            onChange={(e) => onValor(e.target.value)}
+            placeholder="0,00"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+      )}
+
+      {/* Não vendeu: motivo obrigatório */}
+      {resultado === 'nao_vendeu' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Motivo <span className="text-red-500">*</span>
+          </label>
+          {loadingMotivos ? (
+            <p className="text-sm text-gray-500 py-2">Carregando motivos...</p>
+          ) : (
+            <select
+              value={motivoId ?? ''}
+              onChange={(e) => onMotivo(e.target.value ? Number(e.target.value) : null)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+            >
+              <option value="">Selecione um motivo...</option>
+              {motivos.map((m) => (
+                <option key={m.id} value={m.id}>{m.descricao}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
+      {/* Observação (não vendeu e ausente) */}
+      {(resultado === 'nao_vendeu' || resultado === 'ausente') && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Observação (opcional)</label>
+          <textarea
+            value={observacoes}
+            onChange={(e) => onObs(e.target.value)}
+            placeholder="Anote algo relevante..."
+            rows={3}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          />
+        </div>
+      )}
+
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+      )}
+
+      <div className="flex gap-3 pt-1">
+        <button
+          onClick={onVoltar}
+          disabled={loading}
+          className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+        >
+          Voltar
+        </button>
+        <button
+          onClick={onConfirmar}
+          disabled={confirmarDesabilitado}
+          className="flex-1 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+        >
+          {loading ? 'Salvando...' : 'Confirmar'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function StepProximaVisita({
+  loadingSugestao, sugestao, loadingAgendar, onDepois, onAgendar,
+}: {
+  loadingSugestao: boolean
+  sugestao: SugestaoData | null
+  loadingAgendar: boolean
+  onDepois: () => void
+  onAgendar: () => void
+}) {
+  return (
+    <div className="mt-4 space-y-5">
+      <div className="flex flex-col items-center text-center gap-2 py-2">
+        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+          <CalendarPlus className="w-5 h-5 text-blue-600" />
+        </div>
+        <p className="text-sm font-semibold text-gray-800">Agendar próxima visita?</p>
+        {loadingSugestao ? (
+          <p className="text-xs text-gray-400">Calculando data sugerida...</p>
+        ) : sugestao ? (
+          <p className="text-sm text-blue-600 font-medium">
+            Daqui {diasAte(sugestao.data)} dias — {formatarDataBRDate(sugestao.data)}
+          </p>
+        ) : (
+          <p className="text-xs text-gray-400">Data sugerida indisponível</p>
+        )}
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={onDepois}
+          disabled={loadingAgendar}
+          className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+        >
+          Depois
+        </button>
+        <button
+          onClick={onAgendar}
+          disabled={loadingAgendar || loadingSugestao || !sugestao}
+          className="flex-1 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+        >
+          {loadingAgendar ? 'Agendando...' : 'Sim, agendar'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export const RegistrarVisitaSheet: React.FC<RegistrarVisitaSheetProps> = ({
   isOpen,
   onClose,
@@ -237,133 +381,33 @@ export const RegistrarVisitaSheet: React.FC<RegistrarVisitaSheetProps> = ({
 
               {/* Passo 2: Detalhe */}
               {step === 'detalhe' && resultado && (
-                <div className="mt-2 space-y-4">
-                  {/* Vendeu: valor opcional */}
-                  {resultado === 'vendeu' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Valor realizado (opcional)
-                      </label>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        value={valorRealizado}
-                        onChange={(e) => setValorRealizado(e.target.value)}
-                        placeholder="0,00"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                  )}
-
-                  {/* Não vendeu: motivo obrigatório */}
-                  {resultado === 'nao_vendeu' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Motivo <span className="text-red-500">*</span>
-                      </label>
-                      {loadingMotivos ? (
-                        <p className="text-sm text-gray-500 py-2">Carregando motivos...</p>
-                      ) : (
-                        <select
-                          value={motivoId ?? ''}
-                          onChange={(e) =>
-                            setMotivoId(e.target.value ? Number(e.target.value) : null)
-                          }
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                        >
-                          <option value="">Selecione um motivo...</option>
-                          {motivos.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.descricao}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Observação (não vendeu e ausente) */}
-                  {(resultado === 'nao_vendeu' || resultado === 'ausente') && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Observação (opcional)
-                      </label>
-                      <textarea
-                        value={observacoes}
-                        onChange={(e) => setObservacoes(e.target.value)}
-                        placeholder="Anote algo relevante..."
-                        rows={3}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                      />
-                    </div>
-                  )}
-
-                  {/* Erro */}
-                  {error && (
-                    <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
-                      {error}
-                    </p>
-                  )}
-
-                  {/* Ações */}
-                  <div className="flex gap-3 pt-1">
-                    <button
-                      onClick={() => setStep('resultado')}
-                      disabled={loading}
-                      className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
-                    >
-                      Voltar
-                    </button>
-                    <button
-                      onClick={handleConfirmar}
-                      disabled={confirmarDesabilitado}
-                      className="flex-1 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      {loading ? 'Salvando...' : 'Confirmar'}
-                    </button>
-                  </div>
-                </div>
+                <StepDetalhe
+                  resultado={resultado}
+                  valorRealizado={valorRealizado}
+                  onValor={setValorRealizado}
+                  motivoId={motivoId}
+                  onMotivo={setMotivoId}
+                  motivos={motivos}
+                  loadingMotivos={loadingMotivos}
+                  observacoes={observacoes}
+                  onObs={setObservacoes}
+                  error={error}
+                  loading={loading}
+                  confirmarDesabilitado={confirmarDesabilitado}
+                  onVoltar={() => setStep('resultado')}
+                  onConfirmar={handleConfirmar}
+                />
               )}
 
               {/* Passo 3: Sugestão de próxima visita (Story 3.10) */}
               {step === 'proximavisita' && (
-                <div className="mt-4 space-y-5">
-                  <div className="flex flex-col items-center text-center gap-2 py-2">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                      <CalendarPlus className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <p className="text-sm font-semibold text-gray-800">
-                      Agendar próxima visita?
-                    </p>
-                    {loadingSugestaoProxima ? (
-                      <p className="text-xs text-gray-400">Calculando data sugerida...</p>
-                    ) : sugestaoProxima ? (
-                      <p className="text-sm text-blue-600 font-medium">
-                        Daqui {diasAte(sugestaoProxima.data)} dias —{' '}
-                        {formatarDataBRDate(sugestaoProxima.data)}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-gray-400">Data sugerida indisponível</p>
-                    )}
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={onClose}
-                      disabled={loadingAgendar}
-                      className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
-                    >
-                      Depois
-                    </button>
-                    <button
-                      onClick={handleAgendarProxima}
-                      disabled={loadingAgendar || loadingSugestaoProxima || !sugestaoProxima}
-                      className="flex-1 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      {loadingAgendar ? 'Agendando...' : 'Sim, agendar'}
-                    </button>
-                  </div>
-                </div>
+                <StepProximaVisita
+                  loadingSugestao={loadingSugestaoProxima}
+                  sugestao={sugestaoProxima}
+                  loadingAgendar={loadingAgendar}
+                  onDepois={onClose}
+                  onAgendar={handleAgendarProxima}
+                />
               )}
             </div>
           </div>
