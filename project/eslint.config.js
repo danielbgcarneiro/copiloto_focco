@@ -59,10 +59,11 @@ export default [
       // JS
       "no-unused-vars": "off",
 
-      // Complexidade ciclomática — meta agressiva como WARN: expõe toda a cauda
-      // (funções > 20) como backlog de alvos no `npm run lint`, sem quebrar o
-      // build (warnings não falham). Conforme a cauda cai, baixar até 10.
-      "complexity": ["warn", 20],
+      // Complexidade ciclomática — meta agressiva como WARN: expõe a cauda como
+      // backlog de alvos no `npm run lint`, sem quebrar o build (warnings não
+      // falham). Toda função > 20 já foi eliminada; teto baixado para 15.
+      // Próximo passo: reduzir o tier 16-20 e baixar até 10.
+      "complexity": ["warn", 15],
     }
   }
 ];

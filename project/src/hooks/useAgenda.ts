@@ -385,7 +385,7 @@ export async function getAgendamentosDia(
   return agendamentos.map((ag) => {
     const client = clienteMap.get(ag.codigo_cliente)
     const rfm = rfmMap.get(ag.codigo_cliente)
-    const visita = visitaMap.get(ag.id) ?? null
+    const visita = visitaMap.get(ag.id)
 
     return {
       id: ag.id,
