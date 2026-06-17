@@ -1,11 +1,16 @@
 name: CI
 # Pipeline: quality (lint+complexity, unit, build) + e2e (Playwright, opcional via RUN_E2E)
+# O app vive em project/ — todos os steps de shell rodam com working-directory: project.
 
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: project
 
 jobs:
   # ─── Gate determinístico: lint (inclui complexity), typecheck e build ────────
@@ -17,6 +22,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: project/package-lock.json
       - run: npm ci
       - name: Lint (inclui gate de complexidade ciclomática)
         run: npm run lint
@@ -25,14 +31,10 @@ jobs:
       - name: Typecheck + build
         run: npm run build
         env:
-          # Build não executa o código; placeholders bastam para o bundle do Vite.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
 
   # ─── E2E Playwright (opcional) ───────────────────────────────────────────────
-  # Ative criando a Repository Variable RUN_E2E=true e os Secrets:
-  #   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY,
-  #   PLAYWRIGHT_VENDEDOR_EMAIL/PASS, PLAYWRIGHT_DIRETOR_EMAIL/PASS
   e2e:
     runs-on: ubuntu-latest
     if: ${{ vars.RUN_E2E == 'true' }}
@@ -42,6 +44,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: project/package-lock.json
       - run: npm ci
       - name: Instalar Chromium + libs de SO
         run: npx playwright install --with-deps chromium
@@ -58,5 +61,5 @@ jobs:
         if: always()
         with:
           name: playwright-report
-          path: playwright-report/
+          path: project/playwright-report/
           retention-days: 14
