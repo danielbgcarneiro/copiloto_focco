@@ -191,7 +191,7 @@ const Cidades: React.FC = () => {
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-0.5">
                     <AlertTriangle className="w-3 h-3 text-red-500" />
-                    <span className="font-bold text-xs sm:text-sm text-red-500">{cidade.clientesSemVenda120d}</span>
+                    <span className="font-bold text-xs sm:text-sm text-red-600">{cidade.clientesSemVenda120d}</span>
                   </div>
                   <span className="text-[9px] sm:text-[10px] text-gray-500">120-DSV</span>
                 </div>
@@ -203,7 +203,7 @@ const Cidades: React.FC = () => {
         {/* Oportunidade de Venda */}
         <div className="bg-orange-50 py-2.5 px-4 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-orange-500 flex-shrink-0" />
-          <span className="text-orange-600 font-semibold text-xs sm:text-sm truncate">
+          <span className="text-orange-700 font-semibold text-xs sm:text-sm truncate">
             Oportunidade de Venda: {formatCurrency(cidade.somaOportunidades, true)}
           </span>
         </div>

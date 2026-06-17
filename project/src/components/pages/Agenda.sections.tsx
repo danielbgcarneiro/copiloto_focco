@@ -149,10 +149,10 @@ export function SugestoesBanner({ count, onClick }: { count: number; onClick: ()
     >
       <Star className="w-4 h-4 text-primary flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-primary">
+        <p className="text-xs font-semibold text-[#0d6e91]">
           {count} {count === 1 ? 'cliente prioritário' : 'clientes prioritários'} sem visita esta semana
         </p>
-        <p className="text-[11px] text-primary/70">Ver sugestões</p>
+        <p className="text-[11px] text-[#0d6e91]">Ver sugestões</p>
       </div>
     </button>
   )
