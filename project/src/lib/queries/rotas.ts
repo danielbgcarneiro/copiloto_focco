@@ -70,28 +70,27 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
       return [];
     }
 
-    // 4. Buscar mapeamento cidade -> rota
-    // Excluir 'Sem Rota': tem 4000+ entradas em rotas_estado e causa truncamento no limite de 1000 linhas do Supabase
-    const rotasParaMapa = rotas.filter(r => r !== 'Sem Rota');
-    const { data: rotasEstado, error: rotasEstadoError } = await supabase
-      .from('rotas_estado')
-      .select('codigo_ibge_cidade, cidade, rota')
-      .in('rota', rotasParaMapa);
+    // 4. Resolver a rota de cada cliente via vw_cliente_rota (bairro tem precedência sobre cidade)
+    const { data: clienteRotas, error: clienteRotasError } = await supabase
+      .from('vw_cliente_rota')
+      .select('codigo_cliente, rota_resolvida, cidade')
+      .eq('cod_vendedor', profile.cod_vendedor)
+      .not('rota_resolvida', 'is', null);
 
-    if (rotasEstadoError) {
-      console.error('❌ Erro ao buscar rotas_estado:', rotasEstadoError);
+    if (clienteRotasError) {
+      console.error('❌ Erro ao resolver rotas dos clientes:', clienteRotasError);
       return [];
     }
 
-    // Criar mapeamento codigo_ibge_cidade -> rota
-    const cidadeRotaMap = new Map<string, string>();
-    rotasEstado?.forEach(re => {
-      if (re.codigo_ibge_cidade) {
-        cidadeRotaMap.set(re.codigo_ibge_cidade, re.rota);
+    // Mapeamento codigo_cliente -> { rota, cidade } (grão misto: bairro ou cidade)
+    const clienteRotaMap = new Map<number, { rota: string; cidade: string }>();
+    clienteRotas?.forEach(cr => {
+      if (cr.rota_resolvida) {
+        clienteRotaMap.set(cr.codigo_cliente, { rota: cr.rota_resolvida, cidade: cr.cidade ?? '' });
       }
     });
 
-    console.log('🗺️ Mapeamento cidade->rota:', cidadeRotaMap.size, 'cidades');
+    console.log('🗺️ Rota resolvida por cliente:', clienteRotaMap.size, 'clientes');
 
     // 5. Buscar clientes do vendedor com dados RFM
     const { data: clientes, error: clientesError } = await supabase
@@ -145,7 +144,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
 
     // Agregar dados dos clientes por rota
     clientes?.forEach((cliente: any) => {
-      const rota = cidadeRotaMap.get(cliente.codigo_ibge_cidade);
+      const rota = clienteRotaMap.get(cliente.codigo_cliente)?.rota;
 
       if (rota && rotasMap.has(rota)) {
         const stats = rotasMap.get(rota)!;

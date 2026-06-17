@@ -63,6 +63,7 @@ interface ClienteSemRota {
   nome_fantasia: string
   cidade: string
   estado: string
+  bairro: string
   situacao: string
   cod_vendedor: number
   vendedor_apelido: string
@@ -305,19 +306,27 @@ const DashboardRotas: React.FC = () => {
         setVendedores(vendedoresList)
 
         // 8. Carregar resumo de clientes por rota para filtros dinâmicos
-        // Mapa ibge_cidade -> { rota, vendedorUuid } a partir de vw_cidades_com_meta
-        const ibgeRotaMap = new Map<string, { rota: string; vendedorUuid: string }>()
-        cidadesComMeta?.forEach(cidade => {
-          if (cidade.codigo_ibge_cidade && cidade.rota && cidade.vendedor_uuid) {
-            ibgeRotaMap.set(cidade.codigo_ibge_cidade, { rota: cidade.rota, vendedorUuid: cidade.vendedor_uuid })
-          }
-        })
-
         const todosCodsVendedor = Array.from(vendedoresUnicos.values())
           .map(v => v.cod_vendedor)
           .filter((cod): cod is number => cod !== null && cod !== undefined)
 
         if (todosCodsVendedor.length === 0) return
+
+        // Resolve a rota de cada cliente (grão misto: bairro > cidade) via vw_cliente_rota.
+        // Por-cliente (não por-cidade) para suportar capitais divididas em macrorregiões.
+        const codToUuid = new Map<number, string>()
+        vendedoresUnicos.forEach((d, uuid) => codToUuid.set(d.cod_vendedor, uuid))
+        const { data: clienteRotaRows } = await supabase
+          .from('vw_cliente_rota')
+          .select('codigo_cliente, cod_vendedor, rota_resolvida')
+          .in('cod_vendedor', todosCodsVendedor)
+          .not('rota_resolvida', 'is', null)
+          .limit(10000)
+        const clienteRotaMap = new Map<number, { rota: string; vendedorUuid: string }>()
+        clienteRotaRows?.forEach((r: any) => {
+          const uuid = codToUuid.get(r.cod_vendedor)
+          if (uuid && r.rota_resolvida) clienteRotaMap.set(r.codigo_cliente, { rota: r.rota_resolvida, vendedorUuid: uuid })
+        })
 
         const { data: clientesResumoData } = await supabase
           .from('tabela_clientes')
@@ -354,8 +363,8 @@ const DashboardRotas: React.FC = () => {
               valor_ano_atual: rfm?.valor_ano_atual || 0,
               qtd_boletos: boletosRotaMap.get(c.codigo_cliente) || 0,
             }
-            // por rota
-            const rotaInfo = ibgeRotaMap.get(ibge)
+            // por rota (resolvida por cliente — grão misto bairro/cidade)
+            const rotaInfo = clienteRotaMap.get(c.codigo_cliente)
             if (rotaInfo) {
               const key = `${rotaInfo.vendedorUuid}-${rotaInfo.rota}`
               if (!mapa.has(key)) mapa.set(key, [])
@@ -588,6 +597,16 @@ const DashboardRotas: React.FC = () => {
       setLoadingClientesCidade(true)
       
       // 1. Buscar dados dos clientes e RFM
+      // Escopo por rota RESOLVIDA (grão misto): para capitais divididas em macrorregiões,
+      // restringe aos clientes da macrorregião nesta cidade — não a cidade inteira.
+      const { data: escopo } = await supabase
+        .from('vw_cliente_rota')
+        .select('codigo_cliente')
+        .eq('rota_resolvida', rotaNome)
+        .eq('cod_vendedor', codVendedor)
+        .eq('cidade', cidadeNome)
+      const codigosEscopo = (escopo || []).map((r: any) => r.codigo_cliente)
+
       const { data: clientesData, error: clientesError } = await supabase
         .from('tabela_clientes')
         .select(`
@@ -602,8 +621,7 @@ const DashboardRotas: React.FC = () => {
             perfil
           )
         `)
-        .eq('cidade', cidadeNome)
-        .eq('cod_vendedor', codVendedor)
+        .in('codigo_cliente', codigosEscopo)
         .not('situacao', 'in', '("I","B")')
 
       if (clientesError) throw clientesError
@@ -720,25 +738,15 @@ const DashboardRotas: React.FC = () => {
 
       if (codVendedoresFiltrados.length === 0) { setClientesSemRota([]); return }
 
-      // rotas_estado tem 1938 linhas para os 6 vendors rastreados — limite explícito evita truncamento do Supabase (padrão 1000)
-      const { data: rotasCidades } = await supabase
-        .from('rotas_estado')
-        .select('cod_vendedor, codigo_ibge_cidade')
-        .in('cod_vendedor', codVendedoresFiltrados)
-        .limit(3000)
-
-      const cidadesPorVendedor = new Map<number, Set<string>>()
-      ;(rotasCidades || []).forEach((rc: any) => {
-        if (!cidadesPorVendedor.has(rc.cod_vendedor)) cidadesPorVendedor.set(rc.cod_vendedor, new Set())
-        cidadesPorVendedor.get(rc.cod_vendedor)!.add(rc.codigo_ibge_cidade)
-      })
-
+      // vw_cliente_rota resolve cada cliente no grão correto (bairro > cidade):
+      // rota_resolvida IS NULL == cliente sem rota. A regra de grão misto vive no banco,
+      // então capitais migradas para rota-por-bairro são tratadas automaticamente.
       const { data: clientesData, error } = await supabase
-        .from('tabela_clientes')
-        .select('codigo_cliente, nome_fantasia, cidade, estado, situacao, cod_vendedor, codigo_ibge_cidade')
+        .from('vw_cliente_rota')
+        .select('codigo_cliente, nome_fantasia, cidade, estado, bairro, situacao, cod_vendedor')
         .in('cod_vendedor', codVendedoresFiltrados)
+        .is('rota_resolvida', null)
         .not('situacao', 'in', '("I","B")')
-        .not('codigo_ibge_cidade', 'is', null)
         .limit(5000)
 
       if (error) throw error
@@ -746,15 +754,12 @@ const DashboardRotas: React.FC = () => {
       const vendedorApelidoMap = new Map(rotasData.map(r => [r.cod_vendedor, r.vendedor_apelido]))
 
       const semRota = (clientesData || [])
-        .filter((c: any) => {
-          const cidades = cidadesPorVendedor.get(c.cod_vendedor)
-          return !cidades || !cidades.has(c.codigo_ibge_cidade ?? '')
-        })
         .map((c: any): ClienteSemRota => ({
           codigo_cliente: c.codigo_cliente,
           nome_fantasia: c.nome_fantasia || `Cliente ${c.codigo_cliente}`,
           cidade: c.cidade || '—',
           estado: c.estado || '—',
+          bairro: c.bairro || '—',
           situacao: c.situacao || '—',
           cod_vendedor: c.cod_vendedor,
           vendedor_apelido: vendedorApelidoMap.get(c.cod_vendedor) || `Vendedor ${c.cod_vendedor}`,
@@ -1360,7 +1365,7 @@ const DashboardRotas: React.FC = () => {
           >
             <div>
               <h3 className="text-sm font-bold text-gray-800">Clientes Sem Rota</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Clientes ativos cuja cidade não está mapeada em nenhuma rota do vendedor</p>
+              <p className="text-xs text-gray-500 mt-0.5">Clientes ativos cuja cidade ou bairro não está mapeado em nenhuma rota do vendedor</p>
             </div>
             <div className="flex items-center gap-2">
               {semRotaCarregado && (
@@ -1385,7 +1390,7 @@ const DashboardRotas: React.FC = () => {
                     <thead>
                       <tr className="bg-gray-50 text-gray-600 border-b border-gray-100">
                         <th className="text-left px-4 py-2 font-semibold">Cliente</th>
-                        <th className="text-left px-4 py-2 font-semibold">Cidade / UF</th>
+                        <th className="text-left px-4 py-2 font-semibold">Cidade / Bairro</th>
                         <th className="text-left px-4 py-2 font-semibold">Vendedor</th>
                         <th className="text-center px-4 py-2 font-semibold">Situação</th>
                       </tr>
@@ -1397,7 +1402,12 @@ const DashboardRotas: React.FC = () => {
                             <span className="truncate block max-w-[180px]">{c.nome_fantasia}</span>
                             <span className="text-gray-500 text-[10px]">Cód. {c.codigo_cliente}</span>
                           </td>
-                          <td className="px-4 py-2 text-gray-600">{c.cidade} — {c.estado}</td>
+                          <td className="px-4 py-2 text-gray-600">
+                            <span className="block">{c.cidade} — {c.estado}</span>
+                            {c.bairro && c.bairro !== '—' && (
+                              <span className="text-gray-400 text-[10px]">{c.bairro}</span>
+                            )}
+                          </td>
                           <td className="px-4 py-2 text-gray-600">{c.vendedor_apelido}</td>
                           <td className="px-4 py-2 text-center">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.situacao === 'P' ? 'bg-red-100 text-red-600' : c.situacao === 'B' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-500'}`}>
