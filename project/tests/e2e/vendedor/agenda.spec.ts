@@ -12,11 +12,12 @@ test.describe('Vendedor — Agenda', () => {
     const agenda = new AgendaPage(page);
     await agenda.goto();
 
-    // Não deve ficar preso em erro de carregamento dos agendamentos
+    // Não deve ficar preso em erro nem em carregamento dos agendamentos
     await expect(agenda.erroCarregamento).toHaveCount(0);
+    await expect(agenda.carregando).toHaveCount(0);
 
-    // Estado final: lista de agendamentos OU estado vazio explícito
-    await expect(agenda.vazioDia.or(page.locator('main'))).toBeVisible();
+    // Estado terminal renderizado (lista de agendamentos OU vazio — ambos dentro de main)
+    await expect(page.getByRole('main').first()).toBeVisible();
 
     expect(relevantErrors(errors), relevantErrors(errors).join('\n')).toEqual([]);
   });
