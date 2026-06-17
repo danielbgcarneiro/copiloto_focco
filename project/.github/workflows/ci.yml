@@ -1,4 +1,5 @@
 name: CI
+# Pipeline: quality (lint+complexity, unit, build) + e2e (Playwright, opcional via RUN_E2E)
 
 on:
   push:
