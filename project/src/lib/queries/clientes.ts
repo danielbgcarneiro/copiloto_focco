@@ -17,6 +17,90 @@ interface AnaliseRfmData {
   perfil?: string;
 }
 
+type ClienteBase = {
+  codigo_cliente: number;
+  nome_fantasia: string;
+  cidade: string | null;
+  bairro: string | null;
+  codigo_ibge_cidade: string | null;
+};
+
+/**
+ * Enriquece uma lista de clientes-base com dados RFM e marca de visita recente.
+ * Compartilhado entre o fluxo por-cidade (getClientesPorVendedor) e por-rota
+ * (getClientesPorRota) para evitar divergência de payload entre as duas telas.
+ *
+ * @param resolveRota define o campo `rota` de cada cliente (depende do fluxo).
+ */
+async function enriquecerComRfmEVisitas(
+  clientesBase: ClienteBase[],
+  userId: string,
+  resolveRota: (cliente: ClienteBase) => string | undefined,
+) {
+  if (clientesBase.length === 0) {
+    return [];
+  }
+
+  const codigosClientes = clientesBase.map(c => c.codigo_cliente);
+
+  // Buscar dados RFM separadamente
+  const { data: rfmData, error: rfmError } = await supabase
+    .from('analise_rfm')
+    .select('codigo_cliente, valor_ano_atual, meta_ano_atual, dias_sem_comprar, previsao_pedido, perfil')
+    .in('codigo_cliente', codigosClientes);
+
+  if (rfmError) {
+    console.error('Erro ao buscar analise_rfm:', rfmError);
+  }
+
+  const rfmMap = new Map<number, AnaliseRfmData>();
+  rfmData?.forEach(rfm => {
+    rfmMap.set(rfm.codigo_cliente, rfm);
+  });
+
+  const clientesFormatados = clientesBase.map(cliente => {
+    const rfmObject: AnaliseRfmData = rfmMap.get(cliente.codigo_cliente) || {};
+
+    const metaAnoAtual = rfmObject?.meta_ano_atual || 0;
+    const valorAnoAtual = rfmObject?.valor_ano_atual || 0;
+
+    return {
+      ...cliente,
+      vendedor_uuid: userId,
+      rota: resolveRota(cliente),
+      analise_rfm: {
+        valor_ano_atual: valorAnoAtual,
+        meta_ano_atual: metaAnoAtual,
+        dias_sem_comprar: rfmObject?.dias_sem_comprar || 0,
+        previsao_pedido: rfmObject?.previsao_pedido || 0,
+        saldo_meta: metaAnoAtual > 0 ? metaAnoAtual - valorAnoAtual : 0,
+        percentual_atingimento: metaAnoAtual > 0 ? (valorAnoAtual / metaAnoAtual) * 100 : 0,
+        perfil: rfmObject?.perfil,
+      }
+    };
+  });
+
+  // Buscar visitas recentes (72h) para marcar clientes já visitados
+  const { data: visitas, error: visitasError } = await supabase
+    .from('visitas')
+    .select('codigo_cliente')
+    .eq('vendedor_id', userId)
+    .eq('ativo', true)
+    .in('codigo_cliente', codigosClientes)
+    .gte('data_visita', new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString());
+
+  if (visitasError) {
+    console.warn('Erro ao buscar visitas:', visitasError);
+  }
+
+  const clientesVisitados = new Set(visitas?.map(v => v.codigo_cliente) || []);
+
+  return clientesFormatados.map(cliente => ({
+    ...cliente,
+    visitado: clientesVisitados.has(cliente.codigo_cliente)
+  }));
+}
+
 export async function getClientesPorVendedor(_vendedorId?: string, cidade?: string) {
   // Buscar dados do usuário atual (padrão das outras queries)
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -100,73 +184,76 @@ export async function getClientesPorVendedor(_vendedorId?: string, cidade?: stri
     return [];
   }
 
-  // Buscar dados RFM separadamente
-  const codigosClientes = data.map(c => c.codigo_cliente);
-  const { data: rfmData, error: rfmError } = await supabase
-    .from('analise_rfm')
-    .select('codigo_cliente, valor_ano_atual, meta_ano_atual, dias_sem_comprar, previsao_pedido, perfil')
-    .in('codigo_cliente', codigosClientes);
+  // Enriquecer com RFM + visitas; rota resolvida por cidade (rotas_estado)
+  return enriquecerComRfmEVisitas(
+    data as ClienteBase[],
+    user.id,
+    cliente => (cliente.codigo_ibge_cidade ? cidadeRotaMap.get(cliente.codigo_ibge_cidade) : undefined),
+  );
+}
 
-  if (rfmError) {
-    console.error('Erro ao buscar analise_rfm:', rfmError);
+/**
+ * Busca clientes de uma rota específica (incl. macrorregiões de grão bairro).
+ *
+ * Resolve os códigos de cliente via vw_cliente_rota (bairro-aware, escopada por
+ * cod_vendedor), depois busca os dados em tabela_clientes aplicando o filtro de
+ * situação I/B — espelhando getRotasCompleto para que a contagem da tela bata
+ * exatamente com a do card da rota. NÃO lê os clientes direto da view porque ela
+ * inclui inativos (I/B), que não devem aparecer.
+ */
+export async function getClientesPorRota(rota: string) {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error('Usuário não autenticado');
   }
 
-  // Criar mapa de RFM para lookup rápido
-  const rfmMap = new Map<number, AnaliseRfmData>();
-  rfmData?.forEach(rfm => {
-    rfmMap.set(rfm.codigo_cliente, rfm);
-  });
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('cod_vendedor')
+    .eq('id', user.id)
+    .single();
 
-  // Combinar dados de clientes com RFM
-  const clientesFormatados = data.map(cliente => {
-    const rfmObject: AnaliseRfmData = rfmMap.get(cliente.codigo_cliente) || {};
+  if (profileError || !profile) {
+    throw new Error('Vendedor não encontrado');
+  }
 
-    const metaAnoAtual = rfmObject?.meta_ano_atual || 0;
-    const valorAnoAtual = rfmObject?.valor_ano_atual || 0;
-
-    const rotaDoCliente = cliente.codigo_ibge_cidade
-      ? cidadeRotaMap.get(cliente.codigo_ibge_cidade)
-      : undefined;
-
-    return {
-      ...cliente,
-      vendedor_uuid: user.id,
-      rota: rotaDoCliente,
-      analise_rfm: {
-        valor_ano_atual: valorAnoAtual,
-        meta_ano_atual: metaAnoAtual,
-        dias_sem_comprar: rfmObject?.dias_sem_comprar || 0,
-        previsao_pedido: rfmObject?.previsao_pedido || 0,
-        saldo_meta: metaAnoAtual > 0 ? metaAnoAtual - valorAnoAtual : 0,
-        percentual_atingimento: metaAnoAtual > 0 ? (valorAnoAtual / metaAnoAtual) * 100 : 0,
-        perfil: rfmObject?.perfil,
-      }
-    };
-  });
-
-  // Buscar visitas recentes para todos os clientes (tabela nova: visitas)
-  const { data: visitas, error: visitasError } = await supabase
-    .from('visitas')
+  // 1. Resolver os códigos de cliente da rota via view (escopada por cod_vendedor)
+  const { data: clienteRotas, error: viewError } = await supabase
+    .from('vw_cliente_rota')
     .select('codigo_cliente')
-    .eq('vendedor_id', user.id)
-    .eq('ativo', true)
-    .in('codigo_cliente', codigosClientes)
-    .gte('data_visita', new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString());
+    .eq('cod_vendedor', profile.cod_vendedor)
+    .eq('rota_resolvida', rota);
 
-  if (visitasError) {
-    console.warn('Erro ao buscar visitas:', visitasError);
+  if (viewError) {
+    console.error('❌ Erro ao resolver clientes da rota:', viewError);
+    return [];
   }
 
-  // Criar set de clientes visitados para lookup rápido
-  const clientesVisitados = new Set(visitas?.map(v => v.codigo_cliente) || []);
+  const codigos = clienteRotas?.map(c => c.codigo_cliente) || [];
+  if (codigos.length === 0) {
+    return [];
+  }
 
-  // Adicionar campo visitado aos dados dos clientes
-  const clientesComVisitas = clientesFormatados.map(cliente => ({
-    ...cliente,
-    visitado: clientesVisitados.has(cliente.codigo_cliente)
-  }));
-  
-  return clientesComVisitas;
+  // 2. Buscar dados base aplicando o filtro de situação I/B (paridade com o card)
+  const { data, error } = await supabase
+    .from('tabela_clientes')
+    .select('codigo_cliente, nome_fantasia, cidade, bairro, codigo_ibge_cidade')
+    .eq('cod_vendedor', profile.cod_vendedor)
+    .in('codigo_cliente', codigos)
+    .not('situacao', 'in', '("I","B")')
+    .order('nome_fantasia');
+
+  if (error) {
+    console.error('Erro ao buscar clientes da rota:', error);
+    throw error;
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  // 3. Enriquecer; a rota é conhecida (a própria macrorregião)
+  return enriquecerComRfmEVisitas(data as ClienteBase[], user.id, () => rota);
 }
 // Função para fazer check-in de visita - SIMPLIFICADA
 export async function fazerCheckInVisita(codigoCliente: number) {

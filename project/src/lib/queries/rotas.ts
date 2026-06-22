@@ -9,6 +9,13 @@ import { supabase } from '../supabase';
 
 export interface RotaMapeada {
   nome: string;
+  /**
+   * Grão da rota: 'bairro' = macrorregião (vive dentro de uma única cidade) |
+   * 'cidade' = rota de cidade/interior. Resolvido via vw_cliente_rota.
+   * Usado para decidir o drill-down: macrorregião pula a página /cidades.
+   * Invariante validada no banco: nenhuma rota mistura grãos.
+   */
+  grao: 'bairro' | 'cidade';
   totalCidades: number;
   totalOticas: number;
   somaOportunidades: number;
@@ -73,7 +80,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
     // 4. Resolver a rota de cada cliente via vw_cliente_rota (bairro tem precedência sobre cidade)
     const { data: clienteRotas, error: clienteRotasError } = await supabase
       .from('vw_cliente_rota')
-      .select('codigo_cliente, rota_resolvida, cidade')
+      .select('codigo_cliente, rota_resolvida, cidade, grao')
       .eq('cod_vendedor', profile.cod_vendedor)
       .not('rota_resolvida', 'is', null);
 
@@ -82,11 +89,18 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
       return [];
     }
 
-    // Mapeamento codigo_cliente -> { rota, cidade } (grão misto: bairro ou cidade)
-    const clienteRotaMap = new Map<number, { rota: string; cidade: string }>();
+    // Mapeamento codigo_cliente -> { rota, cidade, grao } (grão misto: bairro ou cidade)
+    const clienteRotaMap = new Map<number, { rota: string; cidade: string; grao: 'bairro' | 'cidade' }>();
+    // Grão por rota: macrorregião = 'bairro'. Invariante validada (nenhuma rota mistura
+    // grãos), então a primeira ocorrência basta — usamos 'bairro' como precedência defensiva.
+    const rotaGraoMap = new Map<string, 'bairro' | 'cidade'>();
     clienteRotas?.forEach(cr => {
       if (cr.rota_resolvida) {
-        clienteRotaMap.set(cr.codigo_cliente, { rota: cr.rota_resolvida, cidade: cr.cidade ?? '' });
+        const grao: 'bairro' | 'cidade' = cr.grao === 'bairro' ? 'bairro' : 'cidade';
+        clienteRotaMap.set(cr.codigo_cliente, { rota: cr.rota_resolvida, cidade: cr.cidade ?? '', grao });
+        if (grao === 'bairro' || !rotaGraoMap.has(cr.rota_resolvida)) {
+          rotaGraoMap.set(cr.rota_resolvida, grao);
+        }
       }
     });
 
@@ -173,6 +187,7 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
     const rotasMapeadas: RotaMapeada[] = Array.from(rotasMap.values())
       .map(stats => ({
         nome: stats.nome,
+        grao: rotaGraoMap.get(stats.nome) ?? 'cidade',
         totalCidades: stats.totalCidades.size,
         totalOticas: stats.totalOticas,
         somaOportunidades: stats.somaOportunidades,
@@ -193,6 +208,33 @@ export async function getRotasCompleto(): Promise<RotaMapeada[]> {
     console.error('💥 Erro ao buscar rotas completo:', error);
     throw error;
   }
+}
+
+/**
+ * Retorna o grão de uma rota ('bairro' = macrorregião | 'cidade'), ou null se a
+ * rota não resolve nenhum cliente para o vendedor logado. Usado pelo fallback de
+ * navegação (entrada por URL direta em /cidades de uma macrorregião).
+ */
+export async function getGraoDaRota(rota: string): Promise<'bairro' | 'cidade' | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('cod_vendedor')
+    .eq('id', session.user.id)
+    .single();
+  if (!profile) return null;
+
+  const { data, error } = await supabase
+    .from('vw_cliente_rota')
+    .select('grao')
+    .eq('cod_vendedor', profile.cod_vendedor)
+    .eq('rota_resolvida', rota)
+    .limit(1);
+
+  if (error || !data || data.length === 0) return null;
+  return data[0].grao === 'bairro' ? 'bairro' : 'cidade';
 }
 
 // Função SEPARADA para buscar métricas detalhadas por cidade
@@ -228,6 +270,7 @@ export async function getMetricasDetalhadasPorRota(): Promise<RotaMapeada[]> {
       if (!acc[rotaName]) {
         acc[rotaName] = {
           nome: rotaName,
+          grao: 'cidade',
           totalCidades: 0,
           totalOticas: 0,
           somaOportunidades: 0,

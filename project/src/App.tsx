@@ -74,6 +74,15 @@ const router = createBrowserRouter([
         path: "/rotas/:rotaId/cidades/:cidadeNome/clientes/:clienteId/detalhes",
         element: <DetalhesClienteV2 />
       },
+      // Drill-down direto para rotas de macrorregião (grão bairro): pula /cidades
+      {
+        path: "/rotas/:rotaId/clientes",
+        element: <Clientes />
+      },
+      {
+        path: "/rotas/:rotaId/clientes/:clienteId/detalhes",
+        element: <DetalhesClienteV2 />
+      },
       {
         path: "/clientes/detalhes/:id",
         element: <DetalhesClienteV2 />

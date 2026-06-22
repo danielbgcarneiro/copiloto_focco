@@ -10,7 +10,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Check, Clock, MapPin, CheckCircle, Calendar, Plus, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { getClientesPorVendedor } from '../../lib/queries/clientes'
+import { getClientesPorVendedor, getClientesPorRota } from '../../lib/queries/clientes'
 import { getClienteInadimplenteDetalhes, ClienteInadimplente } from '../../lib/queries/inadimplentes'
 import { getTitulosClienteResumo, TitulosClienteResumo } from '../../lib/queries/titulos'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
@@ -82,14 +82,18 @@ const Clientes: React.FC = () => {
   // Carregar clientes ao montar o componente
   useEffect(() => {
     carregarClientes()
-  }, [user, cidadeDecodificada])
+  }, [user, cidadeDecodificada, rotaNome])
 
   async function carregarClientes() {
     try {
       setLoading(true)
 
-      // Buscar clientes direto com filtro por cidade (se especificada)
-      const dados = await getClientesPorVendedor(undefined, cidadeDecodificada || undefined)
+      // Dois modos de entrada:
+      // - via /rotas/:rotaId/cidades/:cidadeNome/clientes → filtra por cidade
+      // - via /rotas/:rotaId/clientes (macrorregião) → filtra pela rota resolvida
+      const dados = cidadeDecodificada
+        ? await getClientesPorVendedor(undefined, cidadeDecodificada)
+        : await getClientesPorRota(rotaNome || 'sem-rota')
 
       // Setar clientes e remover loading imediatamente para UX rápida
       setClientes(dados)
@@ -469,8 +473,13 @@ const Clientes: React.FC = () => {
         className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden"
         onClick={() => {
           const rotaPath = rotaNome ? encodeURIComponent(rotaNome) : 'sem-rota'
-          const cidadePath = cidadeDecodificada ? encodeURIComponent(cidadeDecodificada) : 'sem-cidade'
-          navigate(`/rotas/${rotaPath}/cidades/${cidadePath}/clientes/${cliente.codigo_cliente}/detalhes`)
+          // Modo-rota (macrorregião) não tem segmento de cidade na URL
+          if (cidadeDecodificada) {
+            const cidadePath = encodeURIComponent(cidadeDecodificada)
+            navigate(`/rotas/${rotaPath}/cidades/${cidadePath}/clientes/${cliente.codigo_cliente}/detalhes`)
+          } else {
+            navigate(`/rotas/${rotaPath}/clientes/${cliente.codigo_cliente}/detalhes`)
+          }
         }}
       >
         {/* Header */}

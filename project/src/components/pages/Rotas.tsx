@@ -79,7 +79,16 @@ const Rotas: React.FC = () => {
       <Card
         variant="interactive"
         padding="none"
-        onClick={() => navigate(`/rotas/${encodeURIComponent(rota.nome || 'sem-rota')}/cidades`)}
+        onClick={() => {
+          const rotaPath = encodeURIComponent(rota.nome || 'sem-rota')
+          // Macrorregião (grão bairro) vive numa única cidade → pula /cidades e
+          // vai direto aos clientes da rota. Rota de cidade segue o fluxo normal.
+          navigate(
+            rota.grao === 'bairro'
+              ? `/rotas/${rotaPath}/clientes`
+              : `/rotas/${rotaPath}/cidades`
+          )
+        }}
       >
         {/* Header */}
         <div className="p-4">

@@ -10,6 +10,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Search, MapPin, Home, AlertTriangle, TrendingUp, Funnel, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getCidadesCompleto, normalizeText, type CidadeMapeada } from '../../lib/queries/cidades'
+import { getGraoDaRota } from '../../lib/queries/rotas'
 import { getEmptyStateMessage } from '../../lib/utils/userHelpers'
 import { Card } from '../atoms'
 import { formatCurrency } from '../../utils'
@@ -53,7 +54,18 @@ const Cidades: React.FC = () => {
         email: user.email,
         rota: rotaNome
       })
-      
+
+      // Fallback defensivo: se a rota for macrorregião (grão bairro), o nível
+      // /cidades não se aplica → redireciona direto aos clientes da rota.
+      // Cobre entrada por URL direta / bookmark (a navegação normal já desvia).
+      if (rotaNome && rotaNome !== 'sem-rota') {
+        const grao = await getGraoDaRota(rotaNome)
+        if (grao === 'bairro') {
+          navigate(`/rotas/${encodeURIComponent(rotaNome)}/clientes`, { replace: true })
+          return
+        }
+      }
+
       const cidadesData = await getCidadesCompleto(rotaNome === 'sem-rota' ? null : rotaNome || undefined)
       console.log('✅ Cidades carregadas:', cidadesData)
       
