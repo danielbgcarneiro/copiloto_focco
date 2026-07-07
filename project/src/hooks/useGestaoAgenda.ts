@@ -9,8 +9,8 @@ import { getAllVendedores } from '../lib/queries/vendedores'
 import { calcularMetaSemana } from '../utils/agendaUtils'
 import type { AgendaTotalizacaoItem } from '../components/molecules/AgendaTotalizacaoCard'
 
-export type PeriodoAgenda = 'semana' | 'mes'
 export type PeriodoAgendaDetalhe = 'semana' | 'mes' | 'trimestre'
+export type PeriodoAgenda = PeriodoAgendaDetalhe
 
 export interface TopMotivo {
   motivo: string
@@ -22,6 +22,7 @@ export interface ClienteNaoVisitado {
   nomeCliente: string
   diasSemComprar: number
   perfil: string
+  situacaoErp: string
 }
 
 export interface UltimaVisita {
@@ -36,6 +37,8 @@ export interface UltimaVisita {
   observacoes: string | null
   inativado: boolean
   inativadoEm: string | null
+  /** Situação do cliente em tabela_clientes (A/E/S/V adimplente, P/B pendente/bloqueado, I inativo, C cancelado) — independente do flag manual `inativado`. */
+  situacaoErp: string
 }
 
 export interface KpisDetalhadosVendedor {
@@ -98,41 +101,87 @@ function formatDateLocal(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-function getPeriodoDates(periodo: PeriodoAgenda): { inicio: string; fim: string } {
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
-  const fim = formatDateLocal(hoje)
-
-  if (periodo === 'semana') {
-    const inicio = new Date(hoje)
-    inicio.setDate(inicio.getDate() - inicio.getDay()) // domingo desta semana
-    return { inicio: formatDateLocal(inicio), fim }
-  } else {
-    const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
-    return { inicio: formatDateLocal(inicio), fim }
-  }
+function comHoraZero(date: Date): Date {
+  const r = new Date(date)
+  r.setHours(0, 0, 0, 0)
+  return r
 }
 
-function getPeriodoDatesDetalhe(periodo: PeriodoAgendaDetalhe): { inicio: string; fim: string; numSemanas: number } {
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
-  const fim = formatDateLocal(hoje)
+function startOfWeek(d: Date): Date {
+  const r = comHoraZero(d)
+  r.setDate(r.getDate() - r.getDay()) // domingo
+  return r
+}
+function endOfWeek(d: Date): Date {
+  const r = startOfWeek(d)
+  r.setDate(r.getDate() + 6) // sábado
+  return r
+}
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1)
+}
+function endOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0)
+}
 
-  let inicio: Date
+/**
+ * Resolve início/fim de um período de agenda ancorado em `refDate` (dia de referência
+ * dentro do período desejado — navegação move `refDate` para o período anterior/seguinte).
+ * `fim` nunca ultrapassa hoje (sem dias futuros); `isAtual` indica se o período contém hoje,
+ * usado para desabilitar a navegação "próximo" além do período corrente.
+ * Trimestre = últimos 3 meses corridos terminando no mês de `refDate` (janela rolante, não
+ * trimestre-calendário).
+ */
+export function getPeriodoDatesDetalhe(
+  periodo: PeriodoAgendaDetalhe,
+  refDate: Date = new Date()
+): { inicio: string; fim: string; numSemanas: number; isAtual: boolean } {
+  const hoje = comHoraZero(new Date())
+  const ref = comHoraZero(refDate)
+
+  let inicioDate: Date
+  let fimNatural: Date
   if (periodo === 'semana') {
-    inicio = new Date(hoje)
-    inicio.setDate(inicio.getDate() - inicio.getDay())
+    inicioDate = startOfWeek(ref)
+    fimNatural = endOfWeek(ref)
   } else if (periodo === 'mes') {
-    inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+    inicioDate = startOfMonth(ref)
+    fimNatural = endOfMonth(ref)
   } else {
-    const quarterStart = Math.floor(hoje.getMonth() / 3) * 3
-    inicio = new Date(hoje.getFullYear(), quarterStart, 1)
+    inicioDate = startOfMonth(new Date(ref.getFullYear(), ref.getMonth() - 2, 1))
+    fimNatural = endOfMonth(ref)
   }
 
-  const diffMs = Math.max(hoje.getTime() - inicio.getTime(), 0)
+  const isAtual = hoje.getTime() >= inicioDate.getTime() && hoje.getTime() <= fimNatural.getTime()
+  const fimDate = fimNatural.getTime() > hoje.getTime() ? hoje : fimNatural
+
+  const diffMs = Math.max(fimDate.getTime() - inicioDate.getTime(), 0)
   const numSemanas = Math.max(1, diffMs / (7 * 24 * 60 * 60 * 1000))
 
-  return { inicio: formatDateLocal(inicio), fim, numSemanas }
+  return { inicio: formatDateLocal(inicioDate), fim: formatDateLocal(fimDate), numSemanas, isAtual }
+}
+
+function getPeriodoDates(periodo: PeriodoAgenda, refDate: Date = new Date()): { inicio: string; fim: string } {
+  const { inicio, fim } = getPeriodoDatesDetalhe(periodo, refDate)
+  return { inicio, fim }
+}
+
+/** Move a data de referência um período inteiro para trás (semana ±7d, mês/trimestre ±1/±3 meses). */
+export function previousPeriodoRefDate(periodo: PeriodoAgendaDetalhe, refDate: Date): Date {
+  const d = new Date(refDate)
+  if (periodo === 'semana') d.setDate(d.getDate() - 7)
+  else if (periodo === 'mes') d.setMonth(d.getMonth() - 1)
+  else d.setMonth(d.getMonth() - 3)
+  return d
+}
+
+/** Move a data de referência um período inteiro para frente. */
+export function nextPeriodoRefDate(periodo: PeriodoAgendaDetalhe, refDate: Date): Date {
+  const d = new Date(refDate)
+  if (periodo === 'semana') d.setDate(d.getDate() + 7)
+  else if (periodo === 'mes') d.setMonth(d.getMonth() + 1)
+  else d.setMonth(d.getMonth() + 3)
+  return d
 }
 
 // ─── tipos de linha (resultados das queries) ─────────────────────────────────
@@ -280,10 +329,15 @@ export function computeCobertura(visitas: VisitaRow[], clientesAtivos: ClienteRo
 }
 
 /** Mapa de nomes usando TODOS os clientes (inclusive I/B) p/ visitas históricas. */
-function buildClienteNomeMap(clientes: ClienteRow[]): Map<number, string> {
-  const clienteNomeMap = new Map<number, string>()
+type ClienteInfo = { nome: string; situacao: string }
+
+function buildClienteNomeMap(clientes: ClienteRow[]): Map<number, ClienteInfo> {
+  const clienteNomeMap = new Map<number, ClienteInfo>()
   for (const c of clientes) {
-    clienteNomeMap.set(c.codigo_cliente, c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`)
+    clienteNomeMap.set(c.codigo_cliente, {
+      nome: c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`,
+      situacao: c.situacao || '',
+    })
   }
   return clienteNomeMap
 }
@@ -297,6 +351,7 @@ function buildClientesNaoVisitados(clientesAtivos: ClienteRow[], visitadosSet: S
       nomeCliente: c.nome_fantasia || c.razao_social || `Cliente ${c.codigo_cliente}`,
       diasSemComprar: rfmMap.get(c.codigo_cliente)?.diasSemComprar ?? 0,
       perfil: rfmMap.get(c.codigo_cliente)?.perfil ?? '',
+      situacaoErp: c.situacao || '',
     }))
     .sort((a, b) => b.diasSemComprar - a.diasSemComprar)
 }
@@ -304,7 +359,7 @@ function buildClientesNaoVisitados(clientesAtivos: ClienteRow[], visitadosSet: S
 /** AC7 — Últimas visitas (lista completa do período). */
 function buildUltimasVisitas(
   visitas: VisitaRow[],
-  clienteNomeMap: Map<number, string>,
+  clienteNomeMap: Map<number, ClienteInfo>,
   motivoDescMap: Map<number, string>,
   motivoCanonicalMap: Map<number, string>,
 ): UltimaVisita[] {
@@ -312,12 +367,13 @@ function buildUltimasVisitas(
     visitaId: v.id,
     data: v.data_visita,
     codigoCliente: v.codigo_cliente,
-    nomeCliente: clienteNomeMap.get(v.codigo_cliente) ?? `Cliente ${v.codigo_cliente}`,
+    nomeCliente: clienteNomeMap.get(v.codigo_cliente)?.nome ?? `Cliente ${v.codigo_cliente}`,
     resultado: v.resultado ?? '',
     valorRealizado: v.valor_realizado,
     motivo: v.motivo_nao_venda_id != null ? (motivoDescMap.get(v.motivo_nao_venda_id) ?? null) : null,
     motivoCanonical: v.motivo_nao_venda_id != null ? (motivoCanonicalMap.get(v.motivo_nao_venda_id) ?? null) : null,
     observacoes: v.observacoes ?? null,
+    situacaoErp: clienteNomeMap.get(v.codigo_cliente)?.situacao ?? '',
     inativado: v.cliente_inativado ?? false,
     inativadoEm: v.inativado_em ?? null,
   }))
@@ -325,9 +381,10 @@ function buildUltimasVisitas(
 
 async function fetchKpisDetalhados(
   vendedorId: string,
-  periodo: PeriodoAgendaDetalhe
+  periodo: PeriodoAgendaDetalhe,
+  refDate: Date = new Date()
 ): Promise<KpisDetalhadosVendedor> {
-  const { inicio, fim, numSemanas } = getPeriodoDatesDetalhe(periodo)
+  const { inicio, fim, numSemanas } = getPeriodoDatesDetalhe(periodo, refDate)
   const hoje = new Date()
 
   // 1. Perfil do vendedor
@@ -490,13 +547,14 @@ export function countSemVisita60d(
 }
 
 async function fetchKpis(
-  periodo: PeriodoAgenda
+  periodo: PeriodoAgenda,
+  refDate: Date = new Date()
 ): Promise<{ kpis: KpisVendedor[]; resumo: ResumoEquipe }> {
-  const { inicio, fim } = getPeriodoDates(periodo)
+  const { inicio, fim } = getPeriodoDates(periodo, refDate)
   const hoje = new Date()
 
-  // 1. Vendedores
-  const vendedores = (await getAllVendedores()) ?? []
+  // 1. Vendedores (inclui inativos — filtrados abaixo por atividade no período)
+  const vendedores = (await getAllVendedores({ incluirInativos: true })) ?? []
   if (vendedores.length === 0) {
     return { kpis: [], resumo: { totalVisitas: 0, totalVendasGeradas: 0, totalAgendamentosPendentes: 0, forecastTotal: 0 } }
   }
@@ -558,12 +616,21 @@ async function fetchKpis(
     metaPorCodVendedor.set(m.cod_vendedor, m.meta_valor ?? 0)
   }
 
-  // Montar KPIs por vendedor
-  const kpis: KpisVendedor[] = vendedores.map((vendedor) => {
+  // Montar KPIs por vendedor.
+  // Vendedores ativos sempre aparecem (mesmo com zero atividade — sinaliza quem não visitou
+  // ninguém no período). Vendedores inativos só aparecem quando têm registro no período.
+  const kpis: KpisVendedor[] = vendedores
+    .filter((vendedor) => {
+      if (vendedor.status === 'ativo') return true
+      const temVisitas = (visitasPorVendedor.get(vendedor.id) ?? []).length > 0
+      const temAgs = (agsPorVendedor.get(vendedor.id) ?? []).length > 0
+      return temVisitas || temAgs
+    })
+    .map((vendedor) => {
     const visitas = visitasPorVendedor.get(vendedor.id) ?? []
     const ags = agsPorVendedor.get(vendedor.id) ?? []
     const metaMensal = metaPorCodVendedor.get(vendedor.cod_vendedor ?? -1) ?? 0
-    const meta = periodo === 'semana' ? metaMensal / 4 : metaMensal
+    const meta = periodo === 'semana' ? metaMensal / 4 : periodo === 'trimestre' ? metaMensal * 3 : metaMensal
 
     const total = visitas.length
     const vendeu = visitas.filter((v) => v.resultado === 'vendeu').length
@@ -595,7 +662,7 @@ async function fetchKpis(
   return { kpis, resumo }
 }
 
-export function useGestaoAgenda(periodo: PeriodoAgenda) {
+export function useGestaoAgenda(periodo: PeriodoAgenda, refDate: Date = new Date()) {
   const [kpis, setKpis] = useState<KpisVendedor[]>([])
   const [resumo, setResumo] = useState<ResumoEquipe>({
     totalVisitas: 0,
@@ -605,12 +672,13 @@ export function useGestaoAgenda(periodo: PeriodoAgenda) {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const refDateMs = refDate.getTime()
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const result = await fetchKpis(periodo)
+      const result = await fetchKpis(periodo, new Date(refDateMs))
       setKpis(result.kpis)
       setResumo(result.resumo)
     } catch (err) {
@@ -618,7 +686,7 @@ export function useGestaoAgenda(periodo: PeriodoAgenda) {
     } finally {
       setLoading(false)
     }
-  }, [periodo])
+  }, [periodo, refDateMs])
 
   useEffect(() => {
     load()
@@ -627,24 +695,25 @@ export function useGestaoAgenda(periodo: PeriodoAgenda) {
   return { kpis, resumo, loading, error }
 }
 
-export function useKpisDetalhadosVendedor(vendedorId: string, periodo: PeriodoAgendaDetalhe) {
+export function useKpisDetalhadosVendedor(vendedorId: string, periodo: PeriodoAgendaDetalhe, refDate: Date = new Date()) {
   const [data, setData] = useState<KpisDetalhadosVendedor | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const refDateMs = refDate.getTime()
 
   const load = useCallback(async () => {
     if (!vendedorId) return
     setLoading(true)
     setError(null)
     try {
-      const result = await fetchKpisDetalhados(vendedorId, periodo)
+      const result = await fetchKpisDetalhados(vendedorId, periodo, new Date(refDateMs))
       setData(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
     } finally {
       setLoading(false)
     }
-  }, [vendedorId, periodo])
+  }, [vendedorId, periodo, refDateMs])
 
   useEffect(() => {
     load()

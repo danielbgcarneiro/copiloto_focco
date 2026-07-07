@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGestaoAgenda, PeriodoAgenda } from '../../hooks/useGestaoAgenda'
 import { ResumoEquipeCard } from '../molecules/ResumoEquipeCard'
 import { VendedorAgendaCard } from '../molecules/VendedorAgendaCard'
+import { PeriodoNavigator } from '../molecules/PeriodoNavigator'
 import { useState } from 'react'
 
 function Skeleton() {
@@ -36,34 +37,49 @@ function Skeleton() {
 export default function GestaoAgenda() {
   const navigate = useNavigate()
   const [periodo, setPeriodo] = useState<PeriodoAgenda>('semana')
-  const { kpis, resumo, loading, error } = useGestaoAgenda(periodo)
+  const [refDate, setRefDate] = useState(() => new Date())
+  const { kpis, resumo, loading, error } = useGestaoAgenda(periodo, refDate)
 
   return (
     <div className="px-4 py-4">
       {/* AC2: Filtro de período */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setPeriodo('semana')}
-          className={[
-            'px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer',
-            periodo === 'semana'
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-          ].join(' ')}
-        >
-          Semana atual
-        </button>
-        <button
-          onClick={() => setPeriodo('mes')}
-          className={[
-            'px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer',
-            periodo === 'mes'
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-          ].join(' ')}
-        >
-          Mês atual
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setPeriodo('semana')}
+            className={[
+              'px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer',
+              periodo === 'semana'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+            ].join(' ')}
+          >
+            Semana
+          </button>
+          <button
+            onClick={() => setPeriodo('mes')}
+            className={[
+              'px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer',
+              periodo === 'mes'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+            ].join(' ')}
+          >
+            Mês
+          </button>
+          <button
+            onClick={() => setPeriodo('trimestre')}
+            className={[
+              'px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer',
+              periodo === 'trimestre'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+            ].join(' ')}
+          >
+            Trimestre
+          </button>
+        </div>
+        <PeriodoNavigator periodo={periodo} refDate={refDate} onChange={setRefDate} />
       </div>
 
       {loading ? (

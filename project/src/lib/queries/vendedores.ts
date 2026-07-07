@@ -19,14 +19,17 @@ export interface VendedorProfile {
   updated_at: string | null;
 }
 
-export async function getAllVendedores(): Promise<VendedorProfile[] | null> {
+export async function getAllVendedores(opts?: { incluirInativos?: boolean }): Promise<VendedorProfile[] | null> {
   try {
     console.log('👥 Buscando todos os vendedores...');
-    const { data, error } = await supabase
+    let query = supabase
       .from('profiles')
       .select('id, cod_vendedor, nome_completo, apelido, cargo, status, vendedor_responsavel, created_at, updated_at')
-      .eq('cargo', 'vendedor')
-      .eq('status', 'ativo');
+      .eq('cargo', 'vendedor');
+    if (!opts?.incluirInativos) {
+      query = query.eq('status', 'ativo');
+    }
+    const { data, error } = await query;
 
     if (error) {
       console.error('❌ Erro ao buscar todos os vendedores:', error);

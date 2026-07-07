@@ -22,10 +22,14 @@ import { KpiForecastCard } from '../molecules/KpiForecastCard'
 import { KpiQualidadeCard } from '../molecules/KpiQualidadeCard'
 import { CoberturaCarteiraSummary } from '../molecules/CoberturaCarteiraSummary'
 import { AgendaTotalizacaoCard } from '../molecules/AgendaTotalizacaoCard'
+import { PeriodoNavigator } from '../molecules/PeriodoNavigator'
 import { getAllVendedores, VendedorProfile } from '../../lib/queries/vendedores'
 import { supabase } from '../../lib/supabase'
 
 type Tab = 'resumo' | 'agenda' | 'cobertura' | 'visitas'
+
+/** Situação já inativa/bloqueada em tabela_clientes — mesmo critério usado para "clientesAtivos" no hook de KPIs. */
+const SITUACAO_INATIVA_ERP = new Set(['I', 'B'])
 
 const RESULTADO_LABELS: Record<string, { label: string; color: string }> = {
   vendeu: { label: 'Vendeu', color: 'bg-green-100 text-green-700' },
@@ -113,6 +117,7 @@ function VisitasTab({
             const isEncerrou = v.motivoCanonical === 'ENCERROU_ATIVIDADES'
             const estadoInativado = visitasInativadas[v.visitaId]
             const inativado = estadoInativado?.inativado ?? v.inativado
+            const jaInativoNoErp = !inativado && SITUACAO_INATIVA_ERP.has(v.situacaoErp)
             return (
               <div
                 key={i}
@@ -128,6 +133,11 @@ function VisitasTab({
                       {inativado && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gray-200 text-gray-500 flex-shrink-0">
                           Inativado
+                        </span>
+                      )}
+                      {jaInativoNoErp && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-amber-100 text-amber-700 flex-shrink-0">
+                          Já inativo no ERP
                         </span>
                       )}
                     </div>
@@ -167,6 +177,7 @@ export default function GestaoAgendaVendedor() {
   const { vendedorId } = useParams<{ vendedorId: string }>()
   const navigate = useNavigate()
   const [periodo, setPeriodo] = useState<PeriodoAgendaDetalhe>('mes')
+  const [refDate, setRefDate] = useState(() => new Date())
   const [tab, setTab] = useState<Tab>('resumo')
   const hoje = useRef(new Date()).current
 
@@ -175,7 +186,7 @@ export default function GestaoAgendaVendedor() {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    getAllVendedores().then((v) => setVendedores(v ?? []))
+    getAllVendedores({ incluirInativos: true }).then((v) => setVendedores(v ?? []))
   }, [])
 
   useEffect(() => {
@@ -188,7 +199,7 @@ export default function GestaoAgendaVendedor() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showDropdown])
 
-  const { data, loading, error } = useKpisDetalhadosVendedor(vendedorId ?? '', periodo)
+  const { data, loading, error } = useKpisDetalhadosVendedor(vendedorId ?? '', periodo, refDate)
   const [visitaSelecionada, setVisitaSelecionada] = useState<UltimaVisita | null>(null)
   const [confirmando, setConfirmando] = useState(false)
   const [visitasInativadas, setVisitasInativadas] = useState<Record<string, { inativado: boolean; inativadoEm: string }>>({})
@@ -213,7 +224,7 @@ export default function GestaoAgendaVendedor() {
   return (
     <div className="flex flex-col min-h-0">
       {/* AC2: Filtro de período + seletor de vendedor */}
-      <div className="flex items-center gap-2 px-4 pt-4 pb-2 bg-white border-b border-gray-100">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-4 pb-2 bg-white border-b border-gray-100">
         {/* Botões de período */}
         <div className="flex gap-1.5">
           {(['semana', 'mes', 'trimestre'] as PeriodoAgendaDetalhe[]).map((p) => (
@@ -231,6 +242,8 @@ export default function GestaoAgendaVendedor() {
             </button>
           ))}
         </div>
+
+        <PeriodoNavigator periodo={periodo} refDate={refDate} onChange={setRefDate} />
 
         {/* Dropdown de vendedor */}
         <VendedorDropdown
@@ -389,7 +402,9 @@ export default function GestaoAgendaVendedor() {
                   <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                     <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-800">
-                      Realize a inativação manualmente no ERP e confirme aqui para registrar.
+                      {SITUACAO_INATIVA_ERP.has(visitaSelecionada.situacaoErp)
+                        ? `Este cliente já está inativo no ERP (situação "${visitaSelecionada.situacaoErp}"), mas isso ainda não foi confirmado aqui.`
+                        : 'Realize a inativação manualmente no ERP e confirme aqui para registrar.'}
                     </p>
                   </div>
                   <button
