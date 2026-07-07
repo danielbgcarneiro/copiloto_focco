@@ -118,6 +118,32 @@ function resolveCidadeMetrics(cidade: any, mf: any, temFiltro: boolean) {
   return { meta, vendas, oportunidades, qtd, at }
 }
 
+/**
+ * Pagina uma consulta Supabase em blocos de `pageSize`.
+ * O PostgREST aplica um teto de "Max Rows" no servidor que corta silenciosamente
+ * respostas de `.limit()`/`.range()` maiores — sem paginação, uma consulta sem
+ * ORDER BY pode devolver um subconjunto arbitrário e omitir vendedores inteiros.
+ */
+async function fetchAllRows<T = any>(
+  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>,
+  pageSize = 1000
+): Promise<T[]> {
+  const all: T[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await buildQuery(from, from + pageSize - 1)
+    if (error) {
+      console.error('Erro ao paginar consulta:', error)
+      break
+    }
+    if (!data || data.length === 0) break
+    all.push(...data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
+  return all
+}
+
 const DashboardRotas: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -316,35 +342,41 @@ const DashboardRotas: React.FC = () => {
         // Por-cliente (não por-cidade) para suportar capitais divididas em macrorregiões.
         const codToUuid = new Map<number, string>()
         vendedoresUnicos.forEach((d, uuid) => codToUuid.set(d.cod_vendedor, uuid))
-        const { data: clienteRotaRows } = await supabase
-          .from('vw_cliente_rota')
-          .select('codigo_cliente, cod_vendedor, rota_resolvida')
-          .in('cod_vendedor', todosCodsVendedor)
-          .not('rota_resolvida', 'is', null)
-          .limit(10000)
+        const clienteRotaRows = await fetchAllRows((from, to) =>
+          supabase
+            .from('vw_cliente_rota')
+            .select('codigo_cliente, cod_vendedor, rota_resolvida')
+            .in('cod_vendedor', todosCodsVendedor)
+            .not('rota_resolvida', 'is', null)
+            .range(from, to)
+        )
         const clienteRotaMap = new Map<number, { rota: string; vendedorUuid: string }>()
-        clienteRotaRows?.forEach((r: any) => {
+        clienteRotaRows.forEach((r: any) => {
           const uuid = codToUuid.get(r.cod_vendedor)
           if (uuid && r.rota_resolvida) clienteRotaMap.set(r.codigo_cliente, { rota: r.rota_resolvida, vendedorUuid: uuid })
         })
 
-        const { data: clientesResumoData } = await supabase
-          .from('tabela_clientes')
-          .select(`codigo_cliente, cod_vendedor, situacao, codigo_ibge_cidade, analise_rfm (dias_sem_comprar, previsao_pedido, meta_ano_atual, valor_ano_atual)`)
-          .not('situacao', 'in', '("I","B")')
-          .in('cod_vendedor', todosCodsVendedor)
-          .limit(5000)
+        const clientesResumoData = await fetchAllRows((from, to) =>
+          supabase
+            .from('tabela_clientes')
+            .select(`codigo_cliente, cod_vendedor, situacao, codigo_ibge_cidade, analise_rfm (dias_sem_comprar, previsao_pedido, meta_ano_atual, valor_ano_atual)`)
+            .not('situacao', 'in', '("I","B")')
+            .in('cod_vendedor', todosCodsVendedor)
+            .range(from, to)
+        )
 
-        if (clientesResumoData && clientesResumoData.length > 0) {
+        if (clientesResumoData.length > 0) {
           const codigosAll = clientesResumoData.map((c: any) => c.codigo_cliente)
           const boletosRotaMap = new Map<number, number>()
           try {
-            const { data: boletoData } = await supabase
-              .from('titulos_aberto_clientes')
-              .select('codigo_cliente')
-              .in('codigo_cliente', codigosAll)
-              .limit(10000)
-            boletoData?.forEach((r: any) => {
+            const boletoData = await fetchAllRows((from, to) =>
+              supabase
+                .from('titulos_aberto_clientes')
+                .select('codigo_cliente')
+                .in('codigo_cliente', codigosAll)
+                .range(from, to)
+            )
+            boletoData.forEach((r: any) => {
               boletosRotaMap.set(r.codigo_cliente, (boletosRotaMap.get(r.codigo_cliente) || 0) + 1)
             })
           } catch { /* boletos opcionais */ }
